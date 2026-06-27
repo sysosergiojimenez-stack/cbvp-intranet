@@ -35,22 +35,19 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-// Local cache for session
-function getStoredUser(): Usuario | null {
-  const saved = sessionStorage.getItem('cbvp_sesion');
-  if (saved) {
-    try {
-      const data = JSON.parse(saved);
-      if (data.timestamp && (Date.now() - data.timestamp) < 8 * 60 * 60 * 1000) {
-        return data.usuario;
-      }
-    } catch { /* ignore */ }
-  }
-  return null;
-}
-
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [usuario, setUsuario] = useState<Usuario | null>(getStoredUser);
+  const [usuario, setUsuario] = useState<Usuario | null>(() => {
+    const saved = sessionStorage.getItem('cbvp_sesion');
+    if (saved) {
+      try {
+        const data = JSON.parse(saved);
+        if (data.timestamp && (Date.now() - data.timestamp) < 8 * 60 * 60 * 1000) {
+          return data.usuario;
+        }
+      } catch { /* ignore */ }
+    }
+    return null;
+  });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -92,60 +89,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setIsLoading(false);
         return false;
       }
-    } catch (err) {
-      // Fallback: if backend is not configured, use mock data
-      const mockUsers: Record<string, { password: string; user: Usuario }> = {
-        'admin@cbvp.py': {
-          password: 'admin123',
-          user: {
-            exito: true, identificador: '1', codigo: 'C-1001/18', categoria: 'Activo',
-            cargo: 'Comandante', rango: 'Capitan', nivelPermiso: 5,
-            descripcionPermiso: 'Administrador Total', accesosPermiso: 'Todas las funciones',
-            nombreCompleto: 'Carlos Antonio Gonzalez Rios', correo: 'admin@cbvp.py',
-          },
-        },
-        'oficial@cbvp.py': {
-          password: 'oficial123',
-          user: {
-            exito: true, identificador: '2', codigo: 'C-1002/19', categoria: 'Activo',
-            cargo: 'Oficial', rango: 'Teniente', nivelPermiso: 4,
-            descripcionPermiso: 'Oficial', accesosPermiso: 'Edicion y gestion',
-            nombreCompleto: 'Maria Elena Fernandez Lopez', correo: 'oficial@cbvp.py',
-          },
-        },
-        'bombero@cbvp.py': {
-          password: 'bombero123',
-          user: {
-            exito: true, identificador: '6', codigo: 'C-1006/21', categoria: 'Activo',
-            cargo: 'Voluntario(a)', rango: 'Distinguido', nivelPermiso: 2,
-            descripcionPermiso: 'Voluntario', accesosPermiso: 'Ver y cargar',
-            nombreCompleto: 'Pedro Jose Acosta Cardozo', correo: 'bombero@cbvp.py',
-          },
-        },
-        'perfil@cbvp.py': {
-          password: 'perfil123',
-          user: {
-            exito: true, identificador: '10', codigo: 'C-1010/23', categoria: 'Activo',
-            cargo: 'Voluntario(a)', rango: 'Aspirante', nivelPermiso: 1,
-            descripcionPermiso: 'Solo Perfil', accesosPermiso: 'Ver perfil propio',
-            nombreCompleto: 'Roberto Alejandro Castillo Duarte', correo: 'perfil@cbvp.py',
-          },
-        },
-      };
-
-      const key = correo.trim().toLowerCase();
-      const found = mockUsers[key];
-      if (found && found.password === contrasena.trim()) {
-        setUsuario(found.user);
-        sessionStorage.setItem('cbvp_sesion', JSON.stringify({
-          usuario: found.user,
-          timestamp: Date.now(),
-        }));
-        setIsLoading(false);
-        return true;
-      }
-
-      setError('Correo o contrasena incorrectos');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Error de conexion con el servidor';
+      setError(message);
       setIsLoading(false);
       return false;
     }

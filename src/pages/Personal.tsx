@@ -1,7 +1,6 @@
 import { useState, useMemo } from 'react';
 import { usePermiso } from '@/hooks/usePermiso';
 import { trpc } from '@/providers/trpc';
-import { PERSONAL_DATA, getGuardiasByBombero } from '@/data/mockData';
 import type { Personal, GuardiaHistorial, EstadisticasGuardias } from '@/types';
 import {
   Search, User, Shield, Award, Calendar, Hash, Radio,
@@ -16,38 +15,31 @@ export default function PersonalPage() {
   const [fichaData, setFichaData] = useState<{ guardias: GuardiaHistorial[]; stats: EstadisticasGuardias } | null>(null);
   const [expandedStats, setExpandedStats] = useState(true);
 
-  // Try tRPC first, fallback to mock data
-  const { data: rpcData, isLoading: rpcLoading } = trpc.personal.list.useQuery(
+  const { data: rpcData, isLoading: rpcLoading, error: rpcError } = trpc.personal.list.useQuery(
     undefined,
-    { retry: false, refetchOnWindowFocus: false }
+    { retry: 1, refetchOnWindowFocus: false }
   );
 
-  const listPersonal: Personal[] = useMemo(() => {
-    if (rpcData?.exito && rpcData.personal.length > 0) {
-      return rpcData.personal.map((p) => ({
-        ...p,
-        segundoNombre: '',
-        segundoApellido: '',
-        nroDoc: '',
-        fechaNacimiento: '',
-        correo: '',
-        primerNombre: p.nombreCompleto.split(' ')[0] || '',
-        primerApellido: p.nombreCompleto.split(' ').slice(1).join(' ') || '',
-      })) as Personal[];
-    }
-    return PERSONAL_DATA;
-  }, [rpcData]);
-
   const sortedPersonal = useMemo<Personal[]>(() => {
-    return [...listPersonal].sort((a: Personal, b: Personal) => {
-      const anioA = parseInt(a.anioJuramento) || 0;
-      const anioB = parseInt(b.anioJuramento) || 0;
-      if (anioA !== anioB) return anioA - anioB;
-      const numA = parseInt(a.codigo.match(/\d+/)?.[0] || '0');
-      const numB = parseInt(b.codigo.match(/\d+/)?.[0] || '0');
-      return numA - numB;
-    });
-  }, [listPersonal]);
+    if (!rpcData?.exito) return [];
+    return rpcData.personal.map((p) => ({
+      identificador: p.identificador,
+      codigo: p.codigo,
+      anioJuramento: p.anioJuramento,
+      categoria: p.categoria,
+      cargo: p.cargo,
+      rango: p.rango,
+      codigoRadial: p.codigoRadial,
+      nombreCompleto: p.nombreCompleto,
+      segundoNombre: '',
+      segundoApellido: '',
+      nroDoc: '',
+      fechaNacimiento: '',
+      correo: '',
+      primerNombre: p.nombreCompleto.split(' ')[0] || '',
+      primerApellido: p.nombreCompleto.split(' ').slice(1).join(' ') || '',
+    })) as Personal[];
+  }, [rpcData]);
 
   const filtered = useMemo<Personal[]>(() => {
     return sortedPersonal.filter((p: Personal) =>
@@ -60,16 +52,11 @@ export default function PersonalPage() {
   }, [sortedPersonal, search]);
 
   const handleVerFicha = (bombero: Personal) => {
-    // Try tRPC historial
-    const rpcHistorial = trpc.personal.historial.useQuery(
-      { codigo: bombero.codigo },
-      { retry: false, refetchOnWindowFocus: false, enabled: false }
-    );
-
-    // Use mock fallback
-    const data = getGuardiasByBombero(bombero.codigo);
-    setFichaData(data);
     setSelectedBombero(bombero);
+    setFichaData({ guardias: [], stats: {
+      totalGuardias: 0, guardiasNormales: 0, guardiasEspeciales: 0,
+      refuerzos: 0, presentes: 0, acacr: 0, acasr: 0, asasr: 0
+    }});
   };
 
   const getTipoBadge = (tipo: string) => {
@@ -98,7 +85,6 @@ export default function PersonalPage() {
       <h1 className="text-2xl font-bold text-white mb-6">Gestion del Personal</h1>
 
       <div className="bg-white/[0.03] border border-white/5 rounded-xl p-5">
-        {/* Search */}
         <div className="relative mb-4">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
           <input
@@ -110,25 +96,16 @@ export default function PersonalPage() {
           />
         </div>
 
-        {/* Stats summary */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
-          <div className="bg-white/[0.03] rounded-lg p-3 text-center">
-            <p className="text-2xl font-bold text-cbvp-red">{listPersonal.length}</p>
-            <p className="text-[10px] text-white/40 uppercase">Total Bomberos</p>
+        {/* Error from backend */}
+        {rpcError && (
+          <div className="mb-4 p-4 bg-cbvp-red/10 border border-cbvp-red/20 rounded-lg flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-cbvp-red shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm text-cbvp-red-light font-medium">Error al conectar con Google Sheets</p>
+              <p className="text-xs text-white/40 mt-1">{rpcError.message}</p>
+            </div>
           </div>
-          <div className="bg-white/[0.03] rounded-lg p-3 text-center">
-            <p className="text-2xl font-bold text-cbvp-green">{listPersonal.filter((p: Personal) => p.categoria === 'Activo').length}</p>
-            <p className="text-[10px] text-white/40 uppercase">Activos</p>
-          </div>
-          <div className="bg-white/[0.03] rounded-lg p-3 text-center">
-            <p className="text-2xl font-bold text-cbvp-blue">{new Set(listPersonal.map((p: Personal) => p.anioJuramento)).size}</p>
-            <p className="text-[10px] text-white/40 uppercase">Promociones</p>
-          </div>
-          <div className="bg-white/[0.03] rounded-lg p-3 text-center">
-            <p className="text-2xl font-bold text-cbvp-orange">{listPersonal.filter((p: Personal) => p.cargo !== 'Voluntario(a)').length}</p>
-            <p className="text-[10px] text-white/40 uppercase">Oficiales</p>
-          </div>
-        </div>
+        )}
 
         {rpcLoading && (
           <div className="flex items-center justify-center py-8">
@@ -137,55 +114,74 @@ export default function PersonalPage() {
           </div>
         )}
 
-        {/* Table */}
-        {!rpcLoading && (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-cbvp-red/10 text-white/60 text-xs uppercase">
-                  <th className="px-3 py-3 text-left rounded-tl-lg">Rango</th>
-                  <th className="px-3 py-3 text-left">Categoria</th>
-                  <th className="px-3 py-3 text-left">Codigo</th>
-                  <th className="px-3 py-3 text-left">Anio</th>
-                  <th className="px-3 py-3 text-left rounded-tr-lg">Nombre Completo</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/5">
-                {filtered.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="px-3 py-12 text-center text-white/40">
-                      <Users className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                      No hay bomberos registrados.
-                    </td>
+        {!rpcLoading && !rpcError && rpcData?.exito && (
+          <>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+              <div className="bg-white/[0.03] rounded-lg p-3 text-center">
+                <p className="text-2xl font-bold text-cbvp-red">{sortedPersonal.length}</p>
+                <p className="text-[10px] text-white/40 uppercase">Total Bomberos</p>
+              </div>
+              <div className="bg-white/[0.03] rounded-lg p-3 text-center">
+                <p className="text-2xl font-bold text-cbvp-green">{sortedPersonal.filter((p: Personal) => p.categoria === 'Activo').length}</p>
+                <p className="text-[10px] text-white/40 uppercase">Activos</p>
+              </div>
+              <div className="bg-white/[0.03] rounded-lg p-3 text-center">
+                <p className="text-2xl font-bold text-cbvp-blue">{new Set(sortedPersonal.map((p: Personal) => p.anioJuramento)).size}</p>
+                <p className="text-[10px] text-white/40 uppercase">Promociones</p>
+              </div>
+              <div className="bg-white/[0.03] rounded-lg p-3 text-center">
+                <p className="text-2xl font-bold text-cbvp-orange">{sortedPersonal.filter((p: Personal) => p.cargo !== 'Voluntario(a)').length}</p>
+                <p className="text-[10px] text-white/40 uppercase">Oficiales</p>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-cbvp-red/10 text-white/60 text-xs uppercase">
+                    <th className="px-3 py-3 text-left rounded-tl-lg">Rango</th>
+                    <th className="px-3 py-3 text-left">Categoria</th>
+                    <th className="px-3 py-3 text-left">Codigo</th>
+                    <th className="px-3 py-3 text-left">Anio</th>
+                    <th className="px-3 py-3 text-left rounded-tr-lg">Nombre Completo</th>
                   </tr>
-                ) : (
-                  filtered.map((bombero: Personal) => (
-                    <tr
-                      key={bombero.identificador}
-                      onClick={() => handleVerFicha(bombero)}
-                      className="hover:bg-cbvp-red/5 cursor-pointer transition-colors group"
-                    >
-                      <td className="px-3 py-3">
-                        <span className="text-xs bg-white/5 px-2 py-0.5 rounded flex items-center gap-1 w-fit">
-                          <Award className="w-3 h-3 text-cbvp-red/60" />
-                          {bombero.rango}
-                        </span>
-                      </td>
-                      <td className="px-3 py-3 text-white/60">{bombero.categoria}</td>
-                      <td className="px-3 py-3"><code className="text-xs bg-white/5 px-1.5 py-0.5 rounded text-white/70">{bombero.codigo}</code></td>
-                      <td className="px-3 py-3 text-white/60">{bombero.anioJuramento}</td>
-                      <td className="px-3 py-3">
-                        <span className="text-white font-medium group-hover:text-cbvp-red transition-colors">{bombero.nombreCompleto}</span>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                  {filtered.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="px-3 py-12 text-center text-white/40">
+                        <Users className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                        No hay bomberos registrados.
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+                  ) : (
+                    filtered.map((bombero: Personal) => (
+                      <tr
+                        key={bombero.identificador}
+                        onClick={() => handleVerFicha(bombero)}
+                        className="hover:bg-cbvp-red/5 cursor-pointer transition-colors group"
+                      >
+                        <td className="px-3 py-3">
+                          <span className="text-xs bg-white/5 px-2 py-0.5 rounded flex items-center gap-1 w-fit">
+                            <Award className="w-3 h-3 text-cbvp-red/60" />
+                            {bombero.rango}
+                          </span>
+                        </td>
+                        <td className="px-3 py-3 text-white/60">{bombero.categoria}</td>
+                        <td className="px-3 py-3"><code className="text-xs bg-white/5 px-1.5 py-0.5 rounded text-white/70">{bombero.codigo}</code></td>
+                        <td className="px-3 py-3 text-white/60">{bombero.anioJuramento}</td>
+                        <td className="px-3 py-3">
+                          <span className="text-white font-medium group-hover:text-cbvp-red transition-colors">{bombero.nombreCompleto}</span>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+            <p className="text-xs text-white/30 mt-3 text-center">Mostrando {filtered.length} bombero(s) desde Google Sheets</p>
+          </>
         )}
-
-        <p className="text-xs text-white/30 mt-3 text-center">Mostrando {filtered.length} bombero(s)</p>
       </div>
 
       {/* Ficha Modal */}

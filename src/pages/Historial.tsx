@@ -1,7 +1,6 @@
 import { useState, useMemo } from 'react';
 import { usePermiso } from '@/hooks/usePermiso';
 import { trpc } from '@/providers/trpc';
-import { PLANILLAS_MOCK } from '@/data/mockData';
 import type { PlanillaEncabezado, GuardiaPersonal } from '@/types';
 import {
   Search, Eye, Pencil, Trash2, ExternalLink, X, Save,
@@ -16,14 +15,12 @@ export default function Historial() {
   const [editPlanilla, setEditPlanilla] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [detalleData, setDetalleData] = useState<GuardiaPersonal[]>([]);
-  const [planillasLocal, setPlanillasLocal] = useState<PlanillaEncabezado[]>(PLANILLAS_MOCK);
   const [editForm, setEditForm] = useState<Partial<PlanillaEncabezado>>({});
   const itemsPerPage = 5;
 
-  // Try tRPC first
-  const { data: rpcData, isLoading: rpcLoading, refetch } = trpc.planillas.historial.useQuery(
+  const { data: rpcData, isLoading: rpcLoading, error: rpcError, refetch } = trpc.planillas.historial.useQuery(
     undefined,
-    { retry: false, refetchOnWindowFocus: false }
+    { retry: 1, refetchOnWindowFocus: false }
   );
 
   const deleteMutation = trpc.planillas.eliminar.useMutation({
@@ -31,11 +28,9 @@ export default function Historial() {
   });
 
   const listPlanillas: PlanillaEncabezado[] = useMemo(() => {
-    if (rpcData?.exito && rpcData.planillas.length > 0) {
-      return rpcData.planillas;
-    }
-    return planillasLocal;
-  }, [rpcData, planillasLocal]);
+    if (!rpcData?.exito) return [];
+    return rpcData.planillas;
+  }, [rpcData]);
 
   const filtered = useMemo(() => {
     return listPlanillas.filter(p =>
@@ -51,29 +46,18 @@ export default function Historial() {
 
   const handleVer = (id: string) => {
     setViewPlanilla(id);
-    // Try to load detail via tRPC
-    trpc.planillas.detalle.useQuery(
-      { idPlanilla: id },
-      { retry: false, refetchOnWindowFocus: false, enabled: true }
-    );
   };
 
   const handleEliminar = async (id: string) => {
     try {
       await deleteMutation.mutateAsync({ idPlanilla: id });
-      setPlanillasLocal(prev => prev.filter(p => p.idPlanilla !== id));
     } catch {
-      // Fallback: just remove from local state
-      setPlanillasLocal(prev => prev.filter(p => p.idPlanilla !== id));
+      // Silently handle delete error
     }
     setDeleteConfirm(null);
   };
 
   const handleGuardarEdicion = () => {
-    if (!editPlanilla) return;
-    setPlanillasLocal(prev => prev.map(p =>
-      p.idPlanilla === editPlanilla ? { ...p, ...editForm } as PlanillaEncabezado : p
-    ));
     setEditPlanilla(null);
     setEditForm({});
   };
@@ -106,7 +90,6 @@ export default function Historial() {
       <h1 className="text-2xl font-bold text-white mb-6">Historial de Planillas</h1>
 
       <div className="bg-white/[0.03] border border-white/5 rounded-xl p-5">
-        {/* Search */}
         <div className="relative mb-4">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
           <input
@@ -118,6 +101,16 @@ export default function Historial() {
           />
         </div>
 
+        {rpcError && (
+          <div className="mb-4 p-4 bg-cbvp-red/10 border border-cbvp-red/20 rounded-lg flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-cbvp-red shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm text-cbvp-red-light font-medium">Error al conectar con Google Sheets</p>
+              <p className="text-xs text-white/40 mt-1">{rpcError.message}</p>
+            </div>
+          </div>
+        )}
+
         {rpcLoading && (
           <div className="flex items-center justify-center py-8">
             <div className="w-6 h-6 border-2 border-cbvp-red/30 border-t-cbvp-red rounded-full animate-spin" />
@@ -125,7 +118,7 @@ export default function Historial() {
           </div>
         )}
 
-        {!rpcLoading && (
+        {!rpcLoading && !rpcError && rpcData?.exito && (
           <>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -194,7 +187,7 @@ export default function Historial() {
         )}
       </div>
 
-      {/* Modals remain the same */}
+      {/* View Modal */}
       {viewPlanilla && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setViewPlanilla(null)}>
           <div className="bg-cbvp-dark-light border border-white/10 rounded-2xl max-w-3xl w-full max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
