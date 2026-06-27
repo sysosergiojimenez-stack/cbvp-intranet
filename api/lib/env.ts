@@ -15,8 +15,8 @@ export const env = {
   databaseUrl: required("DATABASE_URL"),
 
   // Google Sheets Configuration
-  GOOGLE_SERVICE_ACCOUNT_JSON: required("GOOGLE_SERVICE_ACCOUNT_JSON"),
-  GEMINI_API_KEY: required("GEMINI_API_KEY"),
+  GOOGLE_SERVICE_ACCOUNT_JSON: required("GOOGLE_SERVICE_ACCOUNT_JSON").replace(/^'|'$/g, ""),
+  GEMINI_API_KEY: required("GEMINI_API_KEY").replace(/^'|'$/g, ""),
   SHEET_USUARIOS_ID: required("SHEET_USUARIOS_ID"),
   SHEET_GUARDIAS_ID: required("SHEET_GUARDIAS_ID"),
   DRIVE_FOLDER_ID: required("DRIVE_FOLDER_ID"),
