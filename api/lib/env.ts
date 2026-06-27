@@ -13,4 +13,11 @@ export const env = {
   appSecret: required("APP_SECRET"),
   isProduction: process.env.NODE_ENV === "production",
   databaseUrl: required("DATABASE_URL"),
+
+  // Google Sheets Configuration
+  GOOGLE_SERVICE_ACCOUNT_JSON: required("GOOGLE_SERVICE_ACCOUNT_JSON"),
+  GEMINI_API_KEY: required("GEMINI_API_KEY"),
+  SHEET_USUARIOS_ID: required("SHEET_USUARIOS_ID"),
+  SHEET_GUARDIAS_ID: required("SHEET_GUARDIAS_ID"),
+  DRIVE_FOLDER_ID: required("DRIVE_FOLDER_ID"),
 };

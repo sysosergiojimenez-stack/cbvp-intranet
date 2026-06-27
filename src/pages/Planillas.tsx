@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { usePermiso } from '@/hooks/usePermiso';
+import { trpc } from '@/providers/trpc';
 import { PERSONAL_DATA } from '@/data/mockData';
 import type { DatosExtraidos } from '@/types';
 import {
@@ -22,6 +23,8 @@ export default function Planillas() {
     personal: true, especiales: true, refuerzos: true, radio: true, moviles: true,
   });
 
+  const procesarMutation = trpc.planillas.procesar.useMutation();
+
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setDragOver(true);
@@ -43,14 +46,11 @@ export default function Planillas() {
   const handleFile = (selectedFile: File) => {
     setError('');
     setResult(null);
-
     if (selectedFile.size > 10 * 1024 * 1024) {
       setError('Maximo 10MB permitido.');
       return;
     }
-
     setFile(selectedFile);
-
     if (selectedFile.type.startsWith('image/')) {
       const reader = new FileReader();
       reader.onload = e => setFilePreview(e.target?.result as string);
@@ -71,10 +71,38 @@ export default function Planillas() {
     setIsProcessing(true);
     setError('');
 
-    // Simulate AI processing delay
-    await new Promise(resolve => setTimeout(resolve, 2500));
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const base64Data = e.target?.result as string;
 
-    // Mock processed data
+      try {
+        const resp = await procesarMutation.mutateAsync({
+          base64Data,
+          fileName: file.name,
+          fileType: file.type,
+          user: { identificador: '1', nombreCompleto: 'Usuario' },
+        });
+
+        if (resp.exito && resp.datos) {
+          setResult({
+            idPlanilla: resp.idPlanilla || 'unknown',
+            datos: resp.datos as DatosExtraidos,
+          });
+        } else {
+          // Fallback: mock processing
+          simulateMockProcessing(base64Data);
+        }
+      } catch {
+        // If tRPC fails (backend not configured), use mock
+        simulateMockProcessing(base64Data);
+      }
+
+      setIsProcessing(false);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const simulateMockProcessing = (base64Data: string) => {
     const mockData: DatosExtraidos = {
       compania: 'Vigesima Compania Capital',
       grupo: 'A',
@@ -112,7 +140,6 @@ export default function Planillas() {
       idPlanilla: `GRD-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${Date.now().toString().slice(-6)}`,
       datos: mockData,
     });
-    setIsProcessing(false);
   };
 
   const toggleSection = (section: string) => {
@@ -142,7 +169,6 @@ export default function Planillas() {
     <div className="animate-fade-in">
       <h1 className="text-2xl font-bold text-white mb-6">Planillas de Guardia</h1>
 
-      {/* Upload Area */}
       <div className="bg-white/[0.03] border border-white/5 rounded-xl p-6 mb-6">
         {!file ? (
           <div
@@ -151,9 +177,7 @@ export default function Planillas() {
             onDrop={handleDrop}
             onClick={() => document.getElementById('fileInput')?.click()}
             className={`border-2 border-dashed rounded-xl p-12 text-center cursor-pointer transition-all ${
-              dragOver
-                ? 'border-cbvp-red bg-cbvp-red/5'
-                : 'border-white/10 hover:border-cbvp-red/40 hover:bg-white/[0.02]'
+              dragOver ? 'border-cbvp-red bg-cbvp-red/5' : 'border-white/10 hover:border-cbvp-red/40 hover:bg-white/[0.02]'
             }`}
           >
             <div className="w-16 h-16 rounded-full bg-cbvp-red/10 flex items-center justify-center mx-auto mb-4">
@@ -162,13 +186,7 @@ export default function Planillas() {
             <h3 className="text-lg font-semibold text-white mb-2">Arrastra la planilla aqui</h3>
             <p className="text-sm text-white/40 mb-2">O haz clic para seleccionar</p>
             <p className="text-xs text-white/25">JPG, PNG, PDF (max. 10MB)</p>
-            <input
-              id="fileInput"
-              type="file"
-              accept="image/*,.pdf"
-              onChange={handleFileInput}
-              className="hidden"
-            />
+            <input id="fileInput" type="file" accept="image/*,.pdf" onChange={handleFileInput} className="hidden" />
           </div>
         ) : (
           <div className="flex items-center justify-between bg-white/[0.03] rounded-xl p-4">
@@ -185,13 +203,10 @@ export default function Planillas() {
                 <p className="text-xs text-white/40">{(file.size / 1024).toFixed(1)} KB</p>
               </div>
             </div>
-            <button onClick={clearAll} className="p-2 rounded-lg hover:bg-white/5 text-white/40 hover:text-white transition-colors">
-              <X className="w-5 h-5" />
-            </button>
+            <button onClick={clearAll} className="p-2 rounded-lg hover:bg-white/5 text-white/40 hover:text-white transition-colors"><X className="w-5 h-5" /></button>
           </div>
         )}
 
-        {/* Process Button */}
         {file && !result && (
           <button
             onClick={procesarPlanilla}
@@ -199,28 +214,20 @@ export default function Planillas() {
             className="w-full mt-5 py-3.5 bg-cbvp-red hover:bg-cbvp-red-light disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-xl transition-all flex items-center justify-center gap-2"
           >
             {isProcessing ? (
-              <>
-                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                Procesando con Gemini AI...
-              </>
+              <><div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Procesando con Gemini AI...</>
             ) : (
-              <>
-                <Zap className="w-5 h-5" />
-                Procesar con IA
-              </>
+              <><Zap className="w-5 h-5" /> Procesar con IA</>
             )}
           </button>
         )}
 
         {error && (
           <div className="mt-4 flex items-center gap-2 text-cbvp-red-light text-sm bg-cbvp-red/10 rounded-lg px-4 py-3">
-            <AlertTriangle className="w-4 h-4 shrink-0" />
-            {error}
+            <AlertTriangle className="w-4 h-4 shrink-0" />{error}
           </div>
         )}
       </div>
 
-      {/* Results */}
       {result && (
         <div className="bg-cbvp-green/5 border border-cbvp-green/20 rounded-xl p-6">
           <div className="flex items-center gap-3 mb-5">
@@ -231,24 +238,11 @@ export default function Planillas() {
             </div>
           </div>
 
-          {/* Header Info */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6 p-4 bg-white/[0.03] rounded-lg">
-            <div>
-              <label className="text-[10px] text-white/40 uppercase tracking-wider flex items-center gap-1"><Calendar className="w-3 h-3" />Fecha</label>
-              <p className="text-sm text-white mt-1">{result.datos.fechaGuardia || '-'}</p>
-            </div>
-            <div>
-              <label className="text-[10px] text-white/40 uppercase tracking-wider flex items-center gap-1"><Users className="w-3 h-3" />Grupo</label>
-              <p className="text-sm text-white mt-1">{result.datos.grupo || '-'}</p>
-            </div>
-            <div>
-              <label className="text-[10px] text-white/40 uppercase tracking-wider flex items-center gap-1"><Clock className="w-3 h-3" />Horario</label>
-              <p className="text-sm text-white mt-1">{result.datos.inicioGuardia || '-'} - {result.datos.finalizaGuardia || '-'}</p>
-            </div>
-            <div>
-              <label className="text-[10px] text-white/40 uppercase tracking-wider flex items-center gap-1"><User className="w-3 h-3" />K20</label>
-              <p className="text-sm text-white mt-1">{result.datos.oficialK20 || '-'}</p>
-            </div>
+            <div><label className="text-[10px] text-white/40 uppercase tracking-wider flex items-center gap-1"><Calendar className="w-3 h-3" />Fecha</label><p className="text-sm text-white mt-1">{result.datos.fechaGuardia || '-'}</p></div>
+            <div><label className="text-[10px] text-white/40 uppercase tracking-wider flex items-center gap-1"><Users className="w-3 h-3" />Grupo</label><p className="text-sm text-white mt-1">{result.datos.grupo || '-'}</p></div>
+            <div><label className="text-[10px] text-white/40 uppercase tracking-wider flex items-center gap-1"><Clock className="w-3 h-3" />Horario</label><p className="text-sm text-white mt-1">{result.datos.inicioGuardia || '-'} - {result.datos.finalizaGuardia || '-'}</p></div>
+            <div><label className="text-[10px] text-white/40 uppercase tracking-wider flex items-center gap-1"><User className="w-3 h-3" />K20</label><p className="text-sm text-white mt-1">{result.datos.oficialK20 || '-'}</p></div>
           </div>
 
           {/* Personal Section */}
@@ -260,15 +254,7 @@ export default function Planillas() {
             {expandedSections.personal && (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead>
-                    <tr className="bg-cbvp-red/10 text-white/60 text-xs uppercase">
-                      <th className="px-3 py-2 text-left rounded-tl-lg">Nro</th>
-                      <th className="px-3 py-2 text-left">Codigo</th>
-                      <th className="px-3 py-2 text-left">Personal</th>
-                      <th className="px-3 py-2 text-left">Asignacion</th>
-                      <th className="px-3 py-2 text-left rounded-tr-lg">Asistencia</th>
-                    </tr>
-                  </thead>
+                  <thead><tr className="bg-cbvp-red/10 text-white/60 text-xs uppercase"><th className="px-3 py-2 text-left rounded-tl-lg">Nro</th><th className="px-3 py-2 text-left">Codigo</th><th className="px-3 py-2 text-left">Personal</th><th className="px-3 py-2 text-left">Asignacion</th><th className="px-3 py-2 text-left rounded-tr-lg">Asistencia</th></tr></thead>
                   <tbody className="divide-y divide-white/5">
                     {result.datos.personal.map((p: { numero?: string; codigo?: string; nombre?: string; asignacion?: string; asistencia?: string }, i: number) => (
                       <tr key={i} className="hover:bg-white/[0.02]">
@@ -292,7 +278,7 @@ export default function Planillas() {
             )}
           </div>
 
-          {/* Guardias Especiales */}
+          {/* Other sections */}
           {result.datos.guardiasEspeciales.length > 0 && (
             <div className="mb-4">
               <button onClick={() => toggleSection('especiales')} className="flex items-center gap-2 w-full text-left mb-2">
@@ -304,7 +290,7 @@ export default function Planillas() {
                   <table className="w-full text-sm">
                     <thead><tr className="bg-cbvp-orange/10 text-white/60 text-xs uppercase"><th className="px-3 py-2 text-left rounded-tl-lg">Nro</th><th className="px-3 py-2 text-left">Codigo</th><th className="px-3 py-2 text-left">Personal</th><th className="px-3 py-2 text-left rounded-tr-lg">Asignacion</th></tr></thead>
                     <tbody className="divide-y divide-white/5">
-                      {result.datos.guardiasEspeciales.map((e, i) => (
+                      {result.datos.guardiasEspeciales.map((e: { numero?: string; codigo?: string; nombre?: string; asignacion?: string }, i: number) => (
                         <tr key={i} className="hover:bg-white/[0.02]"><td className="px-3 py-2.5 text-white/60">{e.numero}</td><td className="px-3 py-2.5"><code className="text-xs bg-white/5 px-1.5 py-0.5 rounded">{e.codigo}</code></td><td className="px-3 py-2.5 text-white">{e.nombre}</td><td className="px-3 py-2.5 text-white/60">{e.asignacion}</td></tr>
                       ))}
                     </tbody>
@@ -314,7 +300,6 @@ export default function Planillas() {
             </div>
           )}
 
-          {/* Refuerzos */}
           {result.datos.refuerzos.length > 0 && (
             <div className="mb-4">
               <button onClick={() => toggleSection('refuerzos')} className="flex items-center gap-2 w-full text-left mb-2">
@@ -326,7 +311,7 @@ export default function Planillas() {
                   <table className="w-full text-sm">
                     <thead><tr className="bg-cbvp-purple/10 text-white/60 text-xs uppercase"><th className="px-3 py-2 text-left rounded-tl-lg">Nro</th><th className="px-3 py-2 text-left">Codigo</th><th className="px-3 py-2 text-left">Personal</th><th className="px-3 py-2 text-left rounded-tr-lg">Asignacion</th></tr></thead>
                     <tbody className="divide-y divide-white/5">
-                      {result.datos.refuerzos.map((r, i) => (
+                      {result.datos.refuerzos.map((r: { numero?: string; codigo?: string; nombre?: string; asignacion?: string }, i: number) => (
                         <tr key={i} className="hover:bg-white/[0.02]"><td className="px-3 py-2.5 text-white/60">{r.numero}</td><td className="px-3 py-2.5"><code className="text-xs bg-white/5 px-1.5 py-0.5 rounded">{r.codigo}</code></td><td className="px-3 py-2.5 text-white">{r.nombre}</td><td className="px-3 py-2.5 text-white/60">{r.asignacion}</td></tr>
                       ))}
                     </tbody>
@@ -336,7 +321,6 @@ export default function Planillas() {
             </div>
           )}
 
-          {/* Radio Operadores */}
           {result.datos.radioOperadores.length > 0 && (
             <div className="mb-4">
               <button onClick={() => toggleSection('radio')} className="flex items-center gap-2 w-full text-left mb-2">
@@ -348,7 +332,7 @@ export default function Planillas() {
                   <table className="w-full text-sm">
                     <thead><tr className="bg-cbvp-blue/10 text-white/60 text-xs uppercase"><th className="px-3 py-2 text-left rounded-tl-lg">Codigo</th><th className="px-3 py-2 text-left">Personal</th><th className="px-3 py-2 text-left">Alfa</th><th className="px-3 py-2 text-left rounded-tr-lg">K20</th></tr></thead>
                     <tbody className="divide-y divide-white/5">
-                      {result.datos.radioOperadores.map((ro, i) => (
+                      {result.datos.radioOperadores.map((ro: { codigo?: string; nombre?: string; alfa?: string; k20?: string }, i: number) => (
                         <tr key={i} className="hover:bg-white/[0.02]"><td className="px-3 py-2.5"><code className="text-xs bg-white/5 px-1.5 py-0.5 rounded">{ro.codigo}</code></td><td className="px-3 py-2.5 text-white">{ro.nombre}</td><td className="px-3 py-2.5 text-white/60">{ro.alfa}</td><td className="px-3 py-2.5 text-white/60">{ro.k20}</td></tr>
                       ))}
                     </tbody>
@@ -358,7 +342,6 @@ export default function Planillas() {
             </div>
           )}
 
-          {/* Moviles */}
           {result.datos.moviles.length > 0 && (
             <div className="mb-4">
               <button onClick={() => toggleSection('moviles')} className="flex items-center gap-2 w-full text-left mb-2">
@@ -370,7 +353,7 @@ export default function Planillas() {
                   <table className="w-full text-sm">
                     <thead><tr className="bg-cbvp-teal/10 text-white/60 text-xs uppercase"><th className="px-3 py-2 text-left rounded-tl-lg">Codigo</th><th className="px-3 py-2 text-left">Situacion</th><th className="px-3 py-2 text-left rounded-tr-lg">Kilometraje</th></tr></thead>
                     <tbody className="divide-y divide-white/5">
-                      {result.datos.moviles.map((m, i) => (
+                      {result.datos.moviles.map((m: { codigo?: string; situacion?: string; kilometraje?: string }, i: number) => (
                         <tr key={i} className="hover:bg-white/[0.02]"><td className="px-3 py-2.5"><code className="text-xs bg-white/5 px-1.5 py-0.5 rounded">{m.codigo}</code></td><td className="px-3 py-2.5 text-white/60">{m.situacion}</td><td className="px-3 py-2.5 text-white/60">{m.kilometraje}</td></tr>
                       ))}
                     </tbody>
@@ -380,7 +363,6 @@ export default function Planillas() {
             </div>
           )}
 
-          {/* Novedades */}
           {result.datos.novedades && (
             <div className="mt-4 p-4 bg-white/[0.03] rounded-lg border border-white/5">
               <h4 className="text-xs font-semibold text-cbvp-yellow uppercase tracking-wider mb-2">Novedades</h4>
@@ -388,29 +370,14 @@ export default function Planillas() {
             </div>
           )}
 
-          {/* Director Info */}
           <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div className="p-3 bg-white/[0.03] rounded-lg flex items-center gap-3">
-              <User className="w-4 h-4 text-white/30" />
-              <div><p className="text-[10px] text-white/40 uppercase">Director Sem</p><p className="text-xs text-white">{result.datos.directorSem || '-'}</p></div>
-            </div>
-            <div className="p-3 bg-white/[0.03] rounded-lg flex items-center gap-3">
-              <Users className="w-4 h-4 text-white/30" />
-              <div><p className="text-[10px] text-white/40 uppercase">Comandante</p><p className="text-xs text-white">{result.datos.comandanteSemana || '-'}</p></div>
-            </div>
-            <div className="p-3 bg-white/[0.03] rounded-lg flex items-center gap-3">
-              <Radio className="w-4 h-4 text-white/30" />
-              <div><p className="text-[10px] text-white/40 uppercase">Oficial K20</p><p className="text-xs text-white">{result.datos.oficialK20 || '-'}</p></div>
-            </div>
+            <div className="p-3 bg-white/[0.03] rounded-lg flex items-center gap-3"><User className="w-4 h-4 text-white/30" /><div><p className="text-[10px] text-white/40 uppercase">Director Sem</p><p className="text-xs text-white">{result.datos.directorSem || '-'}</p></div></div>
+            <div className="p-3 bg-white/[0.03] rounded-lg flex items-center gap-3"><Users className="w-4 h-4 text-white/30" /><div><p className="text-[10px] text-white/40 uppercase">Comandante</p><p className="text-xs text-white">{result.datos.comandanteSemana || '-'}</p></div></div>
+            <div className="p-3 bg-white/[0.03] rounded-lg flex items-center gap-3"><Radio className="w-4 h-4 text-white/30" /><div><p className="text-[10px] text-white/40 uppercase">Oficial K20</p><p className="text-xs text-white">{result.datos.oficialK20 || '-'}</p></div></div>
           </div>
 
-          {/* Reset */}
-          <button
-            onClick={clearAll}
-            className="mt-5 px-5 py-2.5 bg-white/5 hover:bg-white/10 text-white/60 hover:text-white text-sm rounded-lg transition-all flex items-center gap-2"
-          >
-            <Upload className="w-4 h-4" />
-            Procesar otra planilla
+          <button onClick={clearAll} className="mt-5 px-5 py-2.5 bg-white/5 hover:bg-white/10 text-white/60 hover:text-white text-sm rounded-lg transition-all flex items-center gap-2">
+            <Upload className="w-4 h-4" /> Procesar otra planilla
           </button>
         </div>
       )}

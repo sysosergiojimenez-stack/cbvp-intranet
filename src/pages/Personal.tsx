@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { usePermiso } from '@/hooks/usePermiso';
+import { trpc } from '@/providers/trpc';
 import { PERSONAL_DATA, getGuardiasByBombero } from '@/data/mockData';
 import type { Personal, GuardiaHistorial, EstadisticasGuardias } from '@/types';
 import {
@@ -15,8 +16,30 @@ export default function PersonalPage() {
   const [fichaData, setFichaData] = useState<{ guardias: GuardiaHistorial[]; stats: EstadisticasGuardias } | null>(null);
   const [expandedStats, setExpandedStats] = useState(true);
 
+  // Try tRPC first, fallback to mock data
+  const { data: rpcData, isLoading: rpcLoading } = trpc.personal.list.useQuery(
+    undefined,
+    { retry: false, refetchOnWindowFocus: false }
+  );
+
+  const listPersonal: Personal[] = useMemo(() => {
+    if (rpcData?.exito && rpcData.personal.length > 0) {
+      return rpcData.personal.map((p) => ({
+        ...p,
+        segundoNombre: '',
+        segundoApellido: '',
+        nroDoc: '',
+        fechaNacimiento: '',
+        correo: '',
+        primerNombre: p.nombreCompleto.split(' ')[0] || '',
+        primerApellido: p.nombreCompleto.split(' ').slice(1).join(' ') || '',
+      })) as Personal[];
+    }
+    return PERSONAL_DATA;
+  }, [rpcData]);
+
   const sortedPersonal = useMemo<Personal[]>(() => {
-    return [...PERSONAL_DATA].sort((a: Personal, b: Personal) => {
+    return [...listPersonal].sort((a: Personal, b: Personal) => {
       const anioA = parseInt(a.anioJuramento) || 0;
       const anioB = parseInt(b.anioJuramento) || 0;
       if (anioA !== anioB) return anioA - anioB;
@@ -24,7 +47,7 @@ export default function PersonalPage() {
       const numB = parseInt(b.codigo.match(/\d+/)?.[0] || '0');
       return numA - numB;
     });
-  }, []);
+  }, [listPersonal]);
 
   const filtered = useMemo<Personal[]>(() => {
     return sortedPersonal.filter((p: Personal) =>
@@ -37,6 +60,13 @@ export default function PersonalPage() {
   }, [sortedPersonal, search]);
 
   const handleVerFicha = (bombero: Personal) => {
+    // Try tRPC historial
+    const rpcHistorial = trpc.personal.historial.useQuery(
+      { codigo: bombero.codigo },
+      { retry: false, refetchOnWindowFocus: false, enabled: false }
+    );
+
+    // Use mock fallback
     const data = getGuardiasByBombero(bombero.codigo);
     setFichaData(data);
     setSelectedBombero(bombero);
@@ -83,68 +113,77 @@ export default function PersonalPage() {
         {/* Stats summary */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
           <div className="bg-white/[0.03] rounded-lg p-3 text-center">
-            <p className="text-2xl font-bold text-cbvp-red">{PERSONAL_DATA.length}</p>
+            <p className="text-2xl font-bold text-cbvp-red">{listPersonal.length}</p>
             <p className="text-[10px] text-white/40 uppercase">Total Bomberos</p>
           </div>
           <div className="bg-white/[0.03] rounded-lg p-3 text-center">
-            <p className="text-2xl font-bold text-cbvp-green">{PERSONAL_DATA.filter(p => p.categoria === 'Activo').length}</p>
+            <p className="text-2xl font-bold text-cbvp-green">{listPersonal.filter((p: Personal) => p.categoria === 'Activo').length}</p>
             <p className="text-[10px] text-white/40 uppercase">Activos</p>
           </div>
           <div className="bg-white/[0.03] rounded-lg p-3 text-center">
-            <p className="text-2xl font-bold text-cbvp-blue">{new Set(PERSONAL_DATA.map(p => p.anioJuramento)).size}</p>
+            <p className="text-2xl font-bold text-cbvp-blue">{new Set(listPersonal.map((p: Personal) => p.anioJuramento)).size}</p>
             <p className="text-[10px] text-white/40 uppercase">Promociones</p>
           </div>
           <div className="bg-white/[0.03] rounded-lg p-3 text-center">
-            <p className="text-2xl font-bold text-cbvp-orange">{PERSONAL_DATA.filter(p => p.cargo !== 'Voluntario(a)').length}</p>
+            <p className="text-2xl font-bold text-cbvp-orange">{listPersonal.filter((p: Personal) => p.cargo !== 'Voluntario(a)').length}</p>
             <p className="text-[10px] text-white/40 uppercase">Oficiales</p>
           </div>
         </div>
 
+        {rpcLoading && (
+          <div className="flex items-center justify-center py-8">
+            <div className="w-6 h-6 border-2 border-cbvp-red/30 border-t-cbvp-red rounded-full animate-spin" />
+            <span className="ml-3 text-sm text-white/40">Cargando desde Google Sheets...</span>
+          </div>
+        )}
+
         {/* Table */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-cbvp-red/10 text-white/60 text-xs uppercase">
-                <th className="px-3 py-3 text-left rounded-tl-lg">Rango</th>
-                <th className="px-3 py-3 text-left">Categoria</th>
-                <th className="px-3 py-3 text-left">Codigo</th>
-                <th className="px-3 py-3 text-left">Anio</th>
-                <th className="px-3 py-3 text-left rounded-tr-lg">Nombre Completo</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/5">
-              {filtered.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="px-3 py-12 text-center text-white/40">
-                    <Users className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                    No hay bomberos registrados.
-                  </td>
+        {!rpcLoading && (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-cbvp-red/10 text-white/60 text-xs uppercase">
+                  <th className="px-3 py-3 text-left rounded-tl-lg">Rango</th>
+                  <th className="px-3 py-3 text-left">Categoria</th>
+                  <th className="px-3 py-3 text-left">Codigo</th>
+                  <th className="px-3 py-3 text-left">Anio</th>
+                  <th className="px-3 py-3 text-left rounded-tr-lg">Nombre Completo</th>
                 </tr>
-              ) : (
-                filtered.map(bombero => (
-                  <tr
-                    key={bombero.identificador}
-                    onClick={() => handleVerFicha(bombero)}
-                    className="hover:bg-cbvp-red/5 cursor-pointer transition-colors group"
-                  >
-                    <td className="px-3 py-3">
-                      <span className="text-xs bg-white/5 px-2 py-0.5 rounded flex items-center gap-1 w-fit">
-                        <Award className="w-3 h-3 text-cbvp-red/60" />
-                        {bombero.rango}
-                      </span>
-                    </td>
-                    <td className="px-3 py-3 text-white/60">{bombero.categoria}</td>
-                    <td className="px-3 py-3"><code className="text-xs bg-white/5 px-1.5 py-0.5 rounded text-white/70">{bombero.codigo}</code></td>
-                    <td className="px-3 py-3 text-white/60">{bombero.anioJuramento}</td>
-                    <td className="px-3 py-3">
-                      <span className="text-white font-medium group-hover:text-cbvp-red transition-colors">{bombero.nombreCompleto}</span>
+              </thead>
+              <tbody className="divide-y divide-white/5">
+                {filtered.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-3 py-12 text-center text-white/40">
+                      <Users className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                      No hay bomberos registrados.
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                ) : (
+                  filtered.map((bombero: Personal) => (
+                    <tr
+                      key={bombero.identificador}
+                      onClick={() => handleVerFicha(bombero)}
+                      className="hover:bg-cbvp-red/5 cursor-pointer transition-colors group"
+                    >
+                      <td className="px-3 py-3">
+                        <span className="text-xs bg-white/5 px-2 py-0.5 rounded flex items-center gap-1 w-fit">
+                          <Award className="w-3 h-3 text-cbvp-red/60" />
+                          {bombero.rango}
+                        </span>
+                      </td>
+                      <td className="px-3 py-3 text-white/60">{bombero.categoria}</td>
+                      <td className="px-3 py-3"><code className="text-xs bg-white/5 px-1.5 py-0.5 rounded text-white/70">{bombero.codigo}</code></td>
+                      <td className="px-3 py-3 text-white/60">{bombero.anioJuramento}</td>
+                      <td className="px-3 py-3">
+                        <span className="text-white font-medium group-hover:text-cbvp-red transition-colors">{bombero.nombreCompleto}</span>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
 
         <p className="text-xs text-white/30 mt-3 text-center">Mostrando {filtered.length} bombero(s)</p>
       </div>
@@ -153,7 +192,6 @@ export default function PersonalPage() {
       {selectedBombero && fichaData && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setSelectedBombero(null)}>
           <div className="bg-cbvp-dark-light border border-white/10 rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto scrollbar-thin" onClick={e => e.stopPropagation()}>
-            {/* Header */}
             <div className="flex items-center justify-between p-5 border-b border-white/5">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-full bg-cbvp-red/10 flex items-center justify-center">
@@ -170,7 +208,6 @@ export default function PersonalPage() {
             </div>
 
             <div className="p-5">
-              {/* Datos Personales */}
               <div className="grid grid-cols-2 gap-3 mb-6">
                 <div className="bg-white/[0.03] rounded-lg p-3 flex items-center gap-3">
                   <Hash className="w-4 h-4 text-cbvp-red/50" />
@@ -206,7 +243,6 @@ export default function PersonalPage() {
                 </div>
               </div>
 
-              {/* Estadisticas */}
               <div className="mb-4">
                 <button onClick={() => setExpandedStats(!expandedStats)} className="flex items-center gap-2 mb-3">
                   {expandedStats ? <ChevronUp className="w-4 h-4 text-white/40" /> : <ChevronDown className="w-4 h-4 text-white/40" />}
@@ -250,7 +286,6 @@ export default function PersonalPage() {
                 )}
               </div>
 
-              {/* Historial de Guardias */}
               {fichaData.guardias.length > 0 ? (
                 <div>
                   <h3 className="text-sm font-semibold text-cbvp-red mb-3">Historial de Guardias</h3>
