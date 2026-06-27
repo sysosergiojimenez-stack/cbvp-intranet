@@ -1,10 +1,61 @@
-import { Routes, Route } from 'react-router'
-import Home from './pages/Home'
+import { Routes, Route, Navigate } from 'react-router-dom';
+import { useAuth } from '@/context/AuthContext';
+import { usePermiso } from '@/hooks/usePermiso';
+import AppLayout from '@/components/layout/AppLayout';
+import Login from '@/pages/Login';
+import Dashboard from '@/pages/Dashboard';
+import Planillas from '@/pages/Planillas';
+import Historial from '@/pages/Historial';
+import Personal from '@/pages/Personal';
+import Perfil from '@/pages/Perfil';
 
-export default function App() {
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { usuario } = useAuth();
+  if (!usuario) return <Navigate to="/login" replace />;
+  return <>{children}</>;
+}
+
+function PublicRoute({ children }: { children: React.ReactNode }) {
+  const { usuario } = useAuth();
+  if (usuario) return <Navigate to="/" replace />;
+  return <>{children}</>;
+}
+
+function AppRoutes() {
+  const permisos = usePermiso();
+
   return (
     <Routes>
-      <Route path="/" element={<Home />} />
+      <Route path="/login" element={
+        <PublicRoute><Login /></PublicRoute>
+      } />
+      <Route element={<AppLayout />}>
+        <Route path="/" element={
+          <ProtectedRoute>
+            {permisos.puedeVerTodo ? <Dashboard /> : <Perfil />}
+          </ProtectedRoute>
+        } />
+        <Route path="/planillas" element={
+          <ProtectedRoute>
+            {permisos.puedeCargarPlanillas ? <Planillas /> : <Navigate to="/" replace />}
+          </ProtectedRoute>
+        } />
+        <Route path="/historial" element={
+          <ProtectedRoute>
+            {permisos.puedeVerHistorial ? <Historial /> : <Navigate to="/" replace />}
+          </ProtectedRoute>
+        } />
+        <Route path="/personal" element={
+          <ProtectedRoute>
+            {permisos.puedeVerPersonal ? <Personal /> : <Navigate to="/" replace />}
+          </ProtectedRoute>
+        } />
+      </Route>
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
-  )
+  );
+}
+
+export default function App() {
+  return <AppRoutes />;
 }
