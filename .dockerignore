@@ -1,5 +1,8 @@
 node_modules
 dist
 .git
-*.swp
-*.log
+.github
+.env
+*.md
+scripts/
+db/migrations/

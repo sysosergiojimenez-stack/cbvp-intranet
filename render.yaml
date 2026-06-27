@@ -1,0 +1,26 @@
+# Render.com Blueprint para Intranet CBVP
+# Para usar: ve a Render Dashboard > Blueprints > New Blueprint Instance
+# y conecta tu repo
+
+services:
+  - type: web
+    name: intranet-cbvp
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "3000"
+      - key: GOOGLE_SERVICE_ACCOUNT_JSON
+        sync: false # Se configura manualmente en el dashboard de Render
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: SHEET_USUARIOS_ID
+        value: "19h9U7DSidS-PyaV6CQG2K0PzDZWEGf7MLNnVNqerbkE"
+      - key: SHEET_GUARDIAS_ID
+        value: "1wAvJqKS9Bc8FodVmXBOvPFbjk58TG7Ua8f2b_uVVEJs"
+      - key: DRIVE_FOLDER_ID
+        value: "1RohFxOVDA8XwG4z4d5li-c3a-fAgcrRd"
+    healthCheckPath: /
