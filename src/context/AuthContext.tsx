@@ -90,7 +90,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return false;
       }
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Error de conexion con el servidor';
+      let message = 'Error de conexion con el servidor';
+      if (err instanceof Error) {
+        message = err.message;
+        // Detect JSON parse error (backend returning HTML instead of JSON)
+        if (message.includes('JSON') || message.includes('json') || message.includes('<') || message.includes('Unexpected token')) {
+          message = 'El servidor backend no esta disponible. En desarrollo local ejecuta: npm run dev';
+        }
+      }
       setError(message);
       setIsLoading(false);
       return false;

@@ -7,7 +7,18 @@ import type { ReactNode } from "react";
 
 export const trpc = createTRPCReact<AppRouter>();
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: false,
+      refetchOnWindowFocus: false,
+    },
+    mutations: {
+      retry: false,
+    },
+  },
+});
+
 const trpcClient = trpc.createClient({
   links: [
     httpBatchLink({
@@ -17,6 +28,9 @@ const trpcClient = trpc.createClient({
         return globalThis.fetch(input, {
           ...(init ?? {}),
           credentials: "include",
+        }).catch((err) => {
+          // Network error - backend not reachable
+          throw new Error("No se pudo conectar con el servidor. Verifica que el backend este en ejecucion.");
         });
       },
     }),
