@@ -31,11 +31,13 @@ export default function Dashboard() {
       }).length
     : 0;
 
+  const activos = personalData?.personal?.filter(p => p.categoria?.toUpperCase() === 'ACTIVO').length || 0;
+  const combatientes = personalData?.personal?.filter(p => p.categoria?.toUpperCase() === 'COMBATIENTE').length || 0;
+
   const stats = [
-    { label: 'Bomberos', value: totalPersonal.toString(), sub: 'activos', icon: Users, color: 'text-cbvp-red', bg: 'bg-cbvp-red/8', border: 'border-cbvp-red/15' },
-    { label: 'Planillas', value: totalPlanillas.toString(), sub: 'totales', icon: ClipboardList, color: 'text-cbvp-green', bg: 'bg-cbvp-green/8', border: 'border-cbvp-green/15' },
-    { label: 'Este Mes', value: thisMonth.toString(), sub: 'guardias', icon: CalendarDays, color: 'text-cbvp-orange', bg: 'bg-cbvp-orange/8', border: 'border-cbvp-orange/15' },
-    { label: 'Moviles', value: '3/5', sub: 'operativos', icon: Truck, color: 'text-cbvp-blue', bg: 'bg-cbvp-blue/8', border: 'border-cbvp-blue/15' },
+    { label: 'Total de Bomberos', value: totalPersonal.toString(), icon: Users, color: 'text-cbvp-yellow', bg: 'bg-cbvp-yellow/8', border: 'border-cbvp-yellow/20', bar: 'bg-cbvp-yellow' },
+    { label: 'Categoria Activo', value: activos.toString(), icon: Shield, color: 'text-cbvp-green', bg: 'bg-cbvp-green/8', border: 'border-cbvp-green/20', bar: 'bg-cbvp-green' },
+    { label: 'Categoria Combatiente', value: combatientes.toString(), icon: Flame, color: 'text-cbvp-red', bg: 'bg-cbvp-red/8', border: 'border-cbvp-red/20', bar: 'bg-cbvp-red' },
   ];
 
   const modules = [
@@ -101,23 +103,21 @@ export default function Dashboard() {
 
   return (
     <div className="animate-fade-in space-y-6">
-      {/* Stats Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
         {stats.map((s, i) => (
-          <div
-            key={i}
-            className={`glass rounded-xl p-4 border ${s.border} card-hover`}
-          >
-            <div className="flex items-start justify-between mb-3">
-              <div className={`w-9 h-9 rounded-lg ${s.bg} flex items-center justify-center`}>
-                <s.icon className={`w-4.5 h-4.5 ${s.color}`} />
+          <div key={i} className={`relative overflow-hidden glass rounded-xl p-4 border ${s.border} card-hover`}>
+            {/* Color bar at top */}
+            <div className={`absolute top-0 left-0 right-0 h-1 ${s.bar}`} />
+            <div className="flex items-center gap-3 mt-1">
+              <div className={`w-11 h-11 rounded-xl ${s.bg} flex items-center justify-center shrink-0`}>
+                <s.icon className={`w-5 h-5 ${s.color}`} />
+              </div>
+              <div>
+                <span className="text-3xl font-bold text-white">{s.value}</span>
+                <p className="text-[11px] text-white/40 mt-0.5">{s.label}</p>
               </div>
             </div>
-            <div className="flex items-baseline gap-1.5">
-              <span className="text-2xl font-bold text-white">{s.value}</span>
-              <span className="text-[10px] text-white/30 uppercase">{s.sub}</span>
-            </div>
-            <p className="text-xs text-white/40 mt-1">{s.label}</p>
           </div>
         ))}
       </div>
