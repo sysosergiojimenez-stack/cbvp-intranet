@@ -1,4 +1,3 @@
-# Railway cache-bust v2
 # Dockerfile para Railway - CBVP Fullstack
 # Build con esboot en formato CJS (evita bug de import.meta.url en ESM bundle)
 
@@ -32,4 +31,4 @@ ENV PORT=3000
 
 EXPOSE 3000
 
-CMD ["node", "dist/boot.js"]
+CMD ["node", "dist/boot.cjs"]
