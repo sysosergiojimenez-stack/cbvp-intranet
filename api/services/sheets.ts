@@ -121,14 +121,22 @@ export async function getSheetId(
     spreadsheetId,
     fields: "sheets.properties",
   });
-  const availableSheets = response.data.sheets?.map(s => s.properties?.title).filter(Boolean) || [];
-  const searchName = sheetName.trim();
-  const sheet = response.data.sheets?.find(
-    (s) => s.properties?.title?.trim() === searchName
-  );
+  const allSheets = response.data.sheets || [];
+  const availableSheets = allSheets.map(s => s.properties?.title).filter(Boolean) as string[];
+  const searchName = sheetName.trim().normalize("NFC");
+  
+  // Try exact match first, then lowercase match
+  let sheet = allSheets.find((s) => s.properties?.title?.trim().normalize("NFC") === searchName);
+  if (!sheet) {
+    sheet = allSheets.find((s) => s.properties?.title?.trim().toLowerCase() === searchName.toLowerCase());
+  }
+  
   if (!sheet?.properties?.sheetId) {
+    // Debug: show character codes
+    const debug = availableSheets.map(t => `${t}(${[...t].map(c => c.charCodeAt(0)).join(',')})`);
+    const searchDebug = `${searchName}(${[...searchName].map(c => c.charCodeAt(0)).join(',')})`;
     throw new Error(
-      `Sheet "${searchName}" not found. Available: [${availableSheets.join(", ")}]`
+      `Sheet "${searchName}" not found. Search chars: [${searchDebug}]. Available chars: [${debug.join(" | ")}]`
     );
   }
   return sheet.properties.sheetId;
