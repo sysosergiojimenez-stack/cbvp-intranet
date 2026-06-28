@@ -1,10 +1,11 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { usePermiso } from '@/hooks/usePermiso';
 import { trpc } from '@/providers/trpc';
 import type { PlanillaEncabezado, GuardiaPersonal } from '@/types';
 import {
   Search, Eye, Pencil, Trash2, ExternalLink, X, Save,
-  ChevronLeft, ChevronRight, FileText, AlertTriangle
+  ChevronLeft, ChevronRight, FileText, AlertTriangle,
+  ChevronDown, ChevronUp
 } from 'lucide-react';
 
 export default function Historial() {
@@ -16,6 +17,10 @@ export default function Historial() {
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [detalleData, setDetalleData] = useState<GuardiaPersonal[]>([]);
   const [editForm, setEditForm] = useState<Partial<PlanillaEncabezado>>({});
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
+    normal: true, especial: true, refuerzo: true,
+  });
+  const [editError, setEditError] = useState('');
   const itemsPerPage = 5;
 
   const { data: rpcData, isLoading: rpcLoading, error: rpcError, refetch } = trpc.planillas.historial.useQuery(
@@ -24,8 +29,25 @@ export default function Historial() {
   );
 
   const deleteMutation = trpc.planillas.eliminar.useMutation({
-    onSuccess: () => refetch(),
+    onSuccess: () => { refetch(); setDeleteConfirm(null); },
+    onError: (err) => { setEditError(err.message); },
   });
+
+  const updateMutation = trpc.planillas.actualizarEncabezado.useMutation({
+    onSuccess: () => { refetch(); setEditPlanilla(null); setEditForm({}); setEditError(''); },
+    onError: (err) => { setEditError(err.message); },
+  });
+
+  const detalleQuery = trpc.planillas.detalle.useQuery(
+    { idPlanilla: viewPlanilla || "" },
+    { enabled: !!viewPlanilla, retry: 1 }
+  );
+
+  useEffect(() => {
+    if (detalleQuery.data?.exito) {
+      setDetalleData(detalleQuery.data.personal);
+    }
+  }, [detalleQuery.data]);
 
   const listPlanillas: PlanillaEncabezado[] = useMemo(() => {
     if (!rpcData?.exito) return [];
@@ -44,34 +66,46 @@ export default function Historial() {
   const totalPages = Math.ceil(filtered.length / itemsPerPage);
   const paginated = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-  const detalleQuery = trpc.planillas.detalle.useQuery(
-    { idPlanilla: viewPlanilla || "" },
-    { enabled: !!viewPlanilla, retry: 1 }
-  );
-
-  useMemo(() => {
-    if (detalleQuery.data?.exito) {
-      setDetalleData(detalleQuery.data.personal);
-    }
-  }, [detalleQuery.data]);
+  // Split detail data by tipo
+  const guardiasNormales = detalleData.filter(p => p.tipo === 'GUARDIA NORMAL');
+  const guardiasEspeciales = detalleData.filter(p => p.tipo === 'GUARDIA ESPECIAL');
+  const refuerzos = detalleData.filter(p => p.tipo === 'REFUERZO');
 
   const handleVer = (id: string) => {
     setViewPlanilla(id);
     setDetalleData([]);
+    setExpandedSections({ normal: true, especial: true, refuerzo: true });
   };
 
   const handleEliminar = async (id: string) => {
+    setEditError('');
     try {
       await deleteMutation.mutateAsync({ idPlanilla: id });
     } catch {
-      // Silently handle delete error
+      // error handled by onError
     }
-    setDeleteConfirm(null);
   };
 
-  const handleGuardarEdicion = () => {
-    setEditPlanilla(null);
-    setEditForm({});
+  const handleGuardarEdicion = async () => {
+    if (!editPlanilla) return;
+    setEditError('');
+    await updateMutation.mutateAsync({
+      idPlanilla: editPlanilla,
+      datos: {
+        fechaGuardia: editForm.fechaGuardia,
+        grupo: editForm.grupo,
+        inicioGuardia: editForm.inicioGuardia,
+        finalizaGuardia: editForm.finalizaGuardia,
+        directorSem: editForm.directorSem,
+        comandanteSemana: editForm.comandanteSemana,
+        oficialK20: editForm.oficialK20,
+        novedades: editForm.novedades,
+      },
+    });
+  };
+
+  const toggleSection = (section: string) => {
+    setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
   };
 
   const getTipoBadge = (tipo: string) => {
@@ -79,10 +113,57 @@ export default function Historial() {
       case 'GUARDIA NORMAL': return 'bg-cbvp-red/20 text-cbvp-red';
       case 'GUARDIA ESPECIAL': return 'bg-cbvp-orange/20 text-cbvp-orange';
       case 'REFUERZO': return 'bg-cbvp-purple/20 text-cbvp-purple';
-      case 'RADIO OPERADOR': return 'bg-cbvp-blue/20 text-cbvp-blue';
-      case 'MOVIL': return 'bg-cbvp-teal/20 text-cbvp-teal';
       default: return 'bg-white/10 text-white/60';
     }
+  };
+
+  const renderSection = (title: string, tipo: string, data: GuardiaPersonal[], key: string) => {
+    if (data.length === 0) return null;
+    return (
+      <div className="mb-4">
+        <button onClick={() => toggleSection(key)} className="flex items-center gap-2 w-full text-left mb-2">
+          {expandedSections[key] ? <ChevronUp className="w-4 h-4 text-white/40" /> : <ChevronDown className="w-4 h-4 text-white/40" />}
+          <h4 className={`text-sm font-semibold ${tipo === 'GUARDIA NORMAL' ? 'text-cbvp-red' : tipo === 'GUARDIA ESPECIAL' ? 'text-cbvp-orange' : 'text-cbvp-purple'}`}>
+            {title} ({data.length})
+          </h4>
+        </button>
+        {expandedSections[key] && (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className={`text-white/60 text-xs uppercase ${tipo === 'GUARDIA NORMAL' ? 'bg-cbvp-red/10' : tipo === 'GUARDIA ESPECIAL' ? 'bg-cbvp-orange/10' : 'bg-cbvp-purple/10'}`}>
+                  <th className="px-3 py-2 text-left rounded-tl-lg">Nro</th>
+                  <th className="px-3 py-2 text-left">Codigo</th>
+                  <th className="px-3 py-2 text-left">Nombre</th>
+                  <th className="px-3 py-2 text-left">Asignacion</th>
+                  <th className="px-3 py-2 text-left rounded-tr-lg">Asistencia</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/5">
+                {data.map((p, i) => (
+                  <tr key={i} className="hover:bg-white/[0.02]">
+                    <td className="px-3 py-2.5 text-white/60">{i + 1}</td>
+                    <td className="px-3 py-2.5"><code className="text-xs bg-white/5 px-1.5 py-0.5 rounded">{p.codigo || '-'}</code></td>
+                    <td className="px-3 py-2.5 text-white">{p.nombre || '-'}</td>
+                    <td className="px-3 py-2.5 text-white/60">{p.asignacion || '-'}</td>
+                    <td className="px-3 py-2.5">
+                      {p.asistencia ? (
+                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                          p.asistencia === 'PRESENTE' ? 'bg-cbvp-green/20 text-cbvp-green' :
+                          p.asistencia === 'ACACR' ? 'bg-cbvp-orange/20 text-cbvp-orange' :
+                          p.asistencia === 'ACASR' ? 'bg-cbvp-yellow/20 text-cbvp-yellow' :
+                          'bg-cbvp-red/20 text-cbvp-red-light'
+                        }`}>{p.asistencia}</span>
+                      ) : '-'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    );
   };
 
   if (!puedeVerHistorial) {
@@ -166,7 +247,7 @@ export default function Historial() {
                           <div className="flex items-center gap-1.5">
                             <button onClick={() => handleVer(planilla.idPlanilla)} className="p-1.5 rounded-lg bg-cbvp-red/10 hover:bg-cbvp-red/20 text-cbvp-red transition-colors" title="Ver"><Eye className="w-3.5 h-3.5" /></button>
                             {puedeEditarPlanillas && (
-                              <button onClick={() => { setEditPlanilla(planilla.idPlanilla); setEditForm({ ...planilla }); }} className="p-1.5 rounded-lg bg-cbvp-orange/10 hover:bg-cbvp-orange/20 text-cbvp-orange transition-colors" title="Editar"><Pencil className="w-3.5 h-3.5" /></button>
+                              <button onClick={() => { setEditPlanilla(planilla.idPlanilla); setEditForm({ ...planilla }); setEditError(''); }} className="p-1.5 rounded-lg bg-cbvp-orange/10 hover:bg-cbvp-orange/20 text-cbvp-orange transition-colors" title="Editar"><Pencil className="w-3.5 h-3.5" /></button>
                             )}
                             {planilla.urlImagen && (
                               <a href={planilla.urlImagen} target="_blank" rel="noopener noreferrer" className="p-1.5 rounded-lg bg-cbvp-blue/10 hover:bg-cbvp-blue/20 text-cbvp-blue transition-colors" title="Ver imagen"><ExternalLink className="w-3.5 h-3.5" /></a>
@@ -199,7 +280,7 @@ export default function Historial() {
         )}
       </div>
 
-      {/* View Modal */}
+      {/* View Modal - Now shows sections for Normal, Especial, Refuerzo */}
       {viewPlanilla && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setViewPlanilla(null)}>
           <div className="bg-cbvp-dark-light border border-white/10 rounded-2xl max-w-3xl w-full max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
@@ -211,41 +292,31 @@ export default function Historial() {
               <button onClick={() => setViewPlanilla(null)} className="p-2 rounded-lg hover:bg-white/5 text-white/40 hover:text-white transition-colors"><X className="w-5 h-5" /></button>
             </div>
             <div className="p-5">
-              {detalleData.length === 0 ? (
-                <p className="text-white/40 text-center py-8">No hay personal registrado.</p>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead><tr className="bg-cbvp-red/10 text-white/60 text-xs uppercase"><th className="px-3 py-2 text-left rounded-tl-lg">Tipo</th><th className="px-3 py-2 text-left">Codigo</th><th className="px-3 py-2 text-left">Nombre</th><th className="px-3 py-2 text-left">Asignacion</th><th className="px-3 py-2 text-left rounded-tr-lg">Asistencia</th></tr></thead>
-                    <tbody className="divide-y divide-white/5">
-                      {detalleData.map((p, i) => (
-                        <tr key={i} className="hover:bg-white/[0.02]">
-                          <td className="px-3 py-2"><span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${getTipoBadge(p.tipo)}`}>{p.tipo}</span></td>
-                          <td className="px-3 py-2"><code className="text-xs bg-white/5 px-1.5 py-0.5 rounded">{p.codigo || '-'}</code></td>
-                          <td className="px-3 py-2 text-white">{p.nombre || '-'}</td>
-                          <td className="px-3 py-2 text-white/60">{p.asignacion || '-'}</td>
-                          <td className="px-3 py-2">
-                            {p.asistencia ? (
-                              <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                                p.asistencia === 'PRESENTE' ? 'bg-cbvp-green/20 text-cbvp-green' :
-                                p.asistencia === 'ACACR' ? 'bg-cbvp-orange/20 text-cbvp-orange' :
-                                p.asistencia === 'ACASR' ? 'bg-cbvp-yellow/20 text-cbvp-yellow' :
-                                'bg-cbvp-red/20 text-cbvp-red-light'
-                              }`}>{p.asistencia}</span>
-                            ) : '-'}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                  <p className="text-xs text-white/30 mt-3 text-right">Total: {detalleData.length} registro(s)</p>
+              {detalleQuery.isLoading && (
+                <div className="flex items-center justify-center py-8">
+                  <div className="w-6 h-6 border-2 border-cbvp-red/30 border-t-cbvp-red rounded-full animate-spin" />
+                  <span className="ml-3 text-sm text-white/40">Cargando personal...</span>
                 </div>
+              )}
+
+              {!detalleQuery.isLoading && detalleData.length === 0 && (
+                <p className="text-white/40 text-center py-8">No hay personal registrado en esta planilla.</p>
+              )}
+
+              {detalleData.length > 0 && (
+                <>
+                  <p className="text-xs text-white/30 mb-4">Total: {detalleData.length} registro(s)</p>
+                  {renderSection('Guardia Normal', 'GUARDIA NORMAL', guardiasNormales, 'normal')}
+                  {renderSection('Guardias Especiales', 'GUARDIA ESPECIAL', guardiasEspeciales, 'especial')}
+                  {renderSection('Refuerzos', 'REFUERZO', refuerzos, 'refuerzo')}
+                </>
               )}
             </div>
           </div>
         </div>
       )}
 
+      {/* Edit Modal - Now actually saves */}
       {editPlanilla && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setEditPlanilla(null)}>
           <div className="bg-cbvp-dark-light border border-white/10 rounded-2xl max-w-lg w-full" onClick={e => e.stopPropagation()}>
@@ -254,6 +325,11 @@ export default function Historial() {
               <button onClick={() => setEditPlanilla(null)} className="p-2 rounded-lg hover:bg-white/5 text-white/40 hover:text-white transition-colors"><X className="w-5 h-5" /></button>
             </div>
             <div className="p-5 space-y-4">
+              {editError && (
+                <div className="p-3 bg-cbvp-red/10 border border-cbvp-red/20 rounded-lg text-sm text-cbvp-red-light">
+                  {editError}
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-3">
                 <div><label className="text-[10px] text-white/40 uppercase tracking-wider mb-1 block">Fecha Guardia</label><input value={editForm.fechaGuardia || ''} onChange={e => setEditForm(f => ({ ...f, fechaGuardia: e.target.value }))} className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-cbvp-orange/50" /></div>
                 <div><label className="text-[10px] text-white/40 uppercase tracking-wider mb-1 block">Grupo</label><input value={editForm.grupo || ''} onChange={e => setEditForm(f => ({ ...f, grupo: e.target.value }))} className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-cbvp-orange/50" /></div>
@@ -264,21 +340,27 @@ export default function Historial() {
               </div>
               <div><label className="text-[10px] text-white/40 uppercase tracking-wider mb-1 block">Oficial K20</label><input value={editForm.oficialK20 || ''} onChange={e => setEditForm(f => ({ ...f, oficialK20: e.target.value }))} className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-cbvp-orange/50" /></div>
               <div><label className="text-[10px] text-white/40 uppercase tracking-wider mb-1 block">Novedades</label><textarea value={editForm.novedades || ''} onChange={e => setEditForm(f => ({ ...f, novedades: e.target.value }))} rows={3} className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-cbvp-orange/50 resize-vertical" /></div>
-              <button onClick={handleGuardarEdicion} className="w-full py-3 bg-cbvp-green hover:bg-cbvp-green/80 text-white font-semibold rounded-xl transition-all flex items-center justify-center gap-2"><Save className="w-4 h-4" /> Guardar Cambios</button>
+              <button onClick={handleGuardarEdicion} disabled={updateMutation.isPending} className="w-full py-3 bg-cbvp-green hover:bg-cbvp-green/80 disabled:opacity-50 text-white font-semibold rounded-xl transition-all flex items-center justify-center gap-2">
+                <Save className="w-4 h-4" /> {updateMutation.isPending ? 'Guardando...' : 'Guardar Cambios'}
+              </button>
             </div>
           </div>
         </div>
       )}
 
+      {/* Delete Modal */}
       {deleteConfirm && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-cbvp-dark-light border border-white/10 rounded-2xl max-w-sm w-full p-6 text-center">
             <AlertTriangle className="w-12 h-12 text-cbvp-red mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-white mb-2">Eliminar Planilla</h3>
             <p className="text-sm text-white/50 mb-6">Estas seguro de eliminar la planilla <code className="text-cbvp-red-light">{deleteConfirm}</code>? Esta accion no se puede deshacer.</p>
+            {editError && <p className="text-xs text-cbvp-red-light mb-4">{editError}</p>}
             <div className="flex gap-3">
               <button onClick={() => setDeleteConfirm(null)} className="flex-1 py-2.5 bg-white/5 hover:bg-white/10 text-white/60 rounded-lg transition-colors text-sm">Cancelar</button>
-              <button onClick={() => handleEliminar(deleteConfirm)} className="flex-1 py-2.5 bg-cbvp-red hover:bg-cbvp-red-light text-white rounded-lg transition-colors text-sm font-medium">Eliminar</button>
+              <button onClick={() => handleEliminar(deleteConfirm)} disabled={deleteMutation.isPending} className="flex-1 py-2.5 bg-cbvp-red hover:bg-cbvp-red-light disabled:opacity-50 text-white rounded-lg transition-colors text-sm font-medium">
+                {deleteMutation.isPending ? 'Eliminando...' : 'Eliminar'}
+              </button>
             </div>
           </div>
         </div>
