@@ -1,5 +1,5 @@
-# Dockerfile SIMPLE para Railway - Sin esbuild bundle
-# Ejecuta TypeScript directamente con tsx (más confiable que bundle CJS)
+# Dockerfile para Google Cloud Run
+# Backend Node.js + Frontend React (Vite)
 
 FROM node:22-slim
 
@@ -9,20 +9,20 @@ WORKDIR /app
 COPY package.json ./
 RUN npm install --no-audit --no-fund
 
-# Instalar tsx globalmente (para produccion sin npx)
+# Instalar tsx globalmente
 RUN npm install -g tsx
 
-# Copiar código fuente
+# Copiar codigo fuente
 COPY . .
 
-# Build solo del frontend (Vite)
+# Build del frontend (Vite)
 RUN npx vite build
 
-# Puerto y entorno
+# Puerto - Cloud Run asigna PORT automaticamente
 ENV NODE_ENV=production
-ENV PORT=3000
+ENV PORT=8080
 
-EXPOSE 3000
+EXPOSE 8080
 
-# Ejecutar backend directamente con tsx (sin bundle de esbuild)
+# Ejecutar backend
 CMD ["tsx", "api/boot.ts"]
