@@ -1,3 +1,4 @@
+# Railway cache-bust v2
 # Dockerfile para Railway - CBVP Fullstack
 # Build con esboot en formato CJS (evita bug de import.meta.url en ESM bundle)
 
