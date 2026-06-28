@@ -280,49 +280,42 @@ export const planillasRouter = createRouter({
   eliminar: publicQuery
     .input(z.object({ idPlanilla: z.string() }))
     .mutation(async ({ input }) => {
-      try {
-        // Delete from Encabezado
-        const encData = await readSheet(
-          env.SHEET_GUARDIAS_ID,
-          "Guardias_Encabezado!A1:K5000"
-        );
-        const encRowsToDelete: number[] = [];
-        const encSheetId = await getSheetId(env.SHEET_GUARDIAS_ID, "Guardias_Encabezado");
+      // Delete from Encabezado
+      const encData = await readSheet(
+        env.SHEET_GUARDIAS_ID,
+        "Guardias_Encabezado!A1:K5000"
+      );
+      const encRowsToDelete: number[] = [];
 
-        for (let i = encData.length - 1; i >= 1; i--) {
-          if (encData[i][0] && String(encData[i][0]) === input.idPlanilla) {
-            encRowsToDelete.push(i + 1);
-          }
+      for (let i = encData.length - 1; i >= 1; i--) {
+        if (encData[i][0] && String(encData[i][0]).trim() === input.idPlanilla.trim()) {
+          encRowsToDelete.push(i + 1);
         }
-
-        if (encRowsToDelete.length > 0) {
-          await deleteRows(env.SHEET_GUARDIAS_ID, encSheetId, encRowsToDelete);
-        }
-
-        // Delete from Personal
-        const persData = await readSheet(
-          env.SHEET_GUARDIAS_ID,
-          "Guardias_Personal!A1:L5000"
-        );
-        const persRowsToDelete: number[] = [];
-        const persSheetId = await getSheetId(env.SHEET_GUARDIAS_ID, "Guardias_Personal");
-
-        for (let i = persData.length - 1; i >= 1; i--) {
-          if (persData[i][1] && String(persData[i][1]) === input.idPlanilla) {
-            persRowsToDelete.push(i + 1);
-          }
-        }
-
-        if (persRowsToDelete.length > 0) {
-          await deleteRows(env.SHEET_GUARDIAS_ID, persSheetId, persRowsToDelete);
-        }
-
-        return { exito: true as const, mensaje: "Planilla eliminada" };
-      } catch (error) {
-        return {
-          exito: false as const,
-          mensaje: error instanceof Error ? error.message : String(error),
-        };
       }
+
+      if (encRowsToDelete.length > 0) {
+        const encSheetId = await getSheetId(env.SHEET_GUARDIAS_ID, "Guardias_Encabezado");
+        await deleteRows(env.SHEET_GUARDIAS_ID, encSheetId, encRowsToDelete);
+      }
+
+      // Delete from Personal
+      const persData = await readSheet(
+        env.SHEET_GUARDIAS_ID,
+        "Guardias_Personal!A1:L5000"
+      );
+      const persRowsToDelete: number[] = [];
+
+      for (let i = persData.length - 1; i >= 1; i--) {
+        if (persData[i][1] && String(persData[i][1]).trim() === input.idPlanilla.trim()) {
+          persRowsToDelete.push(i + 1);
+        }
+      }
+
+      if (persRowsToDelete.length > 0) {
+        const persSheetId = await getSheetId(env.SHEET_GUARDIAS_ID, "Guardias_Personal");
+        await deleteRows(env.SHEET_GUARDIAS_ID, persSheetId, persRowsToDelete);
+      }
+
+      return { exito: true as const, mensaje: "Planilla eliminada" };
     }),
 });

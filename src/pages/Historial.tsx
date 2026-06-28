@@ -15,7 +15,7 @@ export default function Historial() {
   const [viewPlanilla, setViewPlanilla] = useState<string | null>(null);
   const [editPlanilla, setEditPlanilla] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
-  const [detalleData, setDetalleData] = useState<GuardiaPersonal[]>([]);
+  // Detail data comes directly from tRPC query
   const [editForm, setEditForm] = useState<Partial<PlanillaEncabezado>>({});
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     normal: true, especial: true, refuerzo: true,
@@ -43,11 +43,8 @@ export default function Historial() {
     { enabled: !!viewPlanilla, retry: 1 }
   );
 
-  useEffect(() => {
-    if (detalleQuery.data?.exito) {
-      setDetalleData(detalleQuery.data.personal);
-    }
-  }, [detalleQuery.data]);
+  // Direct data from query - no intermediate state needed
+  const detalleList: GuardiaPersonal[] = detalleQuery.data?.personal || [];
 
   const listPlanillas: PlanillaEncabezado[] = useMemo(() => {
     if (!rpcData?.exito) return [];
@@ -67,13 +64,12 @@ export default function Historial() {
   const paginated = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   // Split detail data by tipo
-  const guardiasNormales = detalleData.filter(p => p.tipo === 'GUARDIA NORMAL');
-  const guardiasEspeciales = detalleData.filter(p => p.tipo === 'GUARDIA ESPECIAL');
-  const refuerzos = detalleData.filter(p => p.tipo === 'REFUERZO');
+  const guardiasNormales = detalleList.filter(p => p.tipo === 'GUARDIA NORMAL');
+  const guardiasEspeciales = detalleList.filter(p => p.tipo === 'GUARDIA ESPECIAL');
+  const refuerzos = detalleList.filter(p => p.tipo === 'REFUERZO');
 
   const handleVer = (id: string) => {
     setViewPlanilla(id);
-    setDetalleData([]);
     setExpandedSections({ normal: true, especial: true, refuerzo: true });
   };
 
@@ -299,13 +295,13 @@ export default function Historial() {
                 </div>
               )}
 
-              {!detalleQuery.isLoading && detalleData.length === 0 && (
+              {!detalleQuery.isLoading && detalleList.length === 0 && (
                 <p className="text-white/40 text-center py-8">No hay personal registrado en esta planilla.</p>
               )}
 
-              {detalleData.length > 0 && (
+              {detalleList.length > 0 && (
                 <>
-                  <p className="text-xs text-white/30 mb-4">Total: {detalleData.length} registro(s)</p>
+                  <p className="text-xs text-white/30 mb-4">Total: {detalleList.length} registro(s)</p>
                   {renderSection('Guardia Normal', 'GUARDIA NORMAL', guardiasNormales, 'normal')}
                   {renderSection('Guardias Especiales', 'GUARDIA ESPECIAL', guardiasEspeciales, 'especial')}
                   {renderSection('Refuerzos', 'REFUERZO', refuerzos, 'refuerzo')}
