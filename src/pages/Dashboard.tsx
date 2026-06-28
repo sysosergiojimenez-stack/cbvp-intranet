@@ -10,7 +10,7 @@ import {
 export default function Dashboard() {
   const { puedeCargarPlanillas, puedeVerPersonal, puedeVerHistorial } = usePermiso();
 
-  const { data: personalData } = trpc.personal.listar.useQuery(undefined, {
+  const { data: personalData } = trpc.personal.list.useQuery(undefined, {
     retry: 1, refetchOnWindowFocus: false,
   });
   const { data: historialData } = trpc.planillas.historial.useQuery(undefined, {
