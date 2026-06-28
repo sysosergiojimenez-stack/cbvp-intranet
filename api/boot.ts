@@ -10,8 +10,13 @@ import { serveStaticFiles } from "./lib/vite";
 
 const app = new Hono<{ Bindings: HttpBindings }>();
 
-// Health check endpoint for Railway
-app.get("/", (c) => c.json({ ok: true, status: "CBVP API running" }, 200));
+// En produccion, primero servir archivos estaticos (antes que API routes)
+if (env.isProduction) {
+  serveStaticFiles(app);
+}
+
+// Health check endpoint
+app.get("/health", (c) => c.json({ ok: true, status: "CBVP API running" }, 200));
 
 app.use(bodyLimit({ maxSize: 50 * 1024 * 1024 }));
 app.use("/api/trpc/*", async (c) => {
@@ -27,7 +32,7 @@ app.all("/api/*", (c) => c.json({ error: "Not Found" }, 404));
 export default app;
 
 if (env.isProduction) {
-  serveStaticFiles(app);
+  // serveStaticFiles ya se llamo arriba
 
   const port = parseInt(process.env.PORT || "3000");
   try {
