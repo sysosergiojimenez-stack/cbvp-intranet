@@ -10,7 +10,7 @@ import {
 export default function Dashboard() {
   const { puedeCargarPlanillas, puedeVerPersonal, puedeVerHistorial } = usePermiso();
 
-  const { data: personalData } = trpc.personal.listado.useQuery(undefined, {
+  const { data: personalData } = trpc.personal.listar.useQuery(undefined, {
     retry: 1, refetchOnWindowFocus: false,
   });
   const { data: historialData } = trpc.planillas.historial.useQuery(undefined, {
@@ -31,8 +31,8 @@ export default function Dashboard() {
       }).length
     : 0;
 
-  const activos = personalData?.personal?.filter(p => p.categoria?.toUpperCase() === 'ACTIVO').length || 0;
-  const combatientes = personalData?.personal?.filter(p => p.categoria?.toUpperCase() === 'COMBATIENTE').length || 0;
+  const activos = personalData?.personal?.filter(p => p.categoria?.trim().toUpperCase() === 'ACTIVO').length || 0;
+  const combatientes = personalData?.personal?.filter(p => p.categoria?.trim().toUpperCase() === 'COMBATIENTE').length || 0;
 
   const stats = [
     { label: 'Total de Bomberos', value: totalPersonal.toString(), icon: Users, color: 'text-cbvp-yellow', bg: 'bg-cbvp-yellow/8', border: 'border-cbvp-yellow/20', bar: 'bg-cbvp-yellow' },
