@@ -2,7 +2,7 @@ import { z } from "zod";
 import { createRouter, publicQuery } from "../middleware";
 import { readSheet, appendRow, updateRange, findRowIndex, deleteRows, getSheetId } from "../services/sheets";
 import { extractGuardiaData } from "../services/gemini";
-import { uploadFile } from "../services/drive";
+import { uploadFile } from "../services/storage";
 import { env } from "../lib/env";
 
 export const planillasRouter = createRouter({
@@ -93,9 +93,9 @@ export const planillasRouter = createRouter({
 
         // 2. Upload to Google Drive
         let urlImagen = "";
-        if (env.DRIVE_FOLDER_ID) {
+        if (env.GCS_BUCKET_NAME) {
           urlImagen = await uploadFile(
-            env.DRIVE_FOLDER_ID,
+            env.GCS_BUCKET_NAME,
             input.fileName,
             input.fileType,
             base64Content
