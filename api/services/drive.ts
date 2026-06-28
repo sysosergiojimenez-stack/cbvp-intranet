@@ -1,3 +1,4 @@
+import { Readable } from "stream";
 import { getDriveClient } from "./googleAuth";
 
 /**
@@ -12,6 +13,7 @@ export async function uploadFile(
   const drive = getDriveClient();
 
   const buffer = Buffer.from(base64Content, "base64");
+  const stream = Readable.from(buffer);
 
   const response = await drive.files.create({
     requestBody: {
@@ -21,7 +23,7 @@ export async function uploadFile(
     },
     media: {
       mimeType,
-      body: buffer,
+      body: stream,
     },
     fields: "id, webViewLink",
   });
