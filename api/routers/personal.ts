@@ -43,6 +43,17 @@ export const personalRouter = createRouter({
       });
     }
 
+    // Ordenar: primero por AnioJuramento (numerico ASC), luego por Codigo (numerico ASC)
+    personal.sort((a, b) => {
+      const anioA = parseInt(a.anioJuramento) || 0;
+      const anioB = parseInt(b.anioJuramento) || 0;
+      if (anioA !== anioB) return anioA - anioB;
+
+      const numA = parseInt(extractNumber(a.codigo)) || 0;
+      const numB = parseInt(extractNumber(b.codigo)) || 0;
+      return numA - numB;
+    });
+
     return { exito: true as const, personal };
   }),
 
