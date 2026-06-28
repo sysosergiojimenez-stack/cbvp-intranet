@@ -9,6 +9,9 @@ WORKDIR /app
 COPY package.json ./
 RUN npm install --no-audit --no-fund
 
+# Instalar tsx globalmente (para produccion sin npx)
+RUN npm install -g tsx
+
 # Copiar código fuente
 COPY . .
 
@@ -22,4 +25,4 @@ ENV PORT=3000
 EXPOSE 3000
 
 # Ejecutar backend directamente con tsx (sin bundle de esbuild)
-CMD ["npx", "tsx", "api/boot.ts"]
+CMD ["tsx", "api/boot.ts"]
