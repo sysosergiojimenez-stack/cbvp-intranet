@@ -9,6 +9,7 @@ WORKDIR /app
 
 # Copiar package files primero (para cache de layers)
 COPY package.json package-lock.json ./
+RUN npm install -g npm@10.9.2
 RUN npm ci --no-audit --no-fund
 
 # Copiar todo el codigo fuente
