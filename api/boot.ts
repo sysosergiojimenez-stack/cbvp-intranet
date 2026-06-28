@@ -7,6 +7,7 @@ import { createContext } from "./context";
 import { env } from "./lib/env";
 import { serve } from "@hono/node-server";
 import { serveStaticFiles } from "./lib/vite";
+import { getSheetsClient } from "./services/googleAuth";
 
 const app = new Hono<{ Bindings: HttpBindings }>();
 
@@ -17,6 +18,29 @@ if (env.isProduction) {
 
 // Health check endpoint
 app.get("/health", (c) => c.json({ ok: true, status: "CBVP API running" }, 200));
+
+// Debug: list sheets in the Guardias spreadsheet
+app.get("/debug/sheets", async (c) => {
+  try {
+    const sheets = getSheetsClient();
+    const response = await sheets.spreadsheets.get({
+      spreadsheetId: env.SHEET_GUARDIAS_ID,
+      fields: "sheets.properties.title,sheets.properties.sheetId",
+    });
+    const sheetList = response.data.sheets?.map(s => ({
+      title: s.properties?.title,
+      sheetId: s.properties?.sheetId,
+    })) || [];
+    return c.json({
+      spreadsheetId: env.SHEET_GUARDIAS_ID,
+      sheets: sheetList,
+    });
+  } catch (err: unknown) {
+    return c.json({
+      error: err instanceof Error ? err.message : String(err),
+    }, 500);
+  }
+});
 
 app.use(bodyLimit({ maxSize: 50 * 1024 * 1024 }));
 app.use("/api/trpc/*", async (c) => {
