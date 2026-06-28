@@ -121,11 +121,14 @@ export async function getSheetId(
     spreadsheetId,
     fields: "sheets.properties",
   });
+  const availableSheets = response.data.sheets?.map(s => s.properties?.title).filter(Boolean) || [];
   const sheet = response.data.sheets?.find(
     (s) => s.properties?.title === sheetName
   );
   if (!sheet?.properties?.sheetId) {
-    throw new Error(`Sheet "${sheetName}" not found`);
+    throw new Error(
+      `Sheet "${sheetName}" not found. Available sheets: [${availableSheets.join(", ")}]`
+    );
   }
   return sheet.properties.sheetId;
 }
