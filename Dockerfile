@@ -1,27 +1,25 @@
-# Railway cache-bust: v3-$(date +%s)
-FROM node:22-slim AS builder
+# Dockerfile SIMPLE para Railway - Sin esbuild bundle
+# Ejecuta TypeScript directamente con tsx (más confiable que bundle CJS)
+
+FROM node:22-slim
 
 WORKDIR /app
 
-# Cache-bust: forces rebuild of all subsequent layers
-RUN echo "rebuild-2026-06-28-v3" > /dev/null
-
+# Instalar dependencias
 COPY package.json ./
 RUN npm install --no-audit --no-fund
 
+# Copiar código fuente
 COPY . .
-RUN npm run build
 
-FROM node:22-slim AS runtime
+# Build solo del frontend (Vite)
+RUN npx vite build
 
-WORKDIR /app
-
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/package.json ./
-
+# Puerto y entorno
 ENV NODE_ENV=production
 ENV PORT=3000
 
 EXPOSE 3000
 
-CMD ["node", "dist/boot.cjs"]
+# Ejecutar backend directamente con tsx (sin bundle de esbuild)
+CMD ["npx", "tsx", "api/boot.ts"]
