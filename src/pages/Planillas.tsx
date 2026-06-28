@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { usePermiso } from '@/hooks/usePermiso';
+import { useAuth } from '@/context/AuthContext';
 import { trpc } from '@/providers/trpc';
-import { PERSONAL_DATA } from '@/data/mockData';
 import type { DatosExtraidos } from '@/types';
 import {
   Upload, FileText, Zap, CheckCircle, AlertTriangle,
@@ -9,10 +9,11 @@ import {
   ChevronDown, ChevronUp
 } from 'lucide-react';
 
-const ASISTENCIA_OPCIONES = ['PRESENTE', 'ACACR', 'ACASR', 'ASASR'];
+
 
 export default function Planillas() {
   const { puedeCargarPlanillas } = usePermiso();
+  const { usuario } = useAuth();
   const [file, setFile] = useState<File | null>(null);
   const [filePreview, setFilePreview] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -67,7 +68,7 @@ export default function Planillas() {
   };
 
   const procesarPlanilla = async () => {
-    if (!file) return;
+    if (!file || !usuario) return;
     setIsProcessing(true);
     setError('');
 
@@ -80,7 +81,7 @@ export default function Planillas() {
           base64Data,
           fileName: file.name,
           fileType: file.type,
-          user: { identificador: '1', nombreCompleto: 'Usuario' },
+          user: { identificador: usuario.identificador, nombreCompleto: usuario.nombreCompleto },
         });
 
         if (resp.exito && resp.datos) {
@@ -89,57 +90,15 @@ export default function Planillas() {
             datos: resp.datos as DatosExtraidos,
           });
         } else {
-          // Fallback: mock processing
-          simulateMockProcessing(base64Data);
+          setError(resp.mensaje || 'Error al procesar la planilla');
         }
-      } catch {
-        // If tRPC fails (backend not configured), use mock
-        simulateMockProcessing(base64Data);
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : 'Error de conexion con el servidor');
       }
 
       setIsProcessing(false);
     };
     reader.readAsDataURL(file);
-  };
-
-  const simulateMockProcessing = (base64Data: string) => {
-    const mockData: DatosExtraidos = {
-      compania: 'Vigesima Compania Capital',
-      grupo: 'A',
-      fechaGuardia: '20/01/2026',
-      tipoGuardia: 'Normal',
-      personal: PERSONAL_DATA.slice(0, 6).map((p, i) => ({
-        numero: (i + 1).toString(),
-        codigo: p.codigo,
-        nombre: p.nombreCompleto,
-        asignacion: i === 0 ? 'Jefe de Guardia' : i < 3 ? `AB-20${i}` : 'Reserva',
-        asistencia: ASISTENCIA_OPCIONES[Math.floor(Math.random() * ASISTENCIA_OPCIONES.length)],
-      })),
-      guardiasEspeciales: [
-        { numero: '1', codigo: PERSONAL_DATA[1].codigo, nombre: PERSONAL_DATA[1].nombreCompleto, asignacion: 'Supervision' },
-      ],
-      refuerzos: [
-        { numero: '1', codigo: PERSONAL_DATA[11].codigo, nombre: PERSONAL_DATA[11].nombreCompleto, asignacion: 'Apoyo' },
-      ],
-      radioOperadores: [
-        { codigo: PERSONAL_DATA[10].codigo, nombre: PERSONAL_DATA[10].nombreCompleto, alfa: 'Activo', k20: 'Operativo' },
-      ],
-      moviles: [
-        { codigo: 'AB-201', situacion: 'Operativo', kilometraje: '10.450' },
-        { codigo: 'AB-202', situacion: 'Taller', kilometraje: '8.230' },
-      ],
-      novedades: 'Mantenimiento preventivo del AB-201. Se realizo limpieza general del cuartel y revision de equipos.',
-      inicioGuardia: '08:00',
-      finalizaGuardia: '20:00',
-      directorSem: PERSONAL_DATA[12].nombreCompleto,
-      comandanteSemana: PERSONAL_DATA[0].nombreCompleto,
-      oficialK20: PERSONAL_DATA[1].nombreCompleto,
-    };
-
-    setResult({
-      idPlanilla: `GRD-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${Date.now().toString().slice(-6)}`,
-      datos: mockData,
-    });
   };
 
   const toggleSection = (section: string) => {
