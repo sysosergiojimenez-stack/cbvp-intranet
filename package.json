@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build && esbuild api/boot.ts --platform=node --bundle --format=cjs --outfile=dist/boot.js --external:tsx",
+    "build": "vite build && esbuild api/boot.ts --platform=node --bundle --format=cjs --outfile=dist/boot.cjs --external:tsx",
     "lint": "eslint .",
     "preview": "vite preview",
     "start": "NODE_ENV=production node dist/boot.js",
