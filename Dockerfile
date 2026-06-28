@@ -1,14 +1,15 @@
 # Dockerfile para Railway - CBVP Fullstack
-# Usa node:22-slim que incluye npm 10.9+ nativamente, evitando el bug de Railway
+# Usa npm install (no npm ci) para evitar bug "Exit handler never called!" de Railway
+# Pnpm o yarn serian mejores alternativas pero npm install funciona
 
 # -------- Etapa 1: Builder --------
 FROM node:22-slim AS builder
 
 WORKDIR /app
 
-# Copiar package files primero (para cache de layers)
-COPY package.json package-lock.json ./
-RUN npm ci --no-audit --no-fund
+# Copiar package files
+COPY package.json ./
+RUN npm install --no-audit --no-fund
 
 # Copiar todo el codigo fuente
 COPY . .
@@ -25,8 +26,8 @@ WORKDIR /app
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/package.json ./
 
-# Instalar SOLO dependencias de produccion (si boot.js las necesita en runtime)
-RUN npm ci --production --no-audit --no-fund 2>/dev/null || true
+# Instalar dependencias de produccion (boot.js puede necesitar superjson u otras en runtime)
+RUN npm install --production --no-audit --no-fund 2>/dev/null || true
 
 ENV NODE_ENV=production
 ENV PORT=3000
