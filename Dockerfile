@@ -7,8 +7,8 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 # Copiar package files primero (para cache de layers)
-COPY package.json package-lock.json* ./
-RUN npm install
+COPY package.json package-lock.json ./
+RUN npm ci
 
 # Copiar todo el codigo fuente
 COPY . .
@@ -28,7 +28,7 @@ COPY --from=builder /app/package.json ./
 
 # Instalar SOLO dependencias de produccion
 # Honestamente boot.js es un bundle con todo incluido, pero instalamos por si acaso
-RUN npm install --production 2>/dev/null || true
+RUN npm ci --production 2>/dev/null || true
 
 # Render setea PORT automaticamente
 ENV NODE_ENV=production
