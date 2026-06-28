@@ -122,12 +122,13 @@ export async function getSheetId(
     fields: "sheets.properties",
   });
   const availableSheets = response.data.sheets?.map(s => s.properties?.title).filter(Boolean) || [];
+  const searchName = sheetName.trim();
   const sheet = response.data.sheets?.find(
-    (s) => s.properties?.title === sheetName
+    (s) => s.properties?.title?.trim() === searchName
   );
   if (!sheet?.properties?.sheetId) {
     throw new Error(
-      `Sheet "${sheetName}" not found. Available sheets: [${availableSheets.join(", ")}]`
+      `Sheet "${searchName}" not found. Available: [${availableSheets.join(", ")}]`
     );
   }
   return sheet.properties.sheetId;

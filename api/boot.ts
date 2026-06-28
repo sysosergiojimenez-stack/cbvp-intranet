@@ -19,7 +19,7 @@ if (env.isProduction) {
 // Health check endpoint
 app.get("/health", (c) => c.json({ ok: true, status: "CBVP API running" }, 200));
 
-// Debug: list sheets in the Guardias spreadsheet
+// Debug: list sheets in the Guardias spreadsheet (rebuild v2)
 app.get("/debug/sheets", async (c) => {
   try {
     const sheets = getSheetsClient();
