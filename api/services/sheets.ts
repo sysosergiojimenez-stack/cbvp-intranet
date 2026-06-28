@@ -122,24 +122,32 @@ export async function getSheetId(
     fields: "sheets.properties",
   });
   const allSheets = response.data.sheets || [];
-  const availableSheets = allSheets.map(s => s.properties?.title).filter(Boolean) as string[];
-  const searchName = sheetName.trim().normalize("NFC");
+  const searchName = sheetName.trim();
   
-  // Try exact match first, then lowercase match
-  let sheet = allSheets.find((s) => s.properties?.title?.trim().normalize("NFC") === searchName);
-  if (!sheet) {
-    sheet = allSheets.find((s) => s.properties?.title?.trim().toLowerCase() === searchName.toLowerCase());
+  // Manual loop instead of find() - more reliable in bundled environments
+  for (const s of allSheets) {
+    const title = s.properties?.title;
+    if (title && title.trim() === searchName) {
+      if (s.properties?.sheetId !== undefined) {
+        return s.properties.sheetId;
+      }
+    }
   }
   
-  if (!sheet?.properties?.sheetId) {
-    // Debug: show character codes
-    const debug = availableSheets.map(t => `${t}(${[...t].map(c => c.charCodeAt(0)).join(',')})`);
-    const searchDebug = `${searchName}(${[...searchName].map(c => c.charCodeAt(0)).join(',')})`;
-    throw new Error(
-      `Sheet "${searchName}" not found. Search chars: [${searchDebug}]. Available chars: [${debug.join(" | ")}]`
-    );
+  // Fallback: lowercase comparison
+  for (const s of allSheets) {
+    const title = s.properties?.title;
+    if (title && title.trim().toLowerCase() === searchName.toLowerCase()) {
+      if (s.properties?.sheetId !== undefined) {
+        return s.properties.sheetId;
+      }
+    }
   }
-  return sheet.properties.sheetId;
+  
+  const available = allSheets.map(s => s.properties?.title).filter(Boolean) as string[];
+  throw new Error(
+    `Sheet "${searchName}" not found. Available: [${available.join(", ")}]`
+  );
 }
 
 /**
