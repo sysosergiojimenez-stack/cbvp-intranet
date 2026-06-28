@@ -1,8 +1,7 @@
 import { getGoogleAuth } from "./googleAuth";
 
 /**
- * Uploads a file to Google Drive using REST API directly.
- * Avoids googleapis streaming issues in bundled environments.
+ * Uploads a file to Google Drive using REST API multipart upload.
  */
 export async function uploadFile(
   folderId: string,
@@ -17,24 +16,35 @@ export async function uploadFile(
     throw new Error("Failed to get access token for Drive upload");
   }
 
-  const buffer = Buffer.from(base64Content, "base64");
+  // Decode base64 to binary
+  const fileBuffer = Buffer.from(base64Content, "base64");
 
-  // Build multipart request body manually
-  const boundary = "-------314159265358979323846";
-  const metadata = JSON.stringify({
+  // Build multipart/related body following Google Drive API spec
+  const boundary = "cbvp_boundary_" + Date.now();
+
+  const metadataPart = JSON.stringify({
     name: fileName,
-    mimeType,
     parents: folderId ? [folderId] : undefined,
   });
 
-  const delimiter = `\r\n--${boundary}\r\n`;
-  const closeDelimiter = `\r\n--${boundary}--`;
+  // Build multipart body as Buffers to handle binary correctly
+  const crlf = Buffer.from("\r\n");
+  const dashBoundary = Buffer.from(`--${boundary}`);
+  const metadataHeaders = Buffer.from(
+    `Content-Type: application/json; charset=UTF-8\r\n\r\n${metadataPart}`
+  );
+  const fileHeaders = Buffer.from(
+    `Content-Type: ${mimeType}\r\n\r\n`
+  );
+  const closeDelimiter = Buffer.from(`--${boundary}--`);
 
   const multipartBody = Buffer.concat([
-    Buffer.from(`${delimiter}Content-Type: application/json; charset=UTF-8\r\n\r\n${metadata}`),
-    Buffer.from(`${delimiter}Content-Type: ${mimeType}\r\nContent-Transfer-Encoding: base64\r\n\r\n`),
-    buffer,
-    Buffer.from(closeDelimiter),
+    dashBoundary, crlf,
+    metadataHeaders, crlf,
+    dashBoundary, crlf,
+    fileHeaders,
+    fileBuffer, crlf,
+    closeDelimiter,
   ]);
 
   const response = await fetch(
@@ -58,7 +68,7 @@ export async function uploadFile(
   const fileId = result.id;
 
   // Make the file viewable by anyone with the link
-  await fetch(
+  const permResponse = await fetch(
     `https://www.googleapis.com/drive/v3/files/${fileId}/permissions`,
     {
       method: "POST",
@@ -69,6 +79,10 @@ export async function uploadFile(
       body: JSON.stringify({ role: "reader", type: "anyone" }),
     }
   );
+
+  if (!permResponse.ok) {
+    console.warn("[Drive] Failed to set permission:", await permResponse.text());
+  }
 
   return `https://drive.google.com/file/d/${fileId}/view`;
 }
