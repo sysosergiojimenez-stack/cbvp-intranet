@@ -1,179 +1,231 @@
 import { NavLink } from 'react-router-dom';
 import { usePermiso } from '@/hooks/usePermiso';
-import { PERSONAL_DATA } from '@/data/mockData';
+import { trpc } from '@/providers/trpc';
 import {
   Users, ClipboardList, Truck, CalendarDays,
-  Flame, TrendingUp, Activity, AlertTriangle,
-  ChevronRight
+  Flame, TrendingUp, ChevronRight, Shield,
+  Clock, Award, Zap
 } from 'lucide-react';
 
-const stats = [
-  { label: 'Bomberos Activos', value: PERSONAL_DATA.length.toString(), icon: Users, color: 'text-cbvp-red', bg: 'bg-cbvp-red/10' },
-  { label: 'Planillas Hoy', value: '2', icon: ClipboardList, color: 'text-cbvp-green', bg: 'bg-cbvp-green/10' },
-  { label: 'Moviles en Servicio', value: '3/5', icon: Truck, color: 'text-cbvp-blue', bg: 'bg-cbvp-blue/10' },
-  { label: 'Guardias del Mes', value: '42', icon: CalendarDays, color: 'text-cbvp-orange', bg: 'bg-cbvp-orange/10' },
-];
-
-const modules = [
-  {
-    title: 'Planillas de Guardia',
-    description: 'Carga y procesamiento automatico de planillas mediante IA (Gemini).',
-    icon: ClipboardList,
-    path: '/planillas',
-    color: 'text-cbvp-red',
-    bg: 'bg-cbvp-red/10',
-    border: 'hover:border-cbvp-red/30',
-  },
-  {
-    title: 'Gestion de Personal',
-    description: 'Directorio completo, historial de guardias y documentacion.',
-    icon: Users,
-    path: '/personal',
-    color: 'text-cbvp-red',
-    bg: 'bg-cbvp-red/10',
-    border: 'hover:border-cbvp-red/30',
-  },
-  {
-    title: 'Control de Moviles',
-    description: 'Seguimiento de vehiculos, kilometraje y mantenimientos.',
-    icon: Truck,
-    path: '/moviles',
-    color: 'text-white/40',
-    bg: 'bg-white/5',
-    border: 'hover:border-white/10',
-    disabled: true,
-  },
-  {
-    title: 'Reportes',
-    description: 'Informes mensuales y estadisticas operativas.',
-    icon: TrendingUp,
-    path: '/reportes',
-    color: 'text-white/40',
-    bg: 'bg-white/5',
-    border: 'hover:border-white/10',
-    disabled: true,
-  },
-];
-
-const recentActivity = [
-  { title: 'Planilla procesada', desc: 'Grupo A - 19/01/2026', time: 'Hace 2h', type: 'success' },
-  { title: 'Servicio de emergencia', desc: 'Incendio residencial - Zona Norte', time: 'Hace 5h', type: 'alert' },
-  { title: 'Mantenimiento preventivo', desc: 'AB-201 - Revision completa', time: 'Hace 8h', type: 'info' },
-  { title: 'Nuevo bombero registrado', desc: 'C-1016/25 - Juan Carlos Paez', time: 'Ayer', type: 'success' },
-];
-
 export default function Dashboard() {
-  const permisos = usePermiso();
+  const { puedeCargarPlanillas, puedeVerPersonal, puedeVerHistorial } = usePermiso();
 
+  const { data: personalData } = trpc.personal.listado.useQuery(undefined, {
+    retry: 1, refetchOnWindowFocus: false,
+  });
+  const { data: historialData } = trpc.planillas.historial.useQuery(undefined, {
+    retry: 1, refetchOnWindowFocus: false,
+  });
+
+  const totalPersonal = personalData?.personal?.length || 0;
+  const totalPlanillas = historialData?.exito ? historialData.planillas.length : 0;
+
+  // Count planillas this month
   const now = new Date();
-  const dateStr = now.toLocaleDateString('es-PY', {
-    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
-  });
+  const thisMonth = historialData?.exito
+    ? historialData.planillas.filter(p => {
+        try {
+          const [d, m, y] = p.fechaGuardia.split('/');
+          return parseInt(m) === (now.getMonth() + 1) && parseInt(y) === now.getFullYear();
+        } catch { return false; }
+      }).length
+    : 0;
 
-  const accessibleModules = modules.filter(m => {
-    if (m.disabled) return false;
-    if (m.path === '/planillas') return permisos.puedeCargarPlanillas;
-    if (m.path === '/personal') return permisos.puedeVerPersonal;
-    return permisos.puedeVerTodo;
-  });
+  const stats = [
+    { label: 'Bomberos', value: totalPersonal.toString(), sub: 'activos', icon: Users, color: 'text-cbvp-red', bg: 'bg-cbvp-red/8', border: 'border-cbvp-red/15' },
+    { label: 'Planillas', value: totalPlanillas.toString(), sub: 'totales', icon: ClipboardList, color: 'text-cbvp-green', bg: 'bg-cbvp-green/8', border: 'border-cbvp-green/15' },
+    { label: 'Este Mes', value: thisMonth.toString(), sub: 'guardias', icon: CalendarDays, color: 'text-cbvp-orange', bg: 'bg-cbvp-orange/8', border: 'border-cbvp-orange/15' },
+    { label: 'Moviles', value: '3/5', sub: 'operativos', icon: Truck, color: 'text-cbvp-blue', bg: 'bg-cbvp-blue/8', border: 'border-cbvp-blue/15' },
+  ];
+
+  const modules = [
+    {
+      title: 'Planillas de Guardia',
+      description: 'Carga y procesamiento automatico de planillas mediante IA (Gemini).',
+      icon: ClipboardList,
+      path: '/planillas',
+      access: puedeCargarPlanillas,
+      color: 'text-cbvp-red',
+      bg: 'bg-cbvp-red/8',
+      border: 'border-cbvp-red/15 hover:border-cbvp-red/30',
+      badge: 'IA Powered',
+      badgeColor: 'bg-cbvp-red/15 text-cbvp-red',
+    },
+    {
+      title: 'Gestion de Personal',
+      description: 'Directorio completo de bomberos voluntarios con filtros y busqueda.',
+      icon: Users,
+      path: '/personal',
+      access: puedeVerPersonal,
+      color: 'text-cbvp-green',
+      bg: 'bg-cbvp-green/8',
+      border: 'border-cbvp-green/15 hover:border-cbvp-green/30',
+      badge: `${totalPersonal} activos`,
+      badgeColor: 'bg-cbvp-green/15 text-cbvp-green',
+    },
+    {
+      title: 'Historial',
+      description: 'Registro historico completo de todas las guardias procesadas.',
+      icon: CalendarDays,
+      path: '/historial',
+      access: puedeVerHistorial,
+      color: 'text-cbvp-orange',
+      bg: 'bg-cbvp-orange/8',
+      border: 'border-cbvp-orange/15 hover:border-cbvp-orange/30',
+      badge: `${totalPlanillas} registros`,
+      badgeColor: 'bg-cbvp-orange/15 text-cbvp-orange',
+    },
+    {
+      title: 'Reportes',
+      description: 'Informes mensuales, estadisticas operativas y analisis de asistencia.',
+      icon: TrendingUp,
+      path: '/reportes',
+      access: false,
+      color: 'text-white/30',
+      bg: 'bg-white/5',
+      border: 'border-white/5',
+      badge: 'Proximamente',
+      badgeColor: 'bg-white/5 text-white/30',
+      disabled: true,
+    },
+  ];
+
+  const recentActivity = historialData?.exito
+    ? historialData.planillas.slice(0, 5).map(p => ({
+        id: p.idPlanilla,
+        fecha: p.fechaGuardia,
+        grupo: p.grupo,
+        time: p.fechaCarga,
+      }))
+    : [];
 
   return (
-    <div className="animate-fade-in">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-        <div>
-          <h1 className="text-2xl font-bold text-white">Dashboard</h1>
-          <p className="text-sm text-white/40 mt-1 capitalize">{dateStr}</p>
-        </div>
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-cbvp-red/10 border border-cbvp-red/20">
-          <Flame className="w-4 h-4 text-cbvp-red" />
-          <span className="text-xs text-cbvp-red font-medium">20ma Compania - Mercado 4</span>
-        </div>
-      </div>
-
+    <div className="animate-fade-in space-y-6">
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
-        {stats.map(stat => {
-          const Icon = stat.icon;
-          return (
-            <div
-              key={stat.label}
-              className="bg-white/[0.03] border border-white/5 rounded-xl p-5 hover:border-white/10 transition-all group"
-            >
-              <div className="flex items-center justify-between mb-3">
-                <div className={`w-10 h-10 rounded-lg ${stat.bg} flex items-center justify-center`}>
-                  <Icon className={`w-5 h-5 ${stat.color}`} />
-                </div>
-                <Activity className="w-4 h-4 text-white/20 group-hover:text-white/40 transition-colors" />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        {stats.map((s, i) => (
+          <div
+            key={i}
+            className={`glass rounded-xl p-4 border ${s.border} card-hover`}
+          >
+            <div className="flex items-start justify-between mb-3">
+              <div className={`w-9 h-9 rounded-lg ${s.bg} flex items-center justify-center`}>
+                <s.icon className={`w-4.5 h-4.5 ${s.color}`} />
               </div>
-              <h3 className="text-xs text-white/40 uppercase tracking-wide mb-1">{stat.label}</h3>
-              <p className="text-3xl font-bold text-white">{stat.value}</p>
             </div>
-          );
-        })}
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-2xl font-bold text-white">{s.value}</span>
+              <span className="text-[10px] text-white/30 uppercase">{s.sub}</span>
+            </div>
+            <p className="text-xs text-white/40 mt-1">{s.label}</p>
+          </div>
+        ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* Two column layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Modules */}
-        <div className="lg:col-span-2">
-          <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-            <ChevronRight className="w-5 h-5 text-cbvp-red" />
-            Modulos
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {accessibleModules.map(mod => {
-              const Icon = mod.icon;
-              return (
-                <NavLink
-                  key={mod.path}
-                  to={mod.path}
-                  className={`bg-white/[0.03] border border-white/5 rounded-xl p-6 transition-all hover:bg-white/[0.05] ${mod.border} group`}
-                >
-                  <div className={`w-11 h-11 rounded-lg ${mod.bg} flex items-center justify-center mb-4`}>
-                    <Icon className={`w-5 h-5 ${mod.color}`} />
+        <div className="lg:col-span-2 space-y-3">
+          <h2 className="text-sm font-semibold text-white/60 uppercase tracking-wider mb-1">Modulos</h2>
+          {modules.map((mod, i) => {
+            const content = (
+              <div
+                key={i}
+                className={`glass rounded-xl p-4 border ${mod.border} card-hover ${mod.disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+              >
+                <div className="flex items-start gap-3.5">
+                  <div className={`w-10 h-10 rounded-xl ${mod.bg} flex items-center justify-center shrink-0`}>
+                    <mod.icon className={`w-5 h-5 ${mod.color}`} />
                   </div>
-                  <h3 className="text-sm font-semibold text-white mb-1.5 group-hover:text-cbvp-red transition-colors">
-                    {mod.title}
-                  </h3>
-                  <p className="text-xs text-white/40 leading-relaxed">{mod.description}</p>
-                </NavLink>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Recent Activity */}
-        <div>
-          <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-            <ChevronRight className="w-5 h-5 text-cbvp-red" />
-            Actividad Reciente
-          </h2>
-          <div className="bg-white/[0.03] border border-white/5 rounded-xl divide-y divide-white/5">
-            {recentActivity.map((act, i) => (
-              <div key={i} className="p-4 hover:bg-white/[0.02] transition-colors">
-                <div className="flex items-start gap-3">
-                  <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${
-                    act.type === 'success' ? 'bg-cbvp-green' :
-                    act.type === 'alert' ? 'bg-cbvp-red-light' : 'bg-cbvp-blue'
-                  }`} />
-                  <div className="min-w-0">
-                    <p className="text-sm text-white font-medium truncate">{act.title}</p>
-                    <p className="text-xs text-white/40 mt-0.5">{act.desc}</p>
-                    <p className="text-[10px] text-white/25 mt-1">{act.time}</p>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className="text-sm font-semibold text-white">{mod.title}</h3>
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${mod.badgeColor}`}>{mod.badge}</span>
+                    </div>
+                    <p className="text-xs text-white/40 leading-relaxed">{mod.description}</p>
                   </div>
+                  {!mod.disabled && <ChevronRight className="w-4 h-4 text-white/20 shrink-0 mt-1" />}
                 </div>
               </div>
-            ))}
+            );
+
+            if (mod.disabled || !mod.access) return <div key={i}>{content}</div>;
+            return <NavLink key={i} to={mod.path}>{content}</NavLink>;
+          })}
+        </div>
+
+        {/* Right sidebar */}
+        <div className="space-y-4">
+          {/* Recent activity */}
+          <div className="glass rounded-xl p-4 border border-white/[0.04]">
+            <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
+              <Clock className="w-4 h-4 text-cbvp-red/60" />
+              Actividad Reciente
+            </h3>
+            {recentActivity.length === 0 ? (
+              <p className="text-xs text-white/30 text-center py-4">No hay actividad reciente</p>
+            ) : (
+              <div className="space-y-2.5">
+                {recentActivity.map((act, i) => (
+                  <div key={i} className="flex items-center gap-3 py-2 border-b border-white/[0.03] last:border-0">
+                    <div className="w-7 h-7 rounded-lg bg-cbvp-red/8 flex items-center justify-center shrink-0">
+                      <Shield className="w-3.5 h-3.5 text-cbvp-red/60" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-white truncate">Guardia {act.grupo}</p>
+                      <p className="text-[10px] text-white/30">{act.fecha}</p>
+                    </div>
+                    <span className="text-[10px] text-white/20 shrink-0">{act.time}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
-          {/* Quick Alert */}
-          <div className="mt-4 bg-cbvp-orange/5 border border-cbvp-orange/20 rounded-xl p-4 flex items-start gap-3">
-            <AlertTriangle className="w-5 h-5 text-cbvp-orange shrink-0 mt-0.5" />
-            <div>
-              <p className="text-sm font-medium text-cbvp-orange">Recordatorio</p>
-              <p className="text-xs text-white/40 mt-1">
-                Proxima capacitacion: Manejo de materiales peligrosos - 25/01/2026 a las 09:00.
-              </p>
+          {/* Quick info */}
+          <div className="glass rounded-xl p-4 border border-white/[0.04]">
+            <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
+              <Award className="w-4 h-4 text-cbvp-orange/60" />
+              20ma Compania
+            </h3>
+            <div className="space-y-2.5 text-xs text-white/40">
+              <div className="flex justify-between">
+                <span>Sede</span>
+                <span className="text-white/60">Mercado 4, Asuncion</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Fundacion</span>
+                <span className="text-white/60">15 de Agosto de 1985</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Jurisdiccion</span>
+                <span className="text-white/60">Mercado 4 y zonas aledanas</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Status */}
+          <div className="glass rounded-xl p-4 border border-white/[0.04]">
+            <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
+              <Zap className="w-4 h-4 text-cbvp-green/60" />
+              Estado del Sistema
+            </h3>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-cbvp-green" />
+                <span className="text-xs text-white/50">API Backend</span>
+                <span className="text-[10px] text-cbvp-green ml-auto">Online</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-cbvp-green" />
+                <span className="text-xs text-white/50">Google Sheets</span>
+                <span className="text-[10px] text-cbvp-green ml-auto">Conectado</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-cbvp-green" />
+                <span className="text-xs text-white/50">Gemini AI</span>
+                <span className="text-[10px] text-cbvp-green ml-auto">Activo</span>
+              </div>
             </div>
           </div>
         </div>

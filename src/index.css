@@ -49,17 +49,81 @@
 
 @layer utilities {
   .scrollbar-thin::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 5px;
+    height: 5px;
   }
   .scrollbar-thin::-webkit-scrollbar-track {
     background: transparent;
   }
   .scrollbar-thin::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 3px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
   }
   .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.15);
+  }
+
+  /* Glass effect */
+  .glass {
+    @apply bg-white/[0.03] backdrop-blur-sm border border-white/[0.06];
+  }
+
+  /* Card hover lift */
+  .card-hover {
+    @apply transition-all duration-200;
+  }
+  .card-hover:hover {
+    @apply bg-white/[0.04] border-white/[0.08];
+    transform: translateY(-1px);
+  }
+
+  /* Input focus ring */
+  .input-focus {
+    @apply focus:outline-none focus:ring-2 focus:ring-cbvp-red/20 focus:border-cbvp-red/40 transition-all;
+  }
+
+  /* Status badges */
+  .badge-presente {
+    @apply bg-cbvp-green/15 text-cbvp-green border border-cbvp-green/20;
+  }
+  .badge-acacr {
+    @apply bg-cbvp-orange/15 text-cbvp-orange border border-cbvp-orange/20;
+  }
+  .badge-acasr {
+    @apply bg-cbvp-yellow/15 text-cbvp-yellow border border-cbvp-yellow/20;
+  }
+  .badge-asasr {
+    @apply bg-cbvp-red/15 text-cbvp-red-light border border-cbvp-red/20;
+  }
+
+  /* Table row hover */
+  .table-row-hover {
+    @apply transition-colors duration-150;
+  }
+  .table-row-hover:hover {
+    @apply bg-white/[0.02];
+  }
+
+  /* Button press */
+  .btn-press {
+    @apply active:scale-[0.97] transition-transform;
+  }
+}
+
+/* Global selection */
+::selection {
+  background: rgba(192, 57, 43, 0.3);
+  color: white;
+}
+
+/* Smooth scroll */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Responsive font sizes */
+@media (max-width: 640px) {
+  html {
+    font-size: 14px;
   }
 }
