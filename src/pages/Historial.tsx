@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { usePermiso } from '@/hooks/usePermiso';
 import { trpc } from '@/providers/trpc';
 import type { PlanillaEncabezado, GuardiaPersonal } from '@/types';
@@ -15,8 +15,8 @@ export default function Historial() {
   const [viewPlanilla, setViewPlanilla] = useState<string | null>(null);
   const [editPlanilla, setEditPlanilla] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
-  // Detail data comes directly from tRPC query
   const [editForm, setEditForm] = useState<Partial<PlanillaEncabezado>>({});
+  const [editPersonal, setEditPersonal] = useState<GuardiaPersonal[]>([]);
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     normal: true, especial: true, refuerzo: true,
   });
@@ -34,17 +34,26 @@ export default function Historial() {
   });
 
   const updateMutation = trpc.planillas.actualizarEncabezado.useMutation({
-    onSuccess: () => { refetch(); setEditPlanilla(null); setEditForm({}); setEditError(''); },
+    onSuccess: () => { setEditError(''); },
     onError: (err) => { setEditError(err.message); },
   });
 
+  const updatePersonalMutation = trpc.planillas.actualizarPersonal.useMutation({
+    onSuccess: () => { setEditError(''); },
+    onError: (err) => { setEditError(err.message); },
+  });
+
+  // View detail query
   const detalleQuery = trpc.planillas.detalle.useQuery(
     { idPlanilla: viewPlanilla || "" },
     { enabled: !!viewPlanilla, retry: 1 }
   );
 
-  // Direct data from query - no intermediate state needed
-  const detalleList: GuardiaPersonal[] = detalleQuery.data?.personal || [];
+  // Edit detail query
+  const detalleEditQuery = trpc.planillas.detalle.useQuery(
+    { idPlanilla: editPlanilla || "" },
+    { enabled: !!editPlanilla, retry: 1 }
+  );
 
   const listPlanillas: PlanillaEncabezado[] = useMemo(() => {
     if (!rpcData?.exito) return [];
@@ -63,28 +72,40 @@ export default function Historial() {
   const totalPages = Math.ceil(filtered.length / itemsPerPage);
   const paginated = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-  // Split detail data by tipo
-  const guardiasNormales = detalleList.filter(p => p.tipo === 'GUARDIA NORMAL');
-  const guardiasEspeciales = detalleList.filter(p => p.tipo === 'GUARDIA ESPECIAL');
-  const refuerzos = detalleList.filter(p => p.tipo === 'REFUERZO');
+  // View detail lists
+  const detalleList: GuardiaPersonal[] = detalleQuery.data?.personal || [];
+  const guardiasNormalesView = detalleList.filter(p => p.tipo === 'GUARDIA NORMAL');
+  const guardiasEspecialesView = detalleList.filter(p => p.tipo === 'GUARDIA ESPECIAL');
+  const refuerzosView = detalleList.filter(p => p.tipo === 'REFUERZO');
+
+  // Edit detail lists
+  const guardiasNormalesEdit = editPersonal.filter(p => p.tipo === 'GUARDIA NORMAL');
+  const guardiasEspecialesEdit = editPersonal.filter(p => p.tipo === 'GUARDIA ESPECIAL');
+  const refuerzosEdit = editPersonal.filter(p => p.tipo === 'REFUERZO');
 
   const handleVer = (id: string) => {
     setViewPlanilla(id);
-    setExpandedSections({ normal: true, especial: true, refuerzo: true });
   };
 
-  const handleEliminar = async (id: string) => {
+  const handleEditar = (planilla: PlanillaEncabezado) => {
+    setEditPlanilla(planilla.idPlanilla);
+    setEditForm({ ...planilla });
+    setEditPersonal([]);
     setEditError('');
-    try {
-      await deleteMutation.mutateAsync({ idPlanilla: id });
-    } catch {
-      // error handled by onError
-    }
   };
+
+  // Load edit personal when detail query returns
+  useMemo(() => {
+    if (detalleEditQuery.data?.exito && editPlanilla) {
+      setEditPersonal(detalleEditQuery.data.personal);
+    }
+  }, [detalleEditQuery.data, editPlanilla]);
 
   const handleGuardarEdicion = async () => {
     if (!editPlanilla) return;
     setEditError('');
+
+    // 1. Update header
     await updateMutation.mutateAsync({
       idPlanilla: editPlanilla,
       datos: {
@@ -98,22 +119,50 @@ export default function Historial() {
         novedades: editForm.novedades,
       },
     });
+
+    // 2. Update personal (only changed fields)
+    const personalToUpdate = editPersonal
+      .filter(p => p.tipo === 'GUARDIA NORMAL' || p.tipo === 'GUARDIA ESPECIAL' || p.tipo === 'REFUERZO')
+      .map(p => ({
+        idFila: p.idFila,
+        asignacion: p.asignacion,
+        asistencia: p.asistencia,
+      }));
+
+    if (personalToUpdate.length > 0) {
+      await updatePersonalMutation.mutateAsync({
+        idPlanilla: editPlanilla,
+        personal: personalToUpdate,
+      });
+    }
+
+    // Close and refresh
+    setEditPlanilla(null);
+    setEditForm({});
+    setEditPersonal([]);
+    refetch();
+  };
+
+  const handleEliminar = async (id: string) => {
+    setEditError('');
+    try {
+      await deleteMutation.mutateAsync({ idPlanilla: id });
+    } catch {
+      // error handled by onError
+    }
   };
 
   const toggleSection = (section: string) => {
     setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
   };
 
-  const getTipoBadge = (tipo: string) => {
-    switch (tipo) {
-      case 'GUARDIA NORMAL': return 'bg-cbvp-red/20 text-cbvp-red';
-      case 'GUARDIA ESPECIAL': return 'bg-cbvp-orange/20 text-cbvp-orange';
-      case 'REFUERZO': return 'bg-cbvp-purple/20 text-cbvp-purple';
-      default: return 'bg-white/10 text-white/60';
-    }
+  const updatePersonalField = (idFila: string, field: 'asignacion' | 'asistencia', value: string) => {
+    setEditPersonal(prev => prev.map(p =>
+      p.idFila === idFila ? { ...p, [field]: value } : p
+    ));
   };
 
-  const renderSection = (title: string, tipo: string, data: GuardiaPersonal[], key: string) => {
+  const renderViewSection = (title: string, tipo: string, data: GuardiaPersonal[], key: string) => {
     if (data.length === 0) return null;
     return (
       <div className="mb-4">
@@ -156,6 +205,50 @@ export default function Historial() {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderEditSection = (title: string, tipo: string, data: GuardiaPersonal[], key: string) => {
+    if (data.length === 0) return null;
+    return (
+      <div className="mb-4">
+        <button onClick={() => toggleSection(key)} className="flex items-center gap-2 w-full text-left mb-2">
+          {expandedSections[key] ? <ChevronUp className="w-4 h-4 text-white/40" /> : <ChevronDown className="w-4 h-4 text-white/40" />}
+          <h4 className={`text-sm font-semibold ${tipo === 'GUARDIA NORMAL' ? 'text-cbvp-red' : tipo === 'GUARDIA ESPECIAL' ? 'text-cbvp-orange' : 'text-cbvp-purple'}`}>
+            {title} ({data.length})
+          </h4>
+        </button>
+        {expandedSections[key] && (
+          <div className="space-y-2 max-h-60 overflow-y-auto">
+            {data.map((p, i) => (
+              <div key={p.idFila} className="flex items-center gap-2 bg-white/[0.02] rounded-lg p-2">
+                <span className="text-xs text-white/30 w-6">{i + 1}</span>
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs text-white truncate">{p.nombre}</div>
+                  <div className="text-[10px] text-white/40">{p.codigo}</div>
+                </div>
+                <input
+                  value={p.asignacion || ''}
+                  onChange={e => updatePersonalField(p.idFila, 'asignacion', e.target.value)}
+                  placeholder="Asignacion"
+                  className="w-32 px-2 py-1 rounded bg-white/5 border border-white/10 text-white text-xs focus:outline-none focus:border-cbvp-orange/50"
+                />
+                <select
+                  value={p.asistencia || ''}
+                  onChange={e => updatePersonalField(p.idFila, 'asistencia', e.target.value)}
+                  className="w-28 px-2 py-1 rounded bg-white/5 border border-white/10 text-white text-xs focus:outline-none focus:border-cbvp-orange/50"
+                >
+                  <option value="">Asistencia</option>
+                  <option value="PRESENTE">PRESENTE</option>
+                  <option value="ACACR">ACACR</option>
+                  <option value="ACASR">ACASR</option>
+                  <option value="ASASR">ASASR</option>
+                </select>
+              </div>
+            ))}
           </div>
         )}
       </div>
@@ -243,7 +336,7 @@ export default function Historial() {
                           <div className="flex items-center gap-1.5">
                             <button onClick={() => handleVer(planilla.idPlanilla)} className="p-1.5 rounded-lg bg-cbvp-red/10 hover:bg-cbvp-red/20 text-cbvp-red transition-colors" title="Ver"><Eye className="w-3.5 h-3.5" /></button>
                             {puedeEditarPlanillas && (
-                              <button onClick={() => { setEditPlanilla(planilla.idPlanilla); setEditForm({ ...planilla }); setEditError(''); }} className="p-1.5 rounded-lg bg-cbvp-orange/10 hover:bg-cbvp-orange/20 text-cbvp-orange transition-colors" title="Editar"><Pencil className="w-3.5 h-3.5" /></button>
+                              <button onClick={() => handleEditar(planilla)} className="p-1.5 rounded-lg bg-cbvp-orange/10 hover:bg-cbvp-orange/20 text-cbvp-orange transition-colors" title="Editar"><Pencil className="w-3.5 h-3.5" /></button>
                             )}
                             {planilla.urlImagen && (
                               <a href={planilla.urlImagen} target="_blank" rel="noopener noreferrer" className="p-1.5 rounded-lg bg-cbvp-blue/10 hover:bg-cbvp-blue/20 text-cbvp-blue transition-colors" title="Ver imagen"><ExternalLink className="w-3.5 h-3.5" /></a>
@@ -276,7 +369,7 @@ export default function Historial() {
         )}
       </div>
 
-      {/* View Modal - Now shows sections for Normal, Especial, Refuerzo */}
+      {/* View Modal */}
       {viewPlanilla && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setViewPlanilla(null)}>
           <div className="bg-cbvp-dark-light border border-white/10 rounded-2xl max-w-3xl w-full max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
@@ -294,17 +387,15 @@ export default function Historial() {
                   <span className="ml-3 text-sm text-white/40">Cargando personal...</span>
                 </div>
               )}
-
               {!detalleQuery.isLoading && detalleList.length === 0 && (
                 <p className="text-white/40 text-center py-8">No hay personal registrado en esta planilla.</p>
               )}
-
               {detalleList.length > 0 && (
                 <>
                   <p className="text-xs text-white/30 mb-4">Total: {detalleList.length} registro(s)</p>
-                  {renderSection('Guardia Normal', 'GUARDIA NORMAL', guardiasNormales, 'normal')}
-                  {renderSection('Guardias Especiales', 'GUARDIA ESPECIAL', guardiasEspeciales, 'especial')}
-                  {renderSection('Refuerzos', 'REFUERZO', refuerzos, 'refuerzo')}
+                  {renderViewSection('Guardia Normal', 'GUARDIA NORMAL', guardiasNormalesView, 'normal')}
+                  {renderViewSection('Guardias Especiales', 'GUARDIA ESPECIAL', guardiasEspecialesView, 'especial')}
+                  {renderViewSection('Refuerzos', 'REFUERZO', refuerzosView, 'refuerzo')}
                 </>
               )}
             </div>
@@ -312,21 +403,24 @@ export default function Historial() {
         </div>
       )}
 
-      {/* Edit Modal - Now actually saves */}
+      {/* Edit Modal */}
       {editPlanilla && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setEditPlanilla(null)}>
-          <div className="bg-cbvp-dark-light border border-white/10 rounded-2xl max-w-lg w-full" onClick={e => e.stopPropagation()}>
+          <div className="bg-cbvp-dark-light border border-white/10 rounded-2xl max-w-3xl w-full max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between p-5 border-b border-white/5">
               <h2 className="text-lg font-semibold text-cbvp-orange">Editar Planilla</h2>
               <button onClick={() => setEditPlanilla(null)} className="p-2 rounded-lg hover:bg-white/5 text-white/40 hover:text-white transition-colors"><X className="w-5 h-5" /></button>
             </div>
-            <div className="p-5 space-y-4">
+            <div className="p-5">
               {editError && (
-                <div className="p-3 bg-cbvp-red/10 border border-cbvp-red/20 rounded-lg text-sm text-cbvp-red-light">
+                <div className="p-3 bg-cbvp-red/10 border border-cbvp-red/20 rounded-lg text-sm text-cbvp-red-light mb-4">
                   {editError}
                 </div>
               )}
-              <div className="grid grid-cols-2 gap-3">
+
+              {/* Encabezado */}
+              <h3 className="text-sm font-semibold text-white mb-3">Encabezado</h3>
+              <div className="grid grid-cols-2 gap-3 mb-4">
                 <div><label className="text-[10px] text-white/40 uppercase tracking-wider mb-1 block">Fecha Guardia</label><input value={editForm.fechaGuardia || ''} onChange={e => setEditForm(f => ({ ...f, fechaGuardia: e.target.value }))} className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-cbvp-orange/50" /></div>
                 <div><label className="text-[10px] text-white/40 uppercase tracking-wider mb-1 block">Grupo</label><input value={editForm.grupo || ''} onChange={e => setEditForm(f => ({ ...f, grupo: e.target.value }))} className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-cbvp-orange/50" /></div>
                 <div><label className="text-[10px] text-white/40 uppercase tracking-wider mb-1 block">Inicio</label><input value={editForm.inicioGuardia || ''} onChange={e => setEditForm(f => ({ ...f, inicioGuardia: e.target.value }))} className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-cbvp-orange/50" /></div>
@@ -334,10 +428,35 @@ export default function Historial() {
                 <div><label className="text-[10px] text-white/40 uppercase tracking-wider mb-1 block">Director Sem</label><input value={editForm.directorSem || ''} onChange={e => setEditForm(f => ({ ...f, directorSem: e.target.value }))} className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-cbvp-orange/50" /></div>
                 <div><label className="text-[10px] text-white/40 uppercase tracking-wider mb-1 block">Comandante</label><input value={editForm.comandanteSemana || ''} onChange={e => setEditForm(f => ({ ...f, comandanteSemana: e.target.value }))} className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-cbvp-orange/50" /></div>
               </div>
-              <div><label className="text-[10px] text-white/40 uppercase tracking-wider mb-1 block">Oficial K20</label><input value={editForm.oficialK20 || ''} onChange={e => setEditForm(f => ({ ...f, oficialK20: e.target.value }))} className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-cbvp-orange/50" /></div>
-              <div><label className="text-[10px] text-white/40 uppercase tracking-wider mb-1 block">Novedades</label><textarea value={editForm.novedades || ''} onChange={e => setEditForm(f => ({ ...f, novedades: e.target.value }))} rows={3} className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-cbvp-orange/50 resize-vertical" /></div>
-              <button onClick={handleGuardarEdicion} disabled={updateMutation.isPending} className="w-full py-3 bg-cbvp-green hover:bg-cbvp-green/80 disabled:opacity-50 text-white font-semibold rounded-xl transition-all flex items-center justify-center gap-2">
-                <Save className="w-4 h-4" /> {updateMutation.isPending ? 'Guardando...' : 'Guardar Cambios'}
+              <div className="mb-4"><label className="text-[10px] text-white/40 uppercase tracking-wider mb-1 block">Oficial K20</label><input value={editForm.oficialK20 || ''} onChange={e => setEditForm(f => ({ ...f, oficialK20: e.target.value }))} className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-cbvp-orange/50" /></div>
+              <div className="mb-4"><label className="text-[10px] text-white/40 uppercase tracking-wider mb-1 block">Novedades</label><textarea value={editForm.novedades || ''} onChange={e => setEditForm(f => ({ ...f, novedades: e.target.value }))} rows={3} className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-cbvp-orange/50 resize-vertical" /></div>
+
+              {/* Personal */}
+              <h3 className="text-sm font-semibold text-white mb-3 border-t border-white/5 pt-4">Personal</h3>
+              {detalleEditQuery.isLoading && (
+                <div className="flex items-center justify-center py-4">
+                  <div className="w-5 h-5 border-2 border-cbvp-orange/30 border-t-cbvp-orange rounded-full animate-spin" />
+                  <span className="ml-2 text-sm text-white/40">Cargando personal...</span>
+                </div>
+              )}
+              {editPersonal.length === 0 && !detalleEditQuery.isLoading && (
+                <p className="text-white/40 text-center py-4 text-sm">No hay personal en esta planilla.</p>
+              )}
+              {editPersonal.length > 0 && (
+                <>
+                  {renderEditSection('Guardia Normal', 'GUARDIA NORMAL', guardiasNormalesEdit, 'normal')}
+                  {renderEditSection('Guardias Especiales', 'GUARDIA ESPECIAL', guardiasEspecialesEdit, 'especial')}
+                  {renderEditSection('Refuerzos', 'REFUERZO', refuerzosEdit, 'refuerzo')}
+                </>
+              )}
+
+              <button
+                onClick={handleGuardarEdicion}
+                disabled={updateMutation.isPending || updatePersonalMutation.isPending}
+                className="w-full mt-4 py-3 bg-cbvp-green hover:bg-cbvp-green/80 disabled:opacity-50 text-white font-semibold rounded-xl transition-all flex items-center justify-center gap-2"
+              >
+                <Save className="w-4 h-4" />
+                {updateMutation.isPending || updatePersonalMutation.isPending ? 'Guardando...' : 'Guardar Cambios'}
               </button>
             </div>
           </div>

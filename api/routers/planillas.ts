@@ -277,6 +277,48 @@ export const planillasRouter = createRouter({
       }
     }),
 
+  actualizarPersonal: publicQuery
+    .input(
+      z.object({
+        idPlanilla: z.string(),
+        personal: z.array(
+          z.object({
+            idFila: z.string(),
+            asignacion: z.string().optional(),
+            asistencia: z.string().optional(),
+          })
+        ),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const persData = await readSheet(
+        env.SHEET_GUARDIAS_ID,
+        "Guardias_Personal!A1:L5000"
+      );
+
+      // Build a map of idFila -> rowIndex (1-based)
+      const rowMap = new Map<string, number>();
+      for (let i = 1; i < persData.length; i++) {
+        const idFila = persData[i][0] ? String(persData[i][0]).trim() : "";
+        if (idFila) rowMap.set(idFila, i + 1);
+      }
+
+      // Update each person
+      for (const p of input.personal) {
+        const rowIdx = rowMap.get(p.idFila.trim());
+        if (!rowIdx) continue;
+
+        // Columns: I=Asignacion(8), J=Asistencia(9)
+        await updateRange(
+          env.SHEET_GUARDIAS_ID,
+          `Guardias_Personal!I${rowIdx}:J${rowIdx}`,
+          [[p.asignacion || "", p.asistencia || ""]]
+        );
+      }
+
+      return { exito: true as const, mensaje: "Personal actualizado" };
+    }),
+
   eliminar: publicQuery
     .input(z.object({ idPlanilla: z.string() }))
     .mutation(async ({ input }) => {
