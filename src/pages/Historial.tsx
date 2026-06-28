@@ -44,8 +44,20 @@ export default function Historial() {
   const totalPages = Math.ceil(filtered.length / itemsPerPage);
   const paginated = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
+  const detalleQuery = trpc.planillas.detalle.useQuery(
+    { idPlanilla: viewPlanilla || "" },
+    { enabled: !!viewPlanilla, retry: 1 }
+  );
+
+  useMemo(() => {
+    if (detalleQuery.data?.exito) {
+      setDetalleData(detalleQuery.data.personal);
+    }
+  }, [detalleQuery.data]);
+
   const handleVer = (id: string) => {
     setViewPlanilla(id);
+    setDetalleData([]);
   };
 
   const handleEliminar = async (id: string) => {

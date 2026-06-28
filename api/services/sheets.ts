@@ -3,6 +3,18 @@ import { getSheetsClient } from "./googleAuth";
 /**
  * Reads all data from a sheet range.
  */
+function formatDateSerial(value: unknown): unknown {
+  if (typeof value === "number" && value > 30000 && value < 80000) {
+    const epoch = new Date(1899, 11, 30);
+    const date = new Date(epoch.getTime() + value * 24 * 60 * 60 * 1000);
+    const d = String(date.getDate()).padStart(2, "0");
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const y = date.getFullYear();
+    return `${d}/${m}/${y}`;
+  }
+  return value;
+}
+
 export async function readSheet(spreadsheetId: string, range: string): Promise<unknown[][]> {
   const sheets = getSheetsClient();
   const response = await sheets.spreadsheets.values.get({
@@ -10,7 +22,8 @@ export async function readSheet(spreadsheetId: string, range: string): Promise<u
     range,
     valueRenderOption: "UNFORMATTED_VALUE",
   });
-  return response.data.values || [];
+  const rows = response.data.values || [];
+  return rows.map((row) => row.map((cell) => formatDateSerial(cell)));
 }
 
 /**
