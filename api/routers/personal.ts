@@ -108,7 +108,6 @@ export const personalRouter = createRouter({
 
       return { exito: true as const, guardias, stats };
     }),
-});
 
   crear: publicQuery
     .input(
