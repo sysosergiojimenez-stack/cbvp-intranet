@@ -33,11 +33,13 @@ export default function Dashboard() {
 
   const activos = personalData?.personal?.filter(p => p.categoria?.trim().toUpperCase() === 'ACTIVO').length || 0;
   const combatientes = personalData?.personal?.filter(p => p.categoria?.trim().toUpperCase() === 'COMBATIENTE').length || 0;
+  const oficiales = personalData?.personal?.filter(p => p.rango?.trim().toUpperCase() !== 'VOLUNTARIO(A)').length || 0;
 
   const stats = [
     { label: 'Total de Bomberos', value: totalPersonal.toString(), icon: Users, color: 'text-cbvp-yellow', bg: 'bg-cbvp-yellow/8', border: 'border-cbvp-yellow/20', bar: 'bg-cbvp-yellow' },
     { label: 'Categoria Activo', value: activos.toString(), icon: Shield, color: 'text-cbvp-green', bg: 'bg-cbvp-green/8', border: 'border-cbvp-green/20', bar: 'bg-cbvp-green' },
     { label: 'Categoria Combatiente', value: combatientes.toString(), icon: Flame, color: 'text-cbvp-red', bg: 'bg-cbvp-red/8', border: 'border-cbvp-red/20', bar: 'bg-cbvp-red' },
+    { label: 'Oficiales', value: oficiales.toString(), icon: Award, color: 'text-cbvp-blue', bg: 'bg-cbvp-blue/8', border: 'border-cbvp-blue/20', bar: 'bg-cbvp-blue' },
   ];
 
   const modules = [
@@ -104,7 +106,7 @@ export default function Dashboard() {
   return (
     <div className="animate-fade-in space-y-6">
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {stats.map((s, i) => (
           <div key={i} className={`relative overflow-hidden glass rounded-xl p-4 border ${s.border} card-hover`}>
             {/* Color bar at top */}
@@ -195,7 +197,7 @@ export default function Dashboard() {
               </div>
               <div className="flex justify-between">
                 <span>Fundacion</span>
-                <span className="text-white/60">15 de Agosto de 1985</span>
+                <span className="text-white/60">30 de julio de 2001</span>
               </div>
               <div className="flex justify-between">
                 <span>Jurisdiccion</span>
