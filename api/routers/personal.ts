@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { createRouter, publicQuery } from "../middleware";
-import { readSheet } from "../services/sheets";
+import { readSheet, appendRow } from "../services/sheets";
 import { env } from "../lib/env";
 
 function extractNumber(code: string): string {
@@ -107,5 +107,37 @@ export const personalRouter = createRouter({
       };
 
       return { exito: true as const, guardias, stats };
+    }),
+});
+
+  crear: publicQuery
+    .input(
+      z.object({
+        identificador: z.string().min(1),
+        codigo: z.string().min(1),
+        anioJuramento: z.string().min(1),
+        categoria: z.string().min(1),
+        cargo: z.string().min(1),
+        rango: z.string().min(1),
+        codigoRadial: z.string(),
+        primerNombre: z.string().min(1),
+        segundoNombre: z.string(),
+        primerApellido: z.string().min(1),
+        segundoApellido: z.string(),
+        correo: z.string().email(),
+        contrasena: z.string().min(1),
+        nivelPermiso: z.string().min(1),
+        descripcionPermiso: z.string(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      await appendRow(env.SHEET_USUARIOS_ID, "USUARIOS", [
+        input.identificador, input.codigo, input.anioJuramento,
+        input.categoria, input.cargo, input.rango, input.codigoRadial,
+        input.primerNombre, input.segundoNombre, input.primerApellido,
+        input.segundoApellido, input.correo, input.contrasena,
+        input.nivelPermiso, input.descripcionPermiso,
+      ]);
+      return { exito: true as const, mensaje: "Bombero registrado correctamente" };
     }),
 });

@@ -9,6 +9,7 @@ import Historial from '@/pages/Historial';
 import Personal from '@/pages/Personal';
 import Perfil from '@/pages/Perfil';
 import MiDashboard from '@/pages/MiDashboard';
+import AgregarBombero from '@/pages/AgregarBombero';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { usuario } = useAuth();
