@@ -43,9 +43,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         const data = JSON.parse(saved);
         if (data.timestamp && (Date.now() - data.timestamp) < 8 * 60 * 60 * 1000) {
-          return data.usuario;
+          const u = data.usuario;
+          // Validate that usuario has codigo (force re-login if old format)
+          if (u && u.exito && u.codigo && u.codigo !== 'undefined') {
+            return u;
+          }
         }
       } catch { /* ignore */ }
+      sessionStorage.removeItem('cbvp_sesion');
     }
     return null;
   });
