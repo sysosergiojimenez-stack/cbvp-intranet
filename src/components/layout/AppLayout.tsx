@@ -19,7 +19,7 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { path: '/', label: 'Dashboard', icon: LayoutDashboard, checkAccess: p => p.puedeVerTodo },
+  { path: '/', label: 'Dashboard', icon: LayoutDashboard, checkAccess: (p, u) => p.puedeVerTodo && u?.cargo?.trim().toUpperCase() !== 'VOLUNTARIO(A)' },
   { path: '/mi-dashboard', label: 'Mi Dashboard', icon: UserCircle, checkAccess: p => p.puedeVerPerfilPropio },
   { path: '/planillas', label: 'Planillas de Guardia', icon: ClipboardList, checkAccess: p => p.puedeCargarPlanillas },
   { path: '/historial', label: 'Historial', icon: History, checkAccess: p => p.puedeVerHistorial },

@@ -33,7 +33,7 @@ function AppRoutes() {
       <Route element={<AppLayout />}>
         <Route path="/" element={
           <ProtectedRoute>
-            {permisos.puedeVerTodo
+            {permisos.puedeVerTodo && usuario?.cargo?.trim().toUpperCase() !== 'VOLUNTARIO(A)'
               ? <Dashboard />
               : permisos.puedeVerPerfilPropio
                 ? <MiDashboard />
