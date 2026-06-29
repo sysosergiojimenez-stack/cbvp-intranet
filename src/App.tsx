@@ -63,6 +63,11 @@ function AppRoutes() {
             {permisos.puedeVerPersonal ? <Personal /> : <Navigate to="/" replace />}
           </ProtectedRoute>
         } />
+        <Route path="/agregar-bombero" element={
+          <ProtectedRoute>
+            {permisos.puedeVerPersonal ? <AgregarBombero /> : <Navigate to="/" replace />}
+          </ProtectedRoute>
+        } />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
