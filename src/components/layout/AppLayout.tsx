@@ -7,7 +7,8 @@ import {
   LayoutDashboard, ClipboardList, History,
   Users, Settings, LogOut, Shield, Menu, X,
   ChevronLeft, ChevronRight, Flame, Crown,
-  UserCircle
+  UserCircle,
+  UserPlus
 } from 'lucide-react';
 
 interface NavItem {
@@ -24,6 +25,7 @@ const NAV_ITEMS: NavItem[] = [
   { path: '/planillas', label: 'Planillas de Guardia', icon: ClipboardList, checkAccess: p => p.puedeCargarPlanillas },
   { path: '/historial', label: 'Historial', icon: History, checkAccess: p => p.puedeVerHistorial },
   { path: '/personal', label: 'Personal', icon: Users, checkAccess: (p, u) => p.puedeVerPersonal && u?.cargo?.trim().toUpperCase() !== 'VOLUNTARIO(A)' },
+  { path: '/agregar-bombero', label: 'Agregar Bombero', icon: UserPlus, checkAccess: (p, u) => p.puedeVerPersonal && u?.cargo?.trim().toUpperCase() !== 'VOLUNTARIO(A)' },
   { path: '/configuracion', label: 'Configuracion', icon: Settings, checkAccess: p => p.puedeConfiguracion },
 ];
 
