@@ -13,5 +13,8 @@ export function usePermiso() {
     puedeVerPerfilPropio: tienePermiso('ver_perfil_propio'),
     puedeConfiguracion: tienePermiso('configuracion'),
     nivel: usuario?.nivelPermiso || 0,
+    cargo: usuario?.cargo || '',
+    codigo: usuario?.codigo || '',
+    esVoluntario: (usuario?.cargo || '').trim().toUpperCase() === 'VOLUNTARIO(A)',
   };
 }

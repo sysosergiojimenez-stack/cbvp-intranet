@@ -6,41 +6,70 @@ import { uploadFile } from "../services/storage";
 import { env } from "../lib/env";
 
 export const planillasRouter = createRouter({
-  historial: publicQuery.query(async () => {
-    const data = await readSheet(env.SHEET_GUARDIAS_ID, "Guardias_Encabezado!A1:K5000");
-    const planillas = [];
+  historial: publicQuery
+    .input(z.object({ codigo: z.string().optional() }).optional())
+    .query(async ({ input }) => {
+      const data = await readSheet(env.SHEET_GUARDIAS_ID, "Guardias_Encabezado!A1:K5000");
+      const planillas = [];
 
-    for (let i = 1; i < data.length; i++) {
-      planillas.push({
-        idPlanilla: String(data[i][0] || ""),
-        fechaCarga: String(data[i][1] || ""),
-        fechaGuardia: String(data[i][2] || ""),
-        grupo: String(data[i][3] || ""),
-        inicioGuardia: String(data[i][4] || ""),
-        finalizaGuardia: String(data[i][5] || ""),
-        directorSem: String(data[i][6] || ""),
-        comandanteSemana: String(data[i][7] || ""),
-        oficialK20: String(data[i][8] || ""),
-        novedades: String(data[i][9] || ""),
-        urlImagen: String(data[i][10] || ""),
-      });
-    }
+      for (let i = 1; i < data.length; i++) {
+        planillas.push({
+          idPlanilla: String(data[i][0] || ""),
+          fechaCarga: String(data[i][1] || ""),
+          fechaGuardia: String(data[i][2] || ""),
+          grupo: String(data[i][3] || ""),
+          inicioGuardia: String(data[i][4] || ""),
+          finalizaGuardia: String(data[i][5] || ""),
+          directorSem: String(data[i][6] || ""),
+          comandanteSemana: String(data[i][7] || ""),
+          oficialK20: String(data[i][8] || ""),
+          novedades: String(data[i][9] || ""),
+          urlImagen: String(data[i][10] || ""),
+        });
+      }
 
-    planillas.sort((a, b) => {
-      const parseFecha = (f: string) => {
-        try {
-          const parts = f.split(" ");
-          const [d, m, y] = parts[0].split("/");
-          return new Date(`${y}-${m}-${d}T${parts[1] || "00:00"}`).getTime();
-        } catch {
-          return 0;
+      const searchCode = input?.codigo;
+      if (searchCode) {
+        const persData = await readSheet(env.SHEET_GUARDIAS_ID, "Guardias_Personal!A1:L5000");
+        const numericSearch = (searchCode.match(/\d+/) || [searchCode])[0];
+        const planillaIds = new Set<string>();
+        for (let i = 1; i < persData.length; i++) {
+          const codigoRaw = String(persData[i][6] || "").trim();
+          const codigoMatch = codigoRaw.match(/\d+/);
+          const codigo = codigoMatch ? codigoMatch[0] : codigoRaw;
+          if (codigo === numericSearch) {
+            planillaIds.add(String(persData[i][1] || "").trim());
+          }
         }
-      };
-      return parseFecha(b.fechaCarga) - parseFecha(a.fechaCarga);
-    });
+        const filtered = planillas.filter(p => planillaIds.has(p.idPlanilla));
+        filtered.sort((a, b) => {
+          const parseFecha = (f: string) => {
+            try {
+              const parts = f.split(" ");
+              const [d, m, y] = parts[0].split("/");
+              return new Date(`${y}-${m}-${d}T${parts[1] || "00:00"}`).getTime();
+            } catch { return 0; }
+          };
+          return parseFecha(b.fechaCarga) - parseFecha(a.fechaCarga);
+        });
+        return { exito: true as const, planillas: filtered };
+      }
 
-    return { exito: true as const, planillas };
-  }),
+      planillas.sort((a, b) => {
+        const parseFecha = (f: string) => {
+          try {
+            const parts = f.split(" ");
+            const [d, m, y] = parts[0].split("/");
+            return new Date(`${y}-${m}-${d}T${parts[1] || "00:00"}`).getTime();
+          } catch {
+            return 0;
+          }
+        };
+        return parseFecha(b.fechaCarga) - parseFecha(a.fechaCarga);
+      });
+
+      return { exito: true as const, planillas };
+    }),
 
   detalle: publicQuery
     .input(z.object({ idPlanilla: z.string() }))
