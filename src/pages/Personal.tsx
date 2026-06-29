@@ -117,7 +117,7 @@ export default function PersonalPage() {
         {!rpcLoading && !rpcError && rpcData?.exito && (
           <>
             {/* Stats Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
               <div className="relative overflow-hidden glass rounded-xl p-4 border border-cbvp-yellow/20 card-hover">
                 <div className="absolute top-0 left-0 right-0 h-1 bg-cbvp-yellow" />
                 <div className="flex items-center gap-3 mt-1">
@@ -151,6 +151,18 @@ export default function PersonalPage() {
                   <div>
                     <span className="text-3xl font-bold text-white">{sortedPersonal.filter((p: Personal) => p.categoria?.trim().toUpperCase() === 'COMBATIENTE').length}</span>
                     <p className="text-[11px] text-white/40 mt-0.5">Categoria Combatiente</p>
+                  </div>
+                </div>
+              </div>
+              <div className="relative overflow-hidden glass rounded-xl p-4 border border-cbvp-blue/20 card-hover">
+                <div className="absolute top-0 left-0 right-0 h-1 bg-cbvp-blue" />
+                <div className="flex items-center gap-3 mt-1">
+                  <div className="w-11 h-11 rounded-xl bg-cbvp-blue/8 flex items-center justify-center shrink-0">
+                    <Award className="w-5 h-5 text-cbvp-blue" />
+                  </div>
+                  <div>
+                    <span className="text-3xl font-bold text-white">{sortedPersonal.filter((p: Personal) => p.rango?.trim().toUpperCase() !== 'VOLUNTARIO(A)').length}</span>
+                    <p className="text-[11px] text-white/40 mt-0.5">Oficiales</p>
                   </div>
                 </div>
               </div>
