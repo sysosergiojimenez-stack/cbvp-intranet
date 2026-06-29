@@ -6,9 +6,10 @@ import { UserPlus, Save, AlertTriangle, CheckCircle } from 'lucide-react';
 export default function AgregarBombero() {
   const { puedeVerPersonal } = usePermiso();
   const [form, setForm] = useState({
-    identificador: '', codigo: '', anioJuramento: '', categoria: 'COMBATIENTE',
-    cargo: 'VOLUNTARIO(A)', rango: '', codigoRadial: '',
+    codigo: '', anioJuramento: '', categoria: 'COMBATIENTE',
+    rango: '', codigoRadial: '',
     primerNombre: '', segundoNombre: '', primerApellido: '', segundoApellido: '',
+    nroDocId: '', fechaNacimiento: '',
     correo: '', contrasena: '', nivelPermiso: '1', descripcionPermiso: 'BASICO',
   });
   const [error, setError] = useState('');
@@ -19,9 +20,10 @@ export default function AgregarBombero() {
       setSuccess('Bombero registrado correctamente');
       setError('');
       setForm({
-        identificador: '', codigo: '', anioJuramento: '', categoria: 'COMBATIENTE',
-        cargo: 'VOLUNTARIO(A)', rango: '', codigoRadial: '',
+        codigo: '', anioJuramento: '', categoria: 'COMBATIENTE',
+        rango: '', codigoRadial: '',
         primerNombre: '', segundoNombre: '', primerApellido: '', segundoApellido: '',
+        nroDocId: '', fechaNacimiento: '',
         correo: '', contrasena: '', nivelPermiso: '1', descripcionPermiso: 'BASICO',
       });
       setTimeout(() => setSuccess(''), 3000);
@@ -44,7 +46,7 @@ export default function AgregarBombero() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError(''); setSuccess('');
-    if (!form.identificador || !form.codigo || !form.anioJuramento || !form.primerNombre || !form.primerApellido || !form.correo || !form.contrasena) {
+    if (!form.codigo || !form.anioJuramento || !form.primerNombre || !form.primerApellido || !form.correo || !form.contrasena) {
       setError('Complete los campos obligatorios'); return;
     }
     crearMutation.mutate(form);
@@ -68,20 +70,23 @@ export default function AgregarBombero() {
       <form onSubmit={handleSubmit} className="bg-white/[0.03] border border-white/5 rounded-xl p-5 space-y-4">
         <h2 className="text-sm font-semibold text-white/60 uppercase tracking-wider border-b border-white/5 pb-2">Datos Generales</h2>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          {field('Identificador', 'identificador', { placeholder: 'C-4852/14', required: true })}
           {field('Codigo', 'codigo', { placeholder: '4852', required: true })}
           {field('Anio Juramento', 'anioJuramento', { placeholder: '2014', required: true })}
           {field('Categoria', 'categoria')}
-          {field('Cargo', 'cargo')}
           {field('Rango', 'rango')}
           {field('Codigo Radial', 'codigoRadial')}
         </div>
-        <h2 className="text-sm font-semibold text-white/60 uppercase tracking-wider border-b border-white/5 pb-2 pt-2">Nombre Completo</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <h2 className="text-sm font-semibold text-white/60 uppercase tracking-wider border-b border-white/5 pb-2 pt-2">Datos Personales</h2>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           {field('Primer Nombre *', 'primerNombre', { required: true })}
           {field('Segundo Nombre', 'segundoNombre')}
           {field('Primer Apellido *', 'primerApellido', { required: true })}
           {field('Segundo Apellido', 'segundoApellido')}
+          {field('Nro Doc ID', 'nroDocId', { placeholder: '1234567' })}
+          <div>
+            <label className="text-[10px] text-white/40 uppercase tracking-wider mb-1 block">Fecha de Nacimiento</label>
+            <input type="date" value={form.fechaNacimiento} onChange={e => setForm(f => ({ ...f, fechaNacimiento: e.target.value }))} className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-cbvp-red/50 [color-scheme:dark]" />
+          </div>
         </div>
         <h2 className="text-sm font-semibold text-white/60 uppercase tracking-wider border-b border-white/5 pb-2 pt-2">Acceso</h2>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">

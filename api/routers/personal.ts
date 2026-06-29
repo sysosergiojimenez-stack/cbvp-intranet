@@ -112,17 +112,19 @@ export const personalRouter = createRouter({
   crear: publicQuery
     .input(
       z.object({
-        identificador: z.string().min(1),
+        identificador: z.string().optional(),
         codigo: z.string().min(1),
         anioJuramento: z.string().min(1),
         categoria: z.string().min(1),
-        cargo: z.string().min(1),
+        cargo: z.string().optional(),
         rango: z.string().min(1),
         codigoRadial: z.string(),
         primerNombre: z.string().min(1),
         segundoNombre: z.string(),
-        primerApellido: z.string().min(1),\n        nroDocId: z.string().optional(),\n        fechaNacimiento: z.string().optional(),
+        primerApellido: z.string().min(1),
         segundoApellido: z.string(),
+        nroDocId: z.string().optional(),
+        fechaNacimiento: z.string().optional(),
         correo: z.string().email(),
         contrasena: z.string().min(1),
         nivelPermiso: z.string().min(1),
@@ -131,11 +133,14 @@ export const personalRouter = createRouter({
     )
     .mutation(async ({ input }) => {
       await appendRow(env.SHEET_USUARIOS_ID, "USUARIOS", [
-        input.identificador, input.codigo, input.anioJuramento,
-        input.categoria, input.cargo, input.rango, input.codigoRadial,
+        input.identificador || "", input.codigo, input.anioJuramento,
+        input.categoria, input.cargo || "", input.rango, input.codigoRadial,
         input.primerNombre, input.segundoNombre, input.primerApellido,
-        input.segundoApellido, input.correo, input.contrasena,
-        input.nivelPermiso, input.descripcionPermiso,\n        input.nroDocId || "",\n        input.fechaNacimiento || "",
+        input.segundoApellido,
+        input.nroDocId || "",
+        input.fechaNacimiento || "",
+        input.correo, input.contrasena,
+        input.nivelPermiso, input.descripcionPermiso,
       ]);
       return { exito: true as const, mensaje: "Bombero registrado correctamente" };
     }),
