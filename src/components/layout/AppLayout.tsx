@@ -6,22 +6,24 @@ import Header from './Header';
 import {
   LayoutDashboard, ClipboardList, History,
   Users, Settings, LogOut, Shield, Menu, X,
-  ChevronLeft, ChevronRight, Flame, Crown
+  ChevronLeft, ChevronRight, Flame, Crown,
+  UserCircle
 } from 'lucide-react';
 
 interface NavItem {
   path: string;
   label: string;
   icon: React.ComponentType<{ className?: string }>;
-  checkAccess: (permisos: ReturnType<typeof usePermiso>) => boolean;
+  checkAccess: (permisos: ReturnType<typeof usePermiso>, usuario: ReturnType<typeof useAuth>['usuario']) => boolean;
   disabled?: boolean;
 }
 
 const NAV_ITEMS: NavItem[] = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard, checkAccess: p => p.puedeVerTodo },
+  { path: '/mi-dashboard', label: 'Mi Dashboard', icon: UserCircle, checkAccess: p => p.puedeVerPerfilPropio },
   { path: '/planillas', label: 'Planillas de Guardia', icon: ClipboardList, checkAccess: p => p.puedeCargarPlanillas },
   { path: '/historial', label: 'Historial', icon: History, checkAccess: p => p.puedeVerHistorial },
-  { path: '/personal', label: 'Personal', icon: Users, checkAccess: p => p.puedeVerPersonal },
+  { path: '/personal', label: 'Personal', icon: Users, checkAccess: (p, u) => p.puedeVerPersonal && u?.cargo?.trim().toUpperCase() !== 'VOLUNTARIO(A)' },
   { path: '/configuracion', label: 'Configuracion', icon: Settings, checkAccess: p => p.puedeConfiguracion },
 ];
 
@@ -48,7 +50,7 @@ export default function AppLayout() {
 
   const visibleNavItems = NAV_ITEMS.filter(item => {
     if (item.disabled) return false;
-    return item.checkAccess(permisos);
+    return item.checkAccess(permisos, usuario);
   });
 
   return (

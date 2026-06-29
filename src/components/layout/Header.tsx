@@ -4,6 +4,7 @@ import { useAuth } from '@/context/AuthContext';
 
 const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
   '/': { title: 'Dashboard', subtitle: 'Resumen general del sistema' },
+  '/mi-dashboard': { title: 'Mi Dashboard', subtitle: 'Mis datos y metricas de asistencia' },
   '/planillas': { title: 'Planillas de Guardia', subtitle: 'Carga y procesamiento de planillas' },
   '/historial': { title: 'Historial de Planillas', subtitle: 'Registro historico de guardias' },
   '/personal': { title: 'Personal', subtitle: 'Listado de bomberos voluntarios' },

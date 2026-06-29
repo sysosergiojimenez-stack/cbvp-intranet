@@ -8,6 +8,7 @@ import Planillas from '@/pages/Planillas';
 import Historial from '@/pages/Historial';
 import Personal from '@/pages/Personal';
 import Perfil from '@/pages/Perfil';
+import MiDashboard from '@/pages/MiDashboard';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { usuario } = useAuth();
@@ -32,7 +33,12 @@ function AppRoutes() {
       <Route element={<AppLayout />}>
         <Route path="/" element={
           <ProtectedRoute>
-            {permisos.puedeVerTodo ? <Dashboard /> : <Perfil />}
+            {permisos.puedeVerTodo ? <Dashboard /> : <MiDashboard />}
+          </ProtectedRoute>
+        } />
+        <Route path="/mi-dashboard" element={
+          <ProtectedRoute>
+            <MiDashboard />
           </ProtectedRoute>
         } />
         <Route path="/planillas" element={
