@@ -4,7 +4,7 @@ import { trpc } from '@/providers/trpc';
 import type { Personal, GuardiaHistorial, EstadisticasGuardias } from '@/types';
 import {
   Search, User, Shield, Award, Calendar, Hash, Radio,
-  Mail, FileText, X,
+  Mail, FileText, X, Flame,
   Clock, Users, AlertTriangle, ChevronDown, ChevronUp
 } from 'lucide-react';
 
@@ -116,22 +116,43 @@ export default function PersonalPage() {
 
         {!rpcLoading && !rpcError && rpcData?.exito && (
           <>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
-              <div className="bg-white/[0.03] rounded-lg p-3 text-center">
-                <p className="text-2xl font-bold text-cbvp-red">{sortedPersonal.length}</p>
-                <p className="text-[10px] text-white/40 uppercase">Total Bomberos</p>
+            {/* Stats Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+              <div className="relative overflow-hidden glass rounded-xl p-4 border border-cbvp-yellow/20 card-hover">
+                <div className="absolute top-0 left-0 right-0 h-1 bg-cbvp-yellow" />
+                <div className="flex items-center gap-3 mt-1">
+                  <div className="w-11 h-11 rounded-xl bg-cbvp-yellow/8 flex items-center justify-center shrink-0">
+                    <Users className="w-5 h-5 text-cbvp-yellow" />
+                  </div>
+                  <div>
+                    <span className="text-3xl font-bold text-white">{sortedPersonal.length}</span>
+                    <p className="text-[11px] text-white/40 mt-0.5">Total de Bomberos</p>
+                  </div>
+                </div>
               </div>
-              <div className="bg-white/[0.03] rounded-lg p-3 text-center">
-                <p className="text-2xl font-bold text-cbvp-green">{sortedPersonal.filter((p: Personal) => p.categoria === 'Activo').length}</p>
-                <p className="text-[10px] text-white/40 uppercase">Activos</p>
+              <div className="relative overflow-hidden glass rounded-xl p-4 border border-cbvp-green/20 card-hover">
+                <div className="absolute top-0 left-0 right-0 h-1 bg-cbvp-green" />
+                <div className="flex items-center gap-3 mt-1">
+                  <div className="w-11 h-11 rounded-xl bg-cbvp-green/8 flex items-center justify-center shrink-0">
+                    <Shield className="w-5 h-5 text-cbvp-green" />
+                  </div>
+                  <div>
+                    <span className="text-3xl font-bold text-white">{sortedPersonal.filter((p: Personal) => p.categoria?.trim().toUpperCase() === 'ACTIVO').length}</span>
+                    <p className="text-[11px] text-white/40 mt-0.5">Categoria Activo</p>
+                  </div>
+                </div>
               </div>
-              <div className="bg-white/[0.03] rounded-lg p-3 text-center">
-                <p className="text-2xl font-bold text-cbvp-blue">{new Set(sortedPersonal.map((p: Personal) => p.anioJuramento)).size}</p>
-                <p className="text-[10px] text-white/40 uppercase">Promociones</p>
-              </div>
-              <div className="bg-white/[0.03] rounded-lg p-3 text-center">
-                <p className="text-2xl font-bold text-cbvp-orange">{sortedPersonal.filter((p: Personal) => p.cargo !== 'Voluntario(a)').length}</p>
-                <p className="text-[10px] text-white/40 uppercase">Oficiales</p>
+              <div className="relative overflow-hidden glass rounded-xl p-4 border border-cbvp-red/20 card-hover">
+                <div className="absolute top-0 left-0 right-0 h-1 bg-cbvp-red" />
+                <div className="flex items-center gap-3 mt-1">
+                  <div className="w-11 h-11 rounded-xl bg-cbvp-red/8 flex items-center justify-center shrink-0">
+                    <Flame className="w-5 h-5 text-cbvp-red" />
+                  </div>
+                  <div>
+                    <span className="text-3xl font-bold text-white">{sortedPersonal.filter((p: Personal) => p.categoria?.trim().toUpperCase() === 'COMBATIENTE').length}</span>
+                    <p className="text-[11px] text-white/40 mt-0.5">Categoria Combatiente</p>
+                  </div>
+                </div>
               </div>
             </div>
 
