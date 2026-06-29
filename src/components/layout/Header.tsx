@@ -8,6 +8,7 @@ const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
   '/planillas': { title: 'Planillas de Guardia', subtitle: 'Carga y procesamiento de planillas' },
   '/historial': { title: 'Historial de Planillas', subtitle: 'Registro historico de guardias' },
   '/personal': { title: 'Personal', subtitle: 'Listado de bomberos voluntarios' },
+  '/agregar-bombero': { title: 'Agregar Nuevo Bombero', subtitle: 'Registro de nuevos bomberos' },
   '/configuracion': { title: 'Configuracion', subtitle: 'Ajustes del sistema' },
 };
 
