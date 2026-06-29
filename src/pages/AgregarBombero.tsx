@@ -72,8 +72,29 @@ export default function AgregarBombero() {
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           {field('Codigo', 'codigo', { placeholder: '4852', required: true })}
           {field('Anio Juramento', 'anioJuramento', { placeholder: '2014', required: true })}
-          {field('Categoria', 'categoria')}
-          {field('Rango', 'rango')}
+          <div>
+            <label className="text-[10px] text-white/40 uppercase tracking-wider mb-1 block">Categoria</label>
+            <select value={form.categoria} onChange={e => setForm(f => ({ ...f, categoria: e.target.value }))} className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-cbvp-red/50">
+              <option value="COMBATIENTE">COMBATIENTE</option>
+              <option value="ACTIVO">ACTIVO</option>
+              <option value="FUNDADOR">FUNDADOR</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-[10px] text-white/40 uppercase tracking-wider mb-1 block">Rango</label>
+            <select value={form.rango} onChange={e => setForm(f => ({ ...f, rango: e.target.value }))} className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-cbvp-red/50">
+              <option value="Voluntario(a)">Voluntario(a)</option>
+              <option value="Sub Teniente">Sub Teniente</option>
+              <option value="Teniente">Teniente</option>
+              <option value="Teniente Primero">Teniente Primero</option>
+              <option value="Capitan">Capitan</option>
+              <option value="Capitan Inspector">Capitan Inspector</option>
+              <option value="Capitan Mayor">Capitan Mayor</option>
+              <option value="Capitan Director">Capitan Director</option>
+              <option value="Capitan Principal">Capitan Principal</option>
+              <option value="Capitan General">Capitan General</option>
+            </select>
+          </div>
           {field('Codigo Radial', 'codigoRadial')}
         </div>
         <h2 className="text-sm font-semibold text-white/60 uppercase tracking-wider border-b border-white/5 pb-2 pt-2">Datos Personales</h2>
