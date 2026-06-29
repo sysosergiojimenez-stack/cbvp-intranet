@@ -377,12 +377,15 @@ export const planillasRouter = createRouter({
       let refuerzos = 0;
 
       // Normalize search code: uppercase, remove extra spaces
-      const searchCode = input.codigo.trim().toUpperCase().replace(/\s+/g, ' ');
+      const searchCodeMatch = input.codigo.match(/\d+/);
+      const searchCode = searchCodeMatch ? searchCodeMatch[0] : input.codigo.trim();
 
       for (let i = 1; i < persData.length; i++) {
         const row = persData[i];
         // Column G (index 6) = CODIGO
-        const codigo = String(row[6] || "").trim().toUpperCase().replace(/\s+/g, ' ');
+        const codigoRaw = String(row[6] || "").trim();
+        const codigoMatch = codigoRaw.match(/\d+/);
+        const codigo = codigoMatch ? codigoMatch[0] : codigoRaw;
         if (codigo !== searchCode) continue;
 
         // Column F (index 5) = REGIMEN
@@ -439,13 +442,16 @@ export const planillasRouter = createRouter({
         "Guardias_Personal!A1:J5000"
       );
 
-      const searchCode = input.codigo.trim().toUpperCase().replace(/\s+/g, ' ');
+      const searchCodeMatch = input.codigo.match(/\d+/);
+      const searchCode = searchCodeMatch ? searchCodeMatch[0] : input.codigo.trim();
       const matches: Array<{ row: number; codigo: string; regimen: string; asistencia: string; personal: string }> = [];
       const allCodigos: string[] = [];
 
       for (let i = 1; i < persData.length; i++) {
         const row = persData[i];
-        const codigo = String(row[6] || "").trim().toUpperCase().replace(/\s+/g, ' ');
+        const codigoRaw = String(row[6] || "").trim();
+        const codigoMatch = codigoRaw.match(/\d+/);
+        const codigo = codigoMatch ? codigoMatch[0] : codigoRaw;
         const regimen = String(row[5] || "").trim().toUpperCase();
         const asistencia = String(row[9] || "").trim().toUpperCase();
         const personal = String(row[7] || "").trim();
