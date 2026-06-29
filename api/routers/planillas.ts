@@ -376,29 +376,32 @@ export const planillasRouter = createRouter({
       let asasr = 0;
       let refuerzos = 0;
 
-      const searchCode = input.codigo.trim().toUpperCase();
+      // Normalize search code: uppercase, remove extra spaces
+      const searchCode = input.codigo.trim().toUpperCase().replace(/\s+/g, ' ');
 
       for (let i = 1; i < persData.length; i++) {
         const row = persData[i];
-        const codigo = String(row[6] || "").trim().toUpperCase();
+        // Column G (index 6) = CODIGO
+        const codigo = String(row[6] || "").trim().toUpperCase().replace(/\s+/g, ' ');
         if (codigo !== searchCode) continue;
 
-        const tipo = String(row[5] || "").trim().toUpperCase();
+        // Column F (index 5) = REGIMEN
+        const regimen = String(row[5] || "").trim().toUpperCase();
+        // Column J (index 9) = ASISTENCIA
         const asistencia = String(row[9] || "").trim().toUpperCase();
 
-        // Count all guardias where this bombero appears
         guardiasRegistradas++;
 
-        if (tipo === "GUARDIA NORMAL") {
+        if (regimen === "GUARDIA NORMAL") {
           if (asistencia === "PRESENTE") presente++;
           else if (asistencia === "ACACR") acacr++;
           else if (asistencia === "ACASR") acasr++;
           else if (asistencia === "ASASR") asasr++;
-        } else if (tipo === "GUARDIA ESPECIAL") {
-          // Guardias especiales count as presente
-          presente++;
-        } else if (tipo === "REFUERZO") {
+        } else if (regimen === "REFUERZO") {
           refuerzos++;
+        } else {
+          // Guardias especiales y otros tipos cuentan como presente
+          presente++;
         }
       }
 
@@ -424,7 +427,44 @@ export const planillasRouter = createRouter({
       return {
         exito: true as const,
         rows: persData,
-        columns: ["A-idFila", "B-idPlanilla", "C-nombre", "D-asignacion", "E-asistencia", "F-tipo", "G-codigo", "H-numero", "I-inicio", "J-finaliza"],
+        columns: ["A-idFila", "B-idPlanilla", "C-fechaCarga", "D-fechaGuardia", "E-grupo", "F-regimen", "G-codigo", "H-personal", "I-asignacion", "J-asistencia"],
+      };
+    }),
+
+  debugMisMetricas: publicQuery
+    .input(z.object({ codigo: z.string() }))
+    .query(async ({ input }) => {
+      const persData = await readSheet(
+        env.SHEET_GUARDIAS_ID,
+        "Guardias_Personal!A1:J5000"
+      );
+
+      const searchCode = input.codigo.trim().toUpperCase().replace(/\s+/g, ' ');
+      const matches: Array<{ row: number; codigo: string; regimen: string; asistencia: string; personal: string }> = [];
+      const allCodigos: string[] = [];
+
+      for (let i = 1; i < persData.length; i++) {
+        const row = persData[i];
+        const codigo = String(row[6] || "").trim().toUpperCase().replace(/\s+/g, ' ');
+        const regimen = String(row[5] || "").trim().toUpperCase();
+        const asistencia = String(row[9] || "").trim().toUpperCase();
+        const personal = String(row[7] || "").trim();
+
+        if (i <= 15) allCodigos.push(codigo);
+
+        if (codigo === searchCode) {
+          matches.push({ row: i + 1, codigo, regimen, asistencia, personal });
+        }
+      }
+
+      return {
+        exito: true as const,
+        searchCode,
+        originalInput: input.codigo,
+        totalRows: persData.length - 1,
+        matchesFound: matches.length,
+        firstCodigos: allCodigos.slice(0, 15),
+        matches,
       };
     }),
 });
