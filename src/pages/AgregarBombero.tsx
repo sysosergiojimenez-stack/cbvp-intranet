@@ -65,7 +65,6 @@ export default function AgregarBombero() {
 
   return (
     <div className="animate-fade-in">
-      <h1 className="text-2xl font-bold text-white mb-6">Agregar Nuevo Bombero</h1>
 
       {error && <div className="mb-4 p-3 bg-cbvp-red/10 border border-cbvp-red/20 rounded-lg text-sm text-cbvp-red-light">{error}</div>}
       {success && <div className="mb-4 p-3 bg-cbvp-green/10 border border-cbvp-green/20 rounded-lg text-sm text-cbvp-green flex items-center gap-2"><CheckCircle className="w-4 h-4" /> {success}</div>}
