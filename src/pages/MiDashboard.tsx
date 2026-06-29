@@ -4,7 +4,8 @@ import { trpc } from '@/providers/trpc';
 import {
   User, Shield, Award, Calendar, Hash, Radio,
   ClipboardCheck, TrendingUp, Flame, Star,
-  ChevronRight, Clock, AlertTriangle, FileText
+  ChevronRight, Clock, AlertTriangle, FileText,
+  CheckCircle, Briefcase, HelpCircle, Zap
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -27,13 +28,13 @@ export default function MiDashboard() {
     );
   }, [personalData, usuario]);
 
-  // Count how many planillas include this user's codigo
-  const guardiasRegistradas = useMemo(() => {
-    if (!historialData?.exito || !miData?.codigo) return 0;
-    // We would need to check each planilla's detail, but for now count total planillas
-    // TODO: implement per-user guardia counting from Guardias_Personal sheet
-    return historialData.planillas.length;
-  }, [historialData, miData]);
+  // Fetch metrics for current user
+  const { data: metricasData } = trpc.planillas.misMetricas.useQuery(
+    { codigo: usuario?.codigo || "" },
+    { enabled: !!usuario?.codigo, retry: 1, refetchOnWindowFocus: false }
+  );
+
+  const metricas = metricasData?.exito ? metricasData.metricas : null;
 
   // Use auth user data as primary, fallback to personal data
   const anioJuramento = miData?.anioJuramento || usuario?.anioJuramento || '-';
@@ -46,12 +47,14 @@ export default function MiDashboard() {
   const correo = usuario?.correo || '-';
   const nivelPermiso = usuario?.nivelPermiso || '-';
 
-  // Asistencia summary cards
+  // Asistencia stats cards
   const asistenciaStats = [
-    { label: 'Guardias Registradas', value: guardiasRegistradas > 0 ? guardiasRegistradas.toString() : '-', icon: ClipboardCheck, color: 'text-cbvp-red', bg: 'bg-cbvp-red/8', bar: 'bg-cbvp-red', sub: 'Total' },
-    { label: 'Presentes', value: '-', icon: Shield, color: 'text-cbvp-green', bg: 'bg-cbvp-green/8', bar: 'bg-cbvp-green', sub: 'Asistencia' },
-    { label: 'ACACR', value: '-', icon: AlertTriangle, color: 'text-cbvp-orange', bg: 'bg-cbvp-orange/8', bar: 'bg-cbvp-orange', sub: 'Licencia' },
-    { label: 'ACASR', value: '-', icon: Clock, color: 'text-cbvp-yellow', bg: 'bg-cbvp-yellow/8', bar: 'bg-cbvp-yellow', sub: 'Licencia' },
+    { label: 'Guardias Registradas', value: metricas?.guardiasRegistradas ?? 0, icon: ClipboardCheck, color: 'text-cbvp-blue', bg: 'bg-cbvp-blue/8', border: 'border-cbvp-blue/20', bar: 'bg-cbvp-blue' },
+    { label: 'Presente', value: metricas?.presente ?? 0, icon: CheckCircle, color: 'text-cbvp-green', bg: 'bg-cbvp-green/8', border: 'border-cbvp-green/20', bar: 'bg-cbvp-green' },
+    { label: 'ACACR', value: metricas?.acacr ?? 0, icon: AlertTriangle, color: 'text-cbvp-orange', bg: 'bg-cbvp-orange/8', border: 'border-cbvp-orange/20', bar: 'bg-cbvp-orange' },
+    { label: 'ACASR', value: metricas?.acasr ?? 0, icon: Clock, color: 'text-cbvp-red', bg: 'bg-cbvp-red/8', border: 'border-cbvp-red/20', bar: 'bg-cbvp-red' },
+    { label: 'ASASR', value: metricas?.asasr ?? 0, icon: HelpCircle, color: 'text-cbvp-red-light', bg: 'bg-cbvp-red/8', border: 'border-cbvp-red-light/20', bar: 'bg-cbvp-red-light' },
+    { label: 'Refuerzos', value: metricas?.refuerzos ?? 0, icon: Zap, color: 'text-cbvp-purple', bg: 'bg-cbvp-purple/8', border: 'border-cbvp-purple/20', bar: 'bg-cbvp-purple' },
   ];
 
   if (!usuario) {
@@ -154,9 +157,9 @@ export default function MiDashboard() {
       {/* Asistencia Stats */}
       <div>
         <h3 className="text-sm font-semibold text-white/60 uppercase tracking-wider mb-3">Metricas de Asistencia</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {asistenciaStats.map((s, i) => (
-            <div key={i} className="relative overflow-hidden glass rounded-xl p-4 border border-white/[0.04] card-hover">
+            <div key={i} className={`relative overflow-hidden glass rounded-xl p-4 border ${s.border} card-hover`}>
               <div className={`absolute top-0 left-0 right-0 h-1 ${s.bar}`} />
               <div className="flex items-center gap-3 mt-1">
                 <div className={`w-11 h-11 rounded-xl ${s.bg} flex items-center justify-center shrink-0`}>

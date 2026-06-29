@@ -360,4 +360,58 @@ export const planillasRouter = createRouter({
 
       return { exito: true as const, mensaje: "Planilla eliminada" };
     }),
+
+  misMetricas: publicQuery
+    .input(z.object({ codigo: z.string() }))
+    .query(async ({ input }) => {
+      const persData = await readSheet(
+        env.SHEET_GUARDIAS_ID,
+        "Guardias_Personal!A1:J5000"
+      );
+
+      let guardiasRegistradas = 0;
+      let presente = 0;
+      let acacr = 0;
+      let acasr = 0;
+      let asasr = 0;
+      let refuerzos = 0;
+
+      const searchCode = input.codigo.trim().toUpperCase();
+
+      for (let i = 1; i < persData.length; i++) {
+        const row = persData[i];
+        const codigo = String(row[6] || "").trim().toUpperCase();
+        if (codigo !== searchCode) continue;
+
+        const tipo = String(row[5] || "").trim().toUpperCase();
+        const asistencia = String(row[9] || "").trim().toUpperCase();
+
+        // Count all guardias where this bombero appears
+        guardiasRegistradas++;
+
+        if (tipo === "GUARDIA NORMAL") {
+          if (asistencia === "PRESENTE") presente++;
+          else if (asistencia === "ACACR") acacr++;
+          else if (asistencia === "ACASR") acasr++;
+          else if (asistencia === "ASASR") asasr++;
+        } else if (tipo === "GUARDIA ESPECIAL") {
+          // Guardias especiales count as presente
+          presente++;
+        } else if (tipo === "REFUERZO") {
+          refuerzos++;
+        }
+      }
+
+      return {
+        exito: true as const,
+        metricas: {
+          guardiasRegistradas,
+          presente,
+          acacr,
+          acasr,
+          asasr,
+          refuerzos,
+        },
+      };
+    }),
 });
