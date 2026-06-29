@@ -121,7 +121,7 @@ export const personalRouter = createRouter({
         codigoRadial: z.string(),
         primerNombre: z.string().min(1),
         segundoNombre: z.string(),
-        primerApellido: z.string().min(1),
+        primerApellido: z.string().min(1),\n        nroDocId: z.string().optional(),\n        fechaNacimiento: z.string().optional(),
         segundoApellido: z.string(),
         correo: z.string().email(),
         contrasena: z.string().min(1),
@@ -135,7 +135,7 @@ export const personalRouter = createRouter({
         input.categoria, input.cargo, input.rango, input.codigoRadial,
         input.primerNombre, input.segundoNombre, input.primerApellido,
         input.segundoApellido, input.correo, input.contrasena,
-        input.nivelPermiso, input.descripcionPermiso,
+        input.nivelPermiso, input.descripcionPermiso,\n        input.nroDocId || "",\n        input.fechaNacimiento || "",
       ]);
       return { exito: true as const, mensaje: "Bombero registrado correctamente" };
     }),
