@@ -269,8 +269,6 @@ export default function Historial() {
 
   return (
     <div className="animate-fade-in">
-      <h1 className="text-2xl font-bold text-white mb-6">Historial de Planillas</h1>
-
       <div className="bg-white/[0.03] border border-white/5 rounded-xl p-5">
         <div className="relative mb-4">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />

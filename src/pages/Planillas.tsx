@@ -126,8 +126,6 @@ export default function Planillas() {
 
   return (
     <div className="animate-fade-in">
-      <h1 className="text-2xl font-bold text-white mb-6">Planillas de Guardia</h1>
-
       <div className="bg-white/[0.03] border border-white/5 rounded-xl p-6 mb-6">
         {!file ? (
           <div
