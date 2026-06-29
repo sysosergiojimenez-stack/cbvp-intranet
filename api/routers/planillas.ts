@@ -414,4 +414,17 @@ export const planillasRouter = createRouter({
         },
       };
     }),
+
+  debugGuardiasPersonal: publicQuery
+    .query(async () => {
+      const persData = await readSheet(
+        env.SHEET_GUARDIAS_ID,
+        "Guardias_Personal!A1:J20"
+      );
+      return {
+        exito: true as const,
+        rows: persData,
+        columns: ["A-idFila", "B-idPlanilla", "C-nombre", "D-asignacion", "E-asistencia", "F-tipo", "G-codigo", "H-numero", "I-inicio", "J-finaliza"],
+      };
+    }),
 });
