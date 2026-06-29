@@ -24,6 +24,8 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
 
 function AppRoutes() {
   const permisos = usePermiso();
+  const { usuario } = useAuth();
+  const isVoluntario = usuario?.cargo?.trim().toUpperCase() === 'VOLUNTARIO(A)';
 
   return (
     <Routes>
@@ -33,7 +35,7 @@ function AppRoutes() {
       <Route element={<AppLayout />}>
         <Route path="/" element={
           <ProtectedRoute>
-            {permisos.puedeVerTodo && usuario?.cargo?.trim().toUpperCase() !== 'VOLUNTARIO(A)'
+            {permisos.puedeVerTodo && !isVoluntario
               ? <Dashboard />
               : permisos.puedeVerPerfilPropio
                 ? <MiDashboard />
