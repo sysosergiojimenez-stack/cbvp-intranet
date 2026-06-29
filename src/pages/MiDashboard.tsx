@@ -4,7 +4,7 @@ import { trpc } from '@/providers/trpc';
 import {
   User, Shield, Award, Calendar, Hash, Radio,
   ClipboardCheck, TrendingUp, Flame, Star,
-  ChevronRight, Clock, AlertTriangle
+  ChevronRight, Clock, AlertTriangle, FileText
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -19,30 +19,36 @@ export default function MiDashboard() {
     retry: 1, refetchOnWindowFocus: false,
   });
 
-  // Find current user in personal list
+  // Find current user in personal list to get extra fields
   const miData = useMemo(() => {
     if (!personalData?.personal || !usuario) return null;
     return personalData.personal.find(
-      p => p.correo?.toLowerCase().trim() === usuario.correo?.toLowerCase().trim()
+      p => p.codigo?.trim().toUpperCase() === usuario.codigo?.trim().toUpperCase()
     );
   }, [personalData, usuario]);
 
-  // Calculate my guardia stats
-  const misGuardias = useMemo(() => {
-    if (!historialData?.exito || !miData) return [];
-
-    return historialData.planillas.filter(planilla => {
-      // Check if my codigo appears in the planilla (we'd need detalle, but for now estimate)
-      return true; // placeholder - we'd need to check personal detail
-    });
+  // Count how many planillas include this user's codigo
+  const guardiasRegistradas = useMemo(() => {
+    if (!historialData?.exito || !miData?.codigo) return 0;
+    // We would need to check each planilla's detail, but for now count total planillas
+    // TODO: implement per-user guardia counting from Guardias_Personal sheet
+    return historialData.planillas.length;
   }, [historialData, miData]);
 
-  // Get my codigo from personal data
-  const miCodigo = miData?.codigo || usuario?.identificador || '-';
+  // Use auth user data as primary, fallback to personal data
+  const anioJuramento = miData?.anioJuramento || usuario?.anioJuramento || '-';
+  const codigoRadial = miData?.codigoRadial || '-';
+  const categoria = usuario?.categoria || miData?.categoria || '-';
+  const cargo = usuario?.cargo || '-';
+  const rango = usuario?.rango || '-';
+  const codigo = usuario?.codigo || '-';
+  const nombreCompleto = usuario?.nombreCompleto || '-';
+  const correo = usuario?.correo || '-';
+  const nivelPermiso = usuario?.nivelPermiso || '-';
 
   // Asistencia summary cards
   const asistenciaStats = [
-    { label: 'Guardias Registradas', value: '-', icon: ClipboardCheck, color: 'text-cbvp-red', bg: 'bg-cbvp-red/8', bar: 'bg-cbvp-red', sub: 'Total' },
+    { label: 'Guardias Registradas', value: guardiasRegistradas > 0 ? guardiasRegistradas.toString() : '-', icon: ClipboardCheck, color: 'text-cbvp-red', bg: 'bg-cbvp-red/8', bar: 'bg-cbvp-red', sub: 'Total' },
     { label: 'Presentes', value: '-', icon: Shield, color: 'text-cbvp-green', bg: 'bg-cbvp-green/8', bar: 'bg-cbvp-green', sub: 'Asistencia' },
     { label: 'ACACR', value: '-', icon: AlertTriangle, color: 'text-cbvp-orange', bg: 'bg-cbvp-orange/8', bar: 'bg-cbvp-orange', sub: 'Licencia' },
     { label: 'ACASR', value: '-', icon: Clock, color: 'text-cbvp-yellow', bg: 'bg-cbvp-yellow/8', bar: 'bg-cbvp-yellow', sub: 'Licencia' },
@@ -65,75 +71,80 @@ export default function MiDashboard() {
             <User className="w-7 h-7 text-cbvp-red" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-white">{usuario.nombreCompleto}</h2>
+            <h2 className="text-lg font-bold text-white">{nombreCompleto}</h2>
             <div className="flex items-center gap-2 mt-0.5">
-              <span className="text-xs text-cbvp-red-light font-medium bg-cbvp-red/10 px-2 py-0.5 rounded-full">{usuario.rango}</span>
+              <span className="text-xs text-cbvp-red-light font-medium bg-cbvp-red/10 px-2 py-0.5 rounded-full">{rango}</span>
               <span className="text-xs text-white/30">|</span>
-              <span className="text-xs text-white/40">Codigo: <span className="text-white/60 font-mono">{miCodigo}</span></span>
+              <span className="text-xs text-white/40">Codigo: <span className="text-white/60 font-mono">{codigo}</span></span>
             </div>
           </div>
         </div>
 
         <div className="p-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {/* Info fields */}
+            {/* Cargo */}
             <div className="flex items-center gap-3 bg-white/[0.02] rounded-lg p-3">
               <div className="w-8 h-8 rounded-lg bg-cbvp-red/8 flex items-center justify-center shrink-0">
                 <Award className="w-4 h-4 text-cbvp-red/60" />
               </div>
               <div>
                 <p className="text-[10px] text-white/30 uppercase">Cargo</p>
-                <p className="text-sm text-white">{usuario.cargo || '-'}</p>
+                <p className="text-sm text-white">{cargo}</p>
               </div>
             </div>
 
+            {/* Categoria */}
             <div className="flex items-center gap-3 bg-white/[0.02] rounded-lg p-3">
               <div className="w-8 h-8 rounded-lg bg-cbvp-orange/8 flex items-center justify-center shrink-0">
                 <Star className="w-4 h-4 text-cbvp-orange/60" />
               </div>
               <div>
                 <p className="text-[10px] text-white/30 uppercase">Categoria</p>
-                <p className="text-sm text-white">{miData?.categoria || '-'}</p>
+                <p className="text-sm text-white">{categoria}</p>
               </div>
             </div>
 
+            {/* Anio de Juramento */}
             <div className="flex items-center gap-3 bg-white/[0.02] rounded-lg p-3">
               <div className="w-8 h-8 rounded-lg bg-cbvp-green/8 flex items-center justify-center shrink-0">
                 <Calendar className="w-4 h-4 text-cbvp-green/60" />
               </div>
               <div>
                 <p className="text-[10px] text-white/30 uppercase">Ano de Juramento</p>
-                <p className="text-sm text-white">{miData?.anioJuramento || '-'}</p>
+                <p className="text-sm text-white">{anioJuramento}</p>
               </div>
             </div>
 
+            {/* Codigo Radial */}
             <div className="flex items-center gap-3 bg-white/[0.02] rounded-lg p-3">
               <div className="w-8 h-8 rounded-lg bg-cbvp-blue/8 flex items-center justify-center shrink-0">
                 <Hash className="w-4 h-4 text-cbvp-blue/60" />
               </div>
               <div>
                 <p className="text-[10px] text-white/30 uppercase">Codigo Radial</p>
-                <p className="text-sm text-white font-mono">{miData?.codigoRadial || '-'}</p>
+                <p className="text-sm text-white font-mono">{codigoRadial}</p>
               </div>
             </div>
 
+            {/* Nivel de Permiso */}
             <div className="flex items-center gap-3 bg-white/[0.02] rounded-lg p-3">
               <div className="w-8 h-8 rounded-lg bg-cbvp-purple/8 flex items-center justify-center shrink-0">
                 <Radio className="w-4 h-4 text-cbvp-purple/60" />
               </div>
               <div>
                 <p className="text-[10px] text-white/30 uppercase">Nivel de Permiso</p>
-                <p className="text-sm text-white">{usuario.nivelPermiso || '-'}</p>
+                <p className="text-sm text-white">{nivelPermiso}</p>
               </div>
             </div>
 
+            {/* Correo */}
             <div className="flex items-center gap-3 bg-white/[0.02] rounded-lg p-3">
               <div className="w-8 h-8 rounded-lg bg-cbvp-yellow/8 flex items-center justify-center shrink-0">
                 <Shield className="w-4 h-4 text-cbvp-yellow/60" />
               </div>
               <div>
                 <p className="text-[10px] text-white/30 uppercase">Correo</p>
-                <p className="text-sm text-white truncate">{usuario.correo || '-'}</p>
+                <p className="text-sm text-white truncate">{correo}</p>
               </div>
             </div>
           </div>

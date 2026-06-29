@@ -33,7 +33,11 @@ function AppRoutes() {
       <Route element={<AppLayout />}>
         <Route path="/" element={
           <ProtectedRoute>
-            {permisos.puedeVerTodo ? <Dashboard /> : <MiDashboard />}
+            {permisos.puedeVerTodo
+              ? <Dashboard />
+              : permisos.puedeVerPerfilPropio
+                ? <MiDashboard />
+                : <Navigate to="/login" replace />}
           </ProtectedRoute>
         } />
         <Route path="/mi-dashboard" element={

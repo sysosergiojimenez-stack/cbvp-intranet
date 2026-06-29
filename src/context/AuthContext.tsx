@@ -22,6 +22,7 @@ interface Usuario {
   accesosPermiso: string;
   nombreCompleto: string;
   correo: string;
+  anioJuramento: string;
 }
 
 interface AuthContextType {
@@ -76,6 +77,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           accesosPermiso: result.accesosPermiso,
           nombreCompleto: result.nombreCompleto,
           correo: result.correo,
+          anioJuramento: result.anioJuramento,
         };
         setUsuario(user);
         sessionStorage.setItem('cbvp_sesion', JSON.stringify({
