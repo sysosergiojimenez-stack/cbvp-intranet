@@ -1,16 +1,15 @@
 import { useState } from 'react';
 import { trpc } from '@/providers/trpc';
 import { usePermiso } from '@/hooks/usePermiso';
-import { UserPlus, Save, AlertTriangle, CheckCircle } from 'lucide-react';
+import { Save, AlertTriangle, CheckCircle } from 'lucide-react';
 
 export default function AgregarBombero() {
   const { puedeVerPersonal } = usePermiso();
   const [form, setForm] = useState({
     codigo: '', anioJuramento: '', categoria: 'COMBATIENTE',
-    rango: '', codigoRadial: '',
+    rango: 'Voluntario(a)', codigoRadial: '',
     primerNombre: '', segundoNombre: '', primerApellido: '', segundoApellido: '',
     nroDocId: '', fechaNacimiento: '',
-    correo: '', contrasena: '', nivelPermiso: '1', descripcionPermiso: 'BASICO',
   });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -21,10 +20,9 @@ export default function AgregarBombero() {
       setError('');
       setForm({
         codigo: '', anioJuramento: '', categoria: 'COMBATIENTE',
-        rango: '', codigoRadial: '',
+        rango: 'Voluntario(a)', codigoRadial: '',
         primerNombre: '', segundoNombre: '', primerApellido: '', segundoApellido: '',
         nroDocId: '', fechaNacimiento: '',
-        correo: '', contrasena: '', nivelPermiso: '1', descripcionPermiso: 'BASICO',
       });
       setTimeout(() => setSuccess(''), 3000);
     },
@@ -46,10 +44,16 @@ export default function AgregarBombero() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError(''); setSuccess('');
-    if (!form.codigo || !form.anioJuramento || !form.primerNombre || !form.primerApellido || !form.correo || !form.contrasena) {
+    if (!form.codigo || !form.anioJuramento || !form.primerNombre || !form.primerApellido) {
       setError('Complete los campos obligatorios'); return;
     }
-    crearMutation.mutate(form);
+    crearMutation.mutate({
+      ...form,
+      correo: '',
+      contrasena: '',
+      nivelPermiso: '1',
+      descripcionPermiso: 'BASICO',
+    });
   };
 
   const field = (label: string, key: keyof typeof form, opts?: { type?: string; placeholder?: string; required?: boolean }) => (
@@ -60,13 +64,12 @@ export default function AgregarBombero() {
   );
 
   return (
-    <div className="animate-fade-in max-w-3xl mx-auto">
-      <div className="flex items-center gap-3 mb-6">
-        <UserPlus className="w-6 h-6 text-cbvp-red" />
-        <h1 className="text-2xl font-bold text-white">Agregar Nuevo Bombero</h1>
-      </div>
+    <div className="animate-fade-in">
+      <h1 className="text-2xl font-bold text-white mb-6">Agregar Nuevo Bombero</h1>
+
       {error && <div className="mb-4 p-3 bg-cbvp-red/10 border border-cbvp-red/20 rounded-lg text-sm text-cbvp-red-light">{error}</div>}
       {success && <div className="mb-4 p-3 bg-cbvp-green/10 border border-cbvp-green/20 rounded-lg text-sm text-cbvp-green flex items-center gap-2"><CheckCircle className="w-4 h-4" /> {success}</div>}
+
       <form onSubmit={handleSubmit} className="bg-white/[0.03] border border-white/5 rounded-xl p-5 space-y-4">
         <h2 className="text-sm font-semibold text-white/60 uppercase tracking-wider border-b border-white/5 pb-2">Datos Generales</h2>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -97,6 +100,7 @@ export default function AgregarBombero() {
           </div>
           {field('Codigo Radial', 'codigoRadial')}
         </div>
+
         <h2 className="text-sm font-semibold text-white/60 uppercase tracking-wider border-b border-white/5 pb-2 pt-2">Datos Personales</h2>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           {field('Primer Nombre *', 'primerNombre', { required: true })}
@@ -109,18 +113,7 @@ export default function AgregarBombero() {
             <input type="date" value={form.fechaNacimiento} onChange={e => setForm(f => ({ ...f, fechaNacimiento: e.target.value }))} className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-cbvp-red/50 [color-scheme:dark]" />
           </div>
         </div>
-        <h2 className="text-sm font-semibold text-white/60 uppercase tracking-wider border-b border-white/5 pb-2 pt-2">Acceso</h2>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          {field('Correo *', 'correo', { type: 'email', required: true })}
-          {field('Contrasena *', 'contrasena', { type: 'password', required: true })}
-          <div>
-            <label className="text-[10px] text-white/40 uppercase tracking-wider mb-1 block">Nivel Permiso *</label>
-            <select value={form.nivelPermiso} onChange={e => setForm(f => ({ ...f, nivelPermiso: e.target.value }))} className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-cbvp-red/50">
-              <option value="1">1 - Basico</option><option value="2">2 - Avanzado</option><option value="3">3 - Supervisor</option><option value="4">4 - Administrador</option><option value="5">5 - Total</option>
-            </select>
-          </div>
-          {field('Descripcion Permiso', 'descripcionPermiso')}
-        </div>
+
         <button type="submit" disabled={crearMutation.isPending} className="w-full mt-4 py-3 bg-cbvp-green hover:bg-cbvp-green/80 disabled:opacity-50 text-white font-semibold rounded-xl transition-all flex items-center justify-center gap-2">
           <Save className="w-4 h-4" /> {crearMutation.isPending ? 'Guardando...' : 'Registrar Bombero'}
         </button>
