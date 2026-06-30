@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { createRouter, publicQuery } from "../middleware";
-import { readSheet, appendRow } from "../services/sheets";
+import { readSheet, appendRow, updateRange, findRowIndex } from "../services/sheets";
 import { env } from "../lib/env";
 
 function extractNumber(code: string): string {
@@ -143,5 +143,71 @@ export const personalRouter = createRouter({
         input.nivelPermiso, input.descripcionPermiso,
       ]);
       return { exito: true as const, mensaje: "Bombero registrado correctamente" };
+    }),
+
+  obtenerPorCodigo: publicQuery
+    .input(z.object({ codigo: z.string() }))
+    .query(async ({ input }) => {
+      const data = await readSheet(env.SHEET_USUARIOS_ID, "USUARIOS!A1:Q1000");
+      const searchNum = extractNumber(input.codigo);
+      for (let i = 1; i < data.length; i++) {
+        const codigoFila = String(data[i][1] || "").trim();
+        const numFila = extractNumber(codigoFila);
+        if (numFila === searchNum) {
+          return {
+            exito: true as const,
+            bombero: {
+              identificador: String(data[i][0] || ""),
+              codigo: codigoFila,
+              anioJuramento: String(data[i][2] || ""),
+              categoria: String(data[i][3] || ""),
+              cargo: String(data[i][4] || ""),
+              rango: String(data[i][5] || ""),
+              codigoRadial: String(data[i][6] || ""),
+              primerNombre: String(data[i][7] || ""),
+              segundoNombre: String(data[i][8] || ""),
+              primerApellido: String(data[i][9] || ""),
+              segundoApellido: String(data[i][10] || ""),
+              nroDocId: String(data[i][11] || ""),
+              fechaNacimiento: String(data[i][12] || ""),
+              correo: String(data[i][13] || ""),
+              nivelPermiso: String(data[i][15] || "1"),
+              descripcionPermiso: String(data[i][16] || ""),
+            },
+          };
+        }
+      }
+      return { exito: false as const, error: "Bombero no encontrado" };
+    }),
+
+  editar: publicQuery
+    .input(
+      z.object({
+        codigoOriginal: z.string().min(1),
+        codigo: z.string().min(1),
+        anioJuramento: z.string().min(1),
+        categoria: z.string().min(1),
+        rango: z.string().min(1),
+        codigoRadial: z.string(),
+        primerNombre: z.string().min(1),
+        segundoNombre: z.string(),
+        primerApellido: z.string().min(1),
+        segundoApellido: z.string(),
+        nroDocId: z.string().optional(),
+        fechaNacimiento: z.string().optional(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const rowIndex = await findRowIndex(env.SHEET_USUARIOS_ID, "USUARIOS!A1:Q1000", 1, input.codigoOriginal);
+      if (rowIndex === -1) {
+        return { exito: false as const, error: "Bombero no encontrado" };
+      }
+      await updateRange(env.SHEET_USUARIOS_ID, `USUARIOS!A${rowIndex}:Q${rowIndex}`, [[
+        "", input.codigo, input.anioJuramento, input.categoria,
+        "", input.rango, input.codigoRadial, input.primerNombre,
+        input.segundoNombre, input.primerApellido, input.segundoApellido,
+        input.nroDocId || "", input.fechaNacimiento || "",
+      ]]);
+      return { exito: true as const, mensaje: "Bombero actualizado correctamente" };
     }),
 });
