@@ -10,7 +10,8 @@ import Personal from '@/pages/Personal';
 import Perfil from '@/pages/Perfil';
 import MiDashboard from '@/pages/MiDashboard';
 import AgregarBombero from '@/pages/AgregarBombero';
-import EditarBombero from '@/pages/EditarBombero';\nimport ConfigurarAcceso from '@/pages/ConfigurarAcceso';
+import EditarBombero from '@/pages/EditarBombero';
+import ConfigurarAcceso from '@/pages/ConfigurarAcceso';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { usuario } = useAuth();
@@ -73,6 +74,9 @@ function AppRoutes() {
           <ProtectedRoute>
             {permisos.puedeVerPersonal ? <EditarBombero /> : <Navigate to="/" replace />}
           </ProtectedRoute>
+        } />
+        <Route path="/configurar-acceso" element={
+          <ProtectedRoute><ConfigurarAcceso /></ProtectedRoute>
         } />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
