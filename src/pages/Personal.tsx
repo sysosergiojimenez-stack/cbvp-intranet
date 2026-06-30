@@ -1,14 +1,16 @@
 import { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { usePermiso } from '@/hooks/usePermiso';
 import { trpc } from '@/providers/trpc';
 import type { Personal, GuardiaHistorial, EstadisticasGuardias } from '@/types';
 import {
   Search, User, Shield, Award, Calendar, Hash, Radio,
   Mail, FileText, X, Flame,
-  Clock, Users, AlertTriangle, ChevronDown, ChevronUp
+  Clock, Users, AlertTriangle, ChevronDown, ChevronUp, Pencil
 } from 'lucide-react';
 
 export default function PersonalPage() {
+  const navigate = useNavigate();
   const { puedeVerPersonal } = usePermiso();
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
