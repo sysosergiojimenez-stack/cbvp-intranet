@@ -178,7 +178,6 @@ export default function PersonalPage() {
                     <th className="px-3 py-3 text-left">Anio</th>
                     <th className="px-3 py-3 text-left">Nombre Completo</th>
                     <th className="px-3 py-3 text-left rounded-tr-lg">Acciones</th>
-                    <th className="px-3 py-3 text-left rounded-tr-lg">Acciones</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">

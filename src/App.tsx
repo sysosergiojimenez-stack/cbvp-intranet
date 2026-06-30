@@ -70,6 +70,7 @@ function AppRoutes() {
           </ProtectedRoute>
         } />
       </Route>
+        <Route path="/editar-bombero/:codigo" element={\n          <ProtectedRoute>\n            {permisos.puedeVerPersonal ? <EditarBombero /> : <Navigate to="/" replace />}\n          </ProtectedRoute>\n        } />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
