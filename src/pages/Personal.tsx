@@ -12,7 +12,6 @@ import {
 export default function PersonalPage() {
   const navigate = useNavigate();
   const { puedeVerPersonal } = usePermiso();
-  const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [selectedBombero, setSelectedBombero] = useState<Personal | null>(null);
   const [fichaData, setFichaData] = useState<{ guardias: GuardiaHistorial[]; stats: EstadisticasGuardias } | null>(null);
