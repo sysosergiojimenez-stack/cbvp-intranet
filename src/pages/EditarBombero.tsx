@@ -7,7 +7,7 @@ import { Save, AlertTriangle, CheckCircle, ArrowLeft } from 'lucide-react';
 export default function EditarBombero() {
   const { codigo } = useParams<{ codigo: string }>();
   const navigate = useNavigate();
-n  const { puedeVerPersonal } = usePermiso();
+  const { puedeVerPersonal } = usePermiso();
   const [form, setForm] = useState({
     codigo: '', anioJuramento: '', categoria: 'COMBATIENTE',
     rango: 'Voluntario(a)', codigoRadial: '',
