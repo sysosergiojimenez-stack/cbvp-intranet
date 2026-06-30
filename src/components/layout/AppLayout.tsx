@@ -8,7 +8,7 @@ import {
   Users, Settings, LogOut, Shield, Menu, X,
   ChevronLeft, ChevronRight, Flame, Crown,
   UserCircle,
-  UserPlus
+  UserPlus, Lock
 } from 'lucide-react';
 
 interface NavItem {
