@@ -175,13 +175,14 @@ export default function PersonalPage() {
                     <th className="px-3 py-3 text-left">Categoria</th>
                     <th className="px-3 py-3 text-left">Codigo</th>
                     <th className="px-3 py-3 text-left">Anio</th>
-                    <th className="px-3 py-3 text-left rounded-tr-lg">Nombre Completo</th>
+                    <th className="px-3 py-3 text-left Nombre Completo</th>
+                    <th className="px-3 py-3 text-left rounded-tr-lg">Acciones</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
                   {filtered.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="px-3 py-12 text-center text-white/40">
+                      <td colSpan={6} className="px-3 py-12 text-center text-white/40">
                         <Users className="w-8 h-8 mx-auto mb-2 opacity-30" />
                         No hay bomberos registrados.
                       </td>
