@@ -26,7 +26,7 @@ const NAV_ITEMS: NavItem[] = [
   { path: '/historial', label: 'Historial', icon: History, checkAccess: p => p.puedeVerHistorial },
   { path: '/personal', label: 'Personal', icon: Users, checkAccess: (p, u) => p.puedeVerPersonal && u?.cargo?.trim().toUpperCase() !== 'VOLUNTARIO(A)' },
   { path: '/agregar-bombero', label: 'Agregar Bombero', icon: UserPlus, checkAccess: (p, u) => p.puedeVerPersonal && u?.cargo?.trim().toUpperCase() !== 'VOLUNTARIO(A)' },
-  { path: '/configuracion', label: 'Configuracion', icon: Settings, checkAccess: p => p.puedeConfiguracion },
+  { path: '/configuracion', label: 'Configuracion', icon: Settings, checkAccess: p => p.puedeConfiguracion },\n  { path: '/configurar-acceso', label: 'Configurar Acceso', icon: Lock, checkAccess: () => true },
 ];
 
 function CbvpLogo({ className = "" }: { className?: string }) {

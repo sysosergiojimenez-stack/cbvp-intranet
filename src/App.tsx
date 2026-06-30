@@ -10,7 +10,7 @@ import Personal from '@/pages/Personal';
 import Perfil from '@/pages/Perfil';
 import MiDashboard from '@/pages/MiDashboard';
 import AgregarBombero from '@/pages/AgregarBombero';
-import EditarBombero from '@/pages/EditarBombero';
+import EditarBombero from '@/pages/EditarBombero';\nimport ConfigurarAcceso from '@/pages/ConfigurarAcceso';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { usuario } = useAuth();
