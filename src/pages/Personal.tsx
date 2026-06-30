@@ -175,7 +175,8 @@ export default function PersonalPage() {
                     <th className="px-3 py-3 text-left">Categoria</th>
                     <th className="px-3 py-3 text-left">Codigo</th>
                     <th className="px-3 py-3 text-left">Anio</th>
-                    <th className="px-3 py-3 text-left Nombre Completo</th>
+                    <th className="px-3 py-3 text-left">Nombre Completo</th>
+                    <th className="px-3 py-3 text-left rounded-tr-lg">Acciones</th>
                     <th className="px-3 py-3 text-left rounded-tr-lg">Acciones</th>
                   </tr>
                 </thead>
@@ -205,6 +206,9 @@ export default function PersonalPage() {
                         <td className="px-3 py-3 text-white/60">{bombero.anioJuramento}</td>
                         <td className="px-3 py-3">
                           <span className="text-white font-medium group-hover:text-cbvp-red transition-colors">{bombero.nombreCompleto}</span>
+                        </td>
+                        <td className="px-3 py-3">
+                          <button onClick={(e) => { e.stopPropagation(); navigate(`/editar-bombero/${bombero.codigo}`); }} className="text-xs bg-cbvp-blue/20 hover:bg-cbvp-blue/40 text-cbvp-blue px-2 py-1 rounded transition-colors">Editar</button>
                         </td>
                       </tr>
                     ))
