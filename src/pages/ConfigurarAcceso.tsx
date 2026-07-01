@@ -20,7 +20,7 @@ export default function ConfigurarAcceso() {
     if (!form.correoActual || !form.correoNuevo || !form.contrasenaActual || !form.contrasenaNueva) { setError("Complete todos los campos"); return; }
     if (form.contrasenaNueva !== form.confirmarContrasena) { setError("Las contrasenas no coinciden"); return; }
     if (form.contrasenaNueva.length < 4) { setError("Minimo 4 caracteres"); return; }
-    m.mutate({ codigo: usuario?.codigo || "", correoActual: form.correoActual, correoNuevo: form.correoNuevo, contrasenaActual: form.contrasenaActual, contrasenaNueva: form.contrasenaNueva });
+    m.mutate({ correoActual: form.correoActual, correoNuevo: form.correoNuevo, contrasenaActual: form.contrasenaActual, contrasenaNueva: form.contrasenaNueva });
   };
 
   const inp = "w-full px-3 py-2.5 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-cbvp-red/50 transition-colors";

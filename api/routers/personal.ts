@@ -80,34 +80,26 @@ export const personalRouter = createRouter({
 
   cambiarAcceso: publicQuery
     .input(z.object({
-      codigo: z.string().min(1),
       correoActual: z.string().email(),
       correoNuevo: z.string().email(),
       contrasenaActual: z.string().min(1),
       contrasenaNueva: z.string().min(1),
     }))
     .mutation(async ({ input }) => {
+      // Seguridad: buscar por correo+contrasena, NO por codigo
       const data = await readSheet(env.SHEET_USUARIOS_ID, "USUARIOS!A1:Q1000");
-      const searchNum = extractNumber(input.codigo);
       let rowIndex = -1;
-      let existingRow: string[] = [];
       for (let i = 1; i < data.length; i++) {
-        const codigoFila = String(data[i][1] || "").trim();
-        const numFila = extractNumber(codigoFila);
-        if (numFila === searchNum) {
+        const row = data[i] as string[];
+        const storedEmail = String(row[13] || "").trim();
+        const storedPassword = String(row[14] || "").trim();
+        if (storedEmail === input.correoActual.trim() && storedPassword === input.contrasenaActual.trim()) {
           rowIndex = i + 1;
-          existingRow = data[i] as string[];
           break;
         }
       }
       if (rowIndex === -1) {
-        return { exito: false as const, error: "Bombero no encontrado" };
-      }
-      if (String(existingRow[14] || "").trim() !== input.contrasenaActual.trim()) {
-        return { exito: false as const, error: "Contrasena actual incorrecta" };
-      }
-      if (String(existingRow[13] || "").trim() !== input.correoActual.trim()) {
-        return { exito: false as const, error: "Correo actual incorrecto" };
+        return { exito: false as const, error: "Correo o contrasena actual incorrectos" };
       }
       await updateRange(env.SHEET_USUARIOS_ID, `USUARIOS!N${rowIndex}:O${rowIndex}`, [[
         input.correoNuevo.trim(),
