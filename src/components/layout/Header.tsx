@@ -10,6 +10,7 @@ const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
   "/personal": { title: "Personal", subtitle: "Listado de bomberos voluntarios" },
   "/agregar-bombero": { title: "Agregar Bombero", subtitle: "Registrar nuevo bombero voluntario" },
   "/configuracion": { title: "Configuracion", subtitle: "Ajustes del sistema" },
+  "/configurar-acceso": { title: "Configurar Acceso", subtitle: "Cambiar correo y contrasena" },
 };
 
 function getPageTitle(pathname: string): { title: string; subtitle: string } {
