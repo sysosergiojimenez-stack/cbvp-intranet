@@ -28,8 +28,6 @@ export default function ConfigurarAcceso() {
 
   return (
     <div className="animate-fade-in max-w-lg mx-auto">
-      <h1 className="text-2xl font-bold text-white mb-2">Configurar Acceso</h1>
-      <p className="text-xs text-white/40 mb-6">Cambia tu correo y contrasena. Tu cargo no se puede modificar.</p>
       {error && <div className="mb-4 p-3 bg-cbvp-red/10 border border-cbvp-red/20 rounded-lg text-sm text-cbvp-red-light flex items-center gap-2"><AlertTriangle className="w-4 h-4 shrink-0" />{error}</div>}
       {success && <div className="mb-4 p-3 bg-cbvp-green/10 border border-cbvp-green/20 rounded-lg text-sm text-cbvp-green flex items-center gap-2"><CheckCircle className="w-4 h-4 shrink-0" />{success}</div>}
       <form onSubmit={submit} className="bg-white/[0.03] border border-white/5 rounded-xl p-5 space-y-5">
