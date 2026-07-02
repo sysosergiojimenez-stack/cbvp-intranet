@@ -1,0 +1,129 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 240 25% 9%;
+    --foreground: 0 0% 98%;
+    --card: 240 25% 12%;
+    --card-foreground: 0 0% 98%;
+    --popover: 240 25% 12%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 6 68% 46%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 240 20% 15%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 240 15% 18%;
+    --muted-foreground: 240 5% 55%;
+    --accent: 6 68% 46%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 10% 18%;
+    --input: 240 10% 18%;
+    --ring: 6 68% 46%;
+    --radius: 0.625rem;
+    --sidebar-background: 240 25% 10%;
+    --sidebar-foreground: 240 5% 85%;
+    --sidebar-primary: 6 68% 46%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 20% 15%;
+    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-border: 240 10% 15%;
+    --sidebar-ring: 6 68% 46%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-cbvp-dark text-foreground font-sans antialiased;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+}
+
+@layer utilities {
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.15);
+  }
+
+  /* Glass effect */
+  .glass {
+    @apply bg-white/[0.03] backdrop-blur-sm border border-white/[0.06];
+  }
+
+  /* Card hover lift */
+  .card-hover {
+    @apply transition-all duration-200;
+  }
+  .card-hover:hover {
+    @apply bg-white/[0.04] border-white/[0.08];
+    transform: translateY(-1px);
+  }
+
+  /* Input focus ring */
+  .input-focus {
+    @apply focus:outline-none focus:ring-2 focus:ring-cbvp-red/20 focus:border-cbvp-red/40 transition-all;
+  }
+
+  /* Status badges */
+  .badge-presente {
+    @apply bg-cbvp-green/15 text-cbvp-green border border-cbvp-green/20;
+  }
+  .badge-acacr {
+    @apply bg-cbvp-orange/15 text-cbvp-orange border border-cbvp-orange/20;
+  }
+  .badge-acasr {
+    @apply bg-cbvp-yellow/15 text-cbvp-yellow border border-cbvp-yellow/20;
+  }
+  .badge-asasr {
+    @apply bg-cbvp-red/15 text-cbvp-red-light border border-cbvp-red/20;
+  }
+
+  /* Table row hover */
+  .table-row-hover {
+    @apply transition-colors duration-150;
+  }
+  .table-row-hover:hover {
+    @apply bg-white/[0.02];
+  }
+
+  /* Button press */
+  .btn-press {
+    @apply active:scale-[0.97] transition-transform;
+  }
+}
+
+/* Global selection */
+::selection {
+  background: rgba(192, 57, 43, 0.3);
+  color: white;
+}
+
+/* Smooth scroll */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Responsive font sizes */
+@media (max-width: 640px) {
+  html {
+    font-size: 14px;
+  }
+}
