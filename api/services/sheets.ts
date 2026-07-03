@@ -91,17 +91,20 @@ export async function deleteRows(
 ): Promise<void> {
   const sheets = getSheetsClient();
   const requests = rowIndices
+    .filter((rowIndex) => rowIndex > 1) // NEVER delete row 1 (header)
     .sort((a, b) => b - a) // Delete from bottom to top
     .map((rowIndex) => ({
       deleteDimension: {
         range: {
           sheetId,
           dimension: "ROWS" as const,
-          startIndex: rowIndex - 1, // 0-based
+          startIndex: rowIndex - 1, // Convert 1-based to 0-based
           endIndex: rowIndex,       // exclusive
         },
       },
     }));
+
+  if (requests.length === 0) return;
 
   await sheets.spreadsheets.batchUpdate({
     spreadsheetId,

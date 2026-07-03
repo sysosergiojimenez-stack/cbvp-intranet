@@ -328,9 +328,9 @@ export const asistenciaRouter = createRouter({
         return { exito: false as const, error: "Planilla no encontrada" };
       }
 
-      // Delete header row
+      // Delete header row (encRowIndex is 0-based array index, add 1 for 1-based row number)
       const encSheetId = await getSheetId(env.SHEET_GUARDIAS_ID, "Asistencia_Encabezado");
-      await deleteRows(env.SHEET_GUARDIAS_ID, encSheetId, [encRowIndex]);
+      await deleteRows(env.SHEET_GUARDIAS_ID, encSheetId, [encRowIndex + 1]);
 
       // Find and delete all personnel rows (from bottom to top)
       const persData = await readSheet(env.SHEET_GUARDIAS_ID, "Asistencia_Personal!A1:K5000");
@@ -343,9 +343,10 @@ export const asistenciaRouter = createRouter({
 
       if (rowsToDelete.length > 0) {
         const persSheetId = await getSheetId(env.SHEET_GUARDIAS_ID, "Asistencia_Personal");
-        rowsToDelete.sort((a, b) => b - a);
-        for (const rowIdx of rowsToDelete) {
-          await deleteRows(env.SHEET_GUARDIAS_ID, persSheetId, [rowIdx]);
+        // Convert 0-based array indices to 1-based row numbers for deleteRows
+        const rowNumbers = rowsToDelete.map(idx => idx + 1).sort((a, b) => b - a);
+        for (const rowNum of rowNumbers) {
+          await deleteRows(env.SHEET_GUARDIAS_ID, persSheetId, [rowNum]);
         }
       }
 
