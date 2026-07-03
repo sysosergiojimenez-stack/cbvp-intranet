@@ -64,23 +64,25 @@ export const asistenciaRouter = createRouter({
 
       const tipoFinal = tipoNormalizado === "OTRO" && otroTipo ? `OTRO: ${otroTipo}` : tipoNormalizado;
 
+      const idPlanilla = generateId();
+      const fechaCarga = new Date().toLocaleDateString("es-ES");
+
       // Upload image to Drive
       let imageUrl = "";
+      let uploadError = "";
       try {
         const folderId = env.DRIVE_FOLDER_ID;
         imageUrl = await uploadFile(
           folderId,
-          `asistencia_${generateId()}.${input.mimeType.split("/")[1] || "jpg"}`,
+          `asistencia_${idPlanilla}.${input.mimeType.split("/")[1] || "jpg"}`,
           input.mimeType,
           input.imageBase64
         );
         console.log("[Asistencia] Imagen subida a Drive:", imageUrl);
       } catch (err) {
-        console.error("[Asistencia] Error subiendo imagen a Drive:", err);
+        uploadError = err instanceof Error ? err.message : String(err);
+        console.error("[Asistencia] Error subiendo imagen a Drive:", uploadError);
       }
-
-      const idPlanilla = generateId();
-      const fechaCarga = new Date().toLocaleDateString("es-ES");
 
       // Save header
       await appendRow(env.SHEET_GUARDIAS_ID, "Asistencia_Encabezado", [
@@ -145,6 +147,8 @@ export const asistenciaRouter = createRouter({
         fechaActividad,
         totalPersonnel: allPersonnel.length,
         presentes: allPersonnel.filter(p => p.asistencia === "PRESENTE").length,
+        imageUrl,
+        uploadError: uploadError || undefined,
       };
     }),
 
