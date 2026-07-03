@@ -2,13 +2,13 @@ import { NavLink } from 'react-router-dom';
 import { usePermiso } from '@/hooks/usePermiso';
 import { trpc } from '@/providers/trpc';
 import {
-  Users, ClipboardList, Truck, CalendarDays,
+  Users, ClipboardList, Truck,
   Flame, TrendingUp, ChevronRight, Shield,
   Clock, Award, Zap
 } from 'lucide-react';
 
 export default function Dashboard() {
-  const { puedeCargarPlanillas, puedeVerPersonal, puedeVerHistorial } = usePermiso();
+  const { puedeCargarPlanillas, puedeVerPersonal } = usePermiso();
 
   const { data: personalData } = trpc.personal.list.useQuery(undefined, {
     retry: 1, refetchOnWindowFocus: false,
@@ -18,18 +18,6 @@ export default function Dashboard() {
   });
 
   const totalPersonal = personalData?.personal?.length || 0;
-  const totalPlanillas = historialData?.exito ? historialData.planillas.length : 0;
-
-  // Count planillas this month
-  const now = new Date();
-  const thisMonth = historialData?.exito
-    ? historialData.planillas.filter(p => {
-        try {
-          const [d, m, y] = p.fechaGuardia.split('/');
-          return parseInt(m) === (now.getMonth() + 1) && parseInt(y) === now.getFullYear();
-        } catch { return false; }
-      }).length
-    : 0;
 
   const activos = personalData?.personal?.filter(p => p.categoria?.trim().toUpperCase() === 'ACTIVO').length || 0;
   const combatientes = personalData?.personal?.filter(p => p.categoria?.trim().toUpperCase() === 'COMBATIENTE').length || 0;
@@ -66,18 +54,6 @@ export default function Dashboard() {
       border: 'border-cbvp-green/15 hover:border-cbvp-green/30',
       badge: `${totalPersonal} activos`,
       badgeColor: 'bg-cbvp-green/15 text-cbvp-green',
-    },
-    {
-      title: 'Historial',
-      description: 'Registro historico completo de todas las guardias procesadas.',
-      icon: CalendarDays,
-      path: '/historial',
-      access: puedeVerHistorial,
-      color: 'text-cbvp-orange',
-      bg: 'bg-cbvp-orange/8',
-      border: 'border-cbvp-orange/15 hover:border-cbvp-orange/30',
-      badge: `${totalPlanillas} registros`,
-      badgeColor: 'bg-cbvp-orange/15 text-cbvp-orange',
     },
     {
       title: 'Reportes',

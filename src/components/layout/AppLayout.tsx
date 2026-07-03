@@ -4,7 +4,7 @@ import { useAuth } from '@/context/AuthContext';
 import { usePermiso } from '@/hooks/usePermiso';
 import Header from './Header';
 import {
-  LayoutDashboard, ClipboardList, History,
+  LayoutDashboard, ClipboardList,
   Users, Settings, LogOut, Shield, Menu, X,
   ChevronLeft, ChevronRight, Flame, Crown,
   UserCircle, UserPlus, Lock, BookOpen
@@ -23,7 +23,6 @@ const NAV_ITEMS: NavItem[] = [
   { path: '/mi-dashboard', label: 'Mi Dashboard', icon: UserCircle, checkAccess: p => p.puedeVerPerfilPropio },
   { path: '/planillas', label: 'Planillas de Guardia', icon: ClipboardList, checkAccess: p => p.puedeCargarPlanillas },
   { path: '/practicas-citaciones', label: 'Practicas y Citaciones', icon: BookOpen, checkAccess: p => p.puedeCargarPlanillas },
-  { path: '/historial', label: 'Historial', icon: History, checkAccess: p => p.puedeVerHistorial },
   { path: '/personal', label: 'Personal', icon: Users, checkAccess: (p, u) => p.puedeVerPersonal && u?.cargo?.trim().toUpperCase() !== 'VOLUNTARIO(A)' },
   { path: '/agregar-bombero', label: 'Agregar Bombero', icon: UserPlus, checkAccess: (p, u) => p.puedeVerPersonal && u?.cargo?.trim().toUpperCase() !== 'VOLUNTARIO(A)' },
   { path: '/configuracion', label: 'Configuracion', icon: Settings, checkAccess: p => p.puedeConfiguracion },

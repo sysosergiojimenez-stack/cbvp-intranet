@@ -5,7 +5,6 @@ import AppLayout from '@/components/layout/AppLayout';
 import Login from '@/pages/Login';
 import Dashboard from '@/pages/Dashboard';
 import Planillas from '@/pages/Planillas';
-import Historial from '@/pages/Historial';
 import Personal from '@/pages/Personal';
 import Perfil from '@/pages/Perfil';
 import MiDashboard from '@/pages/MiDashboard';
@@ -59,11 +58,6 @@ function AppRoutes() {
         <Route path="/practicas-citaciones" element={
           <ProtectedRoute>
             {permisos.puedeCargarPlanillas ? <PracticasCitaciones /> : <Navigate to="/" replace />}
-          </ProtectedRoute>
-        } />
-        <Route path="/historial" element={
-          <ProtectedRoute>
-            {permisos.puedeVerHistorial ? <Historial /> : <Navigate to="/" replace />}
           </ProtectedRoute>
         } />
         <Route path="/personal" element={
