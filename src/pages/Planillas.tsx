@@ -67,38 +67,48 @@ export default function Planillas() {
     }
   };
 
+  // Efficient ArrayBuffer to base64 without creating huge intermediate strings
+  const arrayBufferToBase64 = (buffer: ArrayBuffer): string => {
+    const bytes = new Uint8Array(buffer);
+    const len = bytes.length;
+    let binary = '';
+    const chunkSize = 8192;
+    for (let i = 0; i < len; i += chunkSize) {
+      const chunk = bytes.subarray(i, Math.min(i + chunkSize, len));
+      binary += String.fromCharCode.apply(null, chunk as unknown as number[]);
+    }
+    return btoa(binary);
+  };
+
   const procesarPlanilla = async () => {
     if (!file || !usuario) return;
     setIsProcessing(true);
     setError('');
 
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      const base64Data = e.target?.result as string;
+    try {
+      const buffer = await file.arrayBuffer();
+      const base64Data = arrayBufferToBase64(buffer);
 
-      try {
-        const resp = await procesarMutation.mutateAsync({
-          base64Data,
-          fileName: file.name,
-          fileType: file.type,
-          user: { identificador: usuario.identificador, nombreCompleto: usuario.nombreCompleto },
+      const resp = await procesarMutation.mutateAsync({
+        base64Data,
+        fileName: file.name,
+        fileType: file.type,
+        user: { identificador: usuario.identificador, nombreCompleto: usuario.nombreCompleto },
+      });
+
+      if (resp.exito && resp.datos) {
+        setResult({
+          idPlanilla: resp.idPlanilla || 'unknown',
+          datos: resp.datos as DatosExtraidos,
         });
-
-        if (resp.exito && resp.datos) {
-          setResult({
-            idPlanilla: resp.idPlanilla || 'unknown',
-            datos: resp.datos as DatosExtraidos,
-          });
-        } else {
-          setError(resp.mensaje || 'Error al procesar la planilla');
-        }
-      } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : 'Error de conexion con el servidor');
+      } else {
+        setError(resp.mensaje || 'Error al procesar la planilla');
       }
-
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Error de conexion con el servidor');
+    } finally {
       setIsProcessing(false);
-    };
-    reader.readAsDataURL(file);
+    }
   };
 
   const toggleSection = (section: string) => {

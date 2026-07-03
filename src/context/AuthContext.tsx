@@ -85,10 +85,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           anioJuramento: result.anioJuramento,
         };
         setUsuario(user);
-        sessionStorage.setItem('cbvp_sesion', JSON.stringify({
-          usuario: user,
-          timestamp: Date.now(),
-        }));
+        try {
+          sessionStorage.setItem('cbvp_sesion', JSON.stringify({
+            usuario: user,
+            timestamp: Date.now(),
+          }));
+        } catch {
+          // sessionStorage may fail in private mode on mobile - ignore
+        }
         setIsLoading(false);
         return true;
       } else {

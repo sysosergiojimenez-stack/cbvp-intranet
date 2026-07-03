@@ -97,11 +97,15 @@ export default function PracticasCitaciones() {
     if (e.dataTransfer.files.length > 0) handleFile(e.dataTransfer.files[0]);
   }, []);
 
+  // Detect mobile for smaller limits
+  const isMobile = typeof window !== 'undefined' && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  const MAX_SIZE = isMobile ? 5 * 1024 * 1024 : 10 * 1024 * 1024;
+
   const handleFile = (selectedFile: File) => {
     setError('');
     setResult(null);
-    if (selectedFile.size > 10 * 1024 * 1024) {
-      setError('Maximo 10MB permitido.');
+    if (selectedFile.size > MAX_SIZE) {
+      setError(`Maximo ${MAX_SIZE / 1024 / 1024}MB permitido${isMobile ? ' en movil' : ''}.`);
       return;
     }
     setFile(selectedFile);
@@ -118,47 +122,58 @@ export default function PracticasCitaciones() {
     if (e.target.files?.[0]) handleFile(e.target.files[0]);
   };
 
+  // Efficient ArrayBuffer to base64 without creating huge intermediate strings
+  const arrayBufferToBase64 = (buffer: ArrayBuffer): string => {
+    const bytes = new Uint8Array(buffer);
+    const len = bytes.length;
+    let binary = '';
+    // Process in chunks to avoid UI blocking on mobile
+    const chunkSize = 8192;
+    for (let i = 0; i < len; i += chunkSize) {
+      const chunk = bytes.subarray(i, Math.min(i + chunkSize, len));
+      binary += String.fromCharCode.apply(null, chunk as unknown as number[]);
+    }
+    return btoa(binary);
+  };
+
   const procesarPlanilla = async () => {
     if (!file || !usuario) return;
     setIsProcessing(true);
     setError('');
 
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      const base64Full = e.target?.result as string;
-      const base64Data = base64Full.split(',')[1] || base64Full;
+    try {
+      // Read as ArrayBuffer (much more memory efficient than DataURL)
+      const buffer = await file.arrayBuffer();
+      const base64Data = arrayBufferToBase64(buffer);
 
-      try {
-        const resp = await procesarMutation.mutateAsync({
-          imageBase64: base64Data,
-          mimeType: file.type || 'image/jpeg',
-          usuarioId: usuario.codigo,
-          usuarioNombre: usuario.nombreCompleto,
+      const resp = await procesarMutation.mutateAsync({
+        imageBase64: base64Data,
+        mimeType: file.type || 'image/jpeg',
+        usuarioId: usuario.codigo,
+        usuarioNombre: usuario.nombreCompleto,
+      });
+
+      if (resp.exito) {
+        setResult({
+          idPlanilla: resp.idPlanilla,
+          tipoActividad: resp.tipoActividad,
+          fechaActividad: resp.fechaActividad,
+          totalPersonnel: resp.totalPersonnel,
+          presentes: resp.presentes,
+          imageUrl: resp.imageUrl,
+          uploadError: resp.uploadError,
         });
-
-        if (resp.exito) {
-          setResult({
-            idPlanilla: resp.idPlanilla,
-            tipoActividad: resp.tipoActividad,
-            fechaActividad: resp.fechaActividad,
-            totalPersonnel: resp.totalPersonnel,
-            presentes: resp.presentes,
-            imageUrl: resp.imageUrl,
-            uploadError: resp.uploadError,
-          });
-          setFile(null);
-          setFilePreview(null);
-          utils.asistencia.historial.invalidate();
-        } else {
-          setError(resp.error || 'Error al procesar');
-        }
-      } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : 'Error desconocido');
-      } finally {
-        setIsProcessing(false);
+        setFile(null);
+        setFilePreview(null);
+        utils.asistencia.historial.invalidate();
+      } else {
+        setError(resp.error || 'Error al procesar');
       }
-    };
-    reader.readAsDataURL(file);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Error desconocido');
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const openEdit = (p: AsistenciaEncabezado) => {
