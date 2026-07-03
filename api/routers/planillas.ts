@@ -5,6 +5,17 @@ import { extractGuardiaData } from "../services/gemini";
 import { uploadFile } from "../services/storage";
 import { env } from "../lib/env";
 
+// Convert Google Sheets serial time (fraction of day) to HH:MM
+function serialToTime(serial: unknown): string {
+  if (typeof serial === "number" && serial >= 0 && serial < 1) {
+    const totalMinutes = Math.round(serial * 24 * 60);
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+  }
+  return String(serial || "");
+}
+
 export const planillasRouter = createRouter({
   historial: publicQuery
     .input(z.object({ codigo: z.string().optional() }).optional())
@@ -18,8 +29,8 @@ export const planillasRouter = createRouter({
           fechaCarga: String(data[i][1] || ""),
           fechaGuardia: String(data[i][2] || ""),
           grupo: String(data[i][3] || ""),
-          inicioGuardia: String(data[i][4] || ""),
-          finalizaGuardia: String(data[i][5] || ""),
+          inicioGuardia: serialToTime(data[i][4]),
+          finalizaGuardia: serialToTime(data[i][5]),
           directorSem: String(data[i][6] || ""),
           comandanteSemana: String(data[i][7] || ""),
           oficialK20: String(data[i][8] || ""),
@@ -347,6 +358,31 @@ export const planillasRouter = createRouter({
       }
 
       return { exito: true as const, mensaje: "Personal actualizado" };
+    }),
+
+  editarPersonal: publicQuery
+    .input(
+      z.object({
+        idPlanilla: z.string(),
+        codigo: z.string(),
+        nuevaAsistencia: z.enum(["PRESENTE", "ACACR", "ACASR", "ASASR"]),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const data = await readSheet(env.SHEET_GUARDIAS_ID, "Guardias_Personal!A1:L5000");
+      for (let i = 1; i < data.length; i++) {
+        const rowIdPlanilla = String(data[i][1] || "").trim();
+        const rowCodigo = String(data[i][6] || "").trim();
+        if (rowIdPlanilla === input.idPlanilla.trim() && rowCodigo === input.codigo.trim()) {
+          await updateRange(
+            env.SHEET_GUARDIAS_ID,
+            `Guardias_Personal!J${i + 1}:J${i + 1}`,
+            [[input.nuevaAsistencia]]
+          );
+          return { exito: true as const, mensaje: "Asistencia actualizada" };
+        }
+      }
+      return { exito: false as const, error: "Bombero no encontrado en la planilla" };
     }),
 
   editar: publicQuery
