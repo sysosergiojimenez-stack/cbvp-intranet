@@ -251,6 +251,34 @@ export const asistenciaRouter = createRouter({
       return { exito: true as const, personal };
     }),
 
+  editarPersonal: publicQuery
+    .input(
+      z.object({
+        idPlanilla: z.string(),
+        codigo: z.string(),
+        nuevaAsistencia: z.enum(["PRESENTE", "AUSENTE", "COMISIONADO"]),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const data = await readSheet(env.SHEET_GUARDIAS_ID, "Asistencia_Personal!A1:K5000");
+
+      for (let i = 1; i < data.length; i++) {
+        const rowIdPlanilla = String(data[i][1] || "").trim();
+        const rowCodigo = String(data[i][6] || "").trim();
+        if (rowIdPlanilla === input.idPlanilla.trim() && rowCodigo === input.codigo.trim()) {
+          // Update column I (index 8) = asistencia
+          await updateRange(
+            env.SHEET_GUARDIAS_ID,
+            `Asistencia_Personal!I${i + 1}:I${i + 1}`,
+            [[input.nuevaAsistencia]]
+          );
+          return { exito: true as const, mensaje: "Asistencia actualizada" };
+        }
+      }
+
+      return { exito: false as const, error: "Bombero no encontrado en la planilla" };
+    }),
+
   misMetricas: publicQuery
     .input(z.object({ codigo: z.string() }))
     .query(async ({ input }) => {

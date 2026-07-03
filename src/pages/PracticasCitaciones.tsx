@@ -7,7 +7,7 @@ import {
   Upload, FileText, CheckCircle, AlertTriangle, X,
   Clock, Calendar, Users, MapPin, UserCheck,
   ChevronDown, ChevronUp, Eye, BookOpen, Zap,
-  Edit3, Trash2, ExternalLink, Save, RotateCcw
+  Edit3, Trash2, ExternalLink, Save, RotateCcw, Check
 } from 'lucide-react';
 
 export default function PracticasCitaciones() {
@@ -44,6 +44,10 @@ export default function PracticasCitaciones() {
   // Delete confirmation
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
+  // Person edit inline
+  const [editingPerson, setEditingPerson] = useState<{ codigo: string; nombre: string; asistencia: string } | null>(null);
+  const [personAsistencia, setPersonAsistencia] = useState<'PRESENTE' | 'AUSENTE' | 'COMISIONADO'>('PRESENTE');
+
   const utils = trpc.useUtils();
   const procesarMutation = trpc.asistencia.procesar.useMutation();
   const { data: historialData, isLoading: historialLoading } = trpc.asistencia.historial.useQuery(
@@ -67,6 +71,13 @@ export default function PracticasCitaciones() {
     onSuccess: () => {
       utils.asistencia.historial.invalidate();
       setEditingPlanilla(null);
+    },
+  });
+
+  const editarPersonMutation = trpc.asistencia.editarPersonal.useMutation({
+    onSuccess: () => {
+      utils.asistencia.detalle.invalidate();
+      setEditingPerson(null);
     },
   });
 
@@ -173,6 +184,19 @@ export default function PracticasCitaciones() {
   const confirmDelete = async () => {
     if (!deletingId) return;
     await eliminarMutation.mutateAsync({ idPlanilla: deletingId });
+  };
+
+  const startEditPerson = (person: AsistenciaPersonal) => {
+    setEditingPerson({ codigo: person.codigo, nombre: person.nombre, asistencia: person.asistencia });
+    setPersonAsistencia(person.asistencia === 'COMISIONADO' ? 'COMISIONADO' : person.asistencia === 'AUSENTE' ? 'AUSENTE' : 'PRESENTE');
+  };
+
+  const savePersonEdit = async (idPlanilla: string, codigo: string) => {
+    await editarPersonMutation.mutateAsync({
+      idPlanilla,
+      codigo,
+      nuevaAsistencia: personAsistencia,
+    });
   };
 
   const getTipoBadge = (tipo: string) => {
@@ -396,21 +420,66 @@ export default function PracticasCitaciones() {
                         <X className="w-4 h-4" />
                       </button>
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-64 overflow-y-auto">
-                      {detalleData.personal.map((person: AsistenciaPersonal, idx: number) => (
-                        <div key={idx} className="flex items-center justify-between bg-white/[0.03] rounded-lg p-2">
-                          <div className="flex items-center gap-2">
-                            <UserCheck className="w-3.5 h-3.5 text-white/30" />
-                            <div>
-                              <p className="text-xs text-white">{person.nombre}</p>
-                              {person.codigo && <p className="text-[10px] text-white/30">{person.codigo}</p>}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-80 overflow-y-auto">
+                      {detalleData.personal.map((person: AsistenciaPersonal, idx: number) => {
+                        const isEditing = editingPerson?.codigo === person.codigo;
+                        return (
+                          <div key={idx} className="bg-white/[0.03] rounded-lg p-2">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <UserCheck className="w-3.5 h-3.5 text-white/30 shrink-0" />
+                                <div className="min-w-0">
+                                  <p className="text-xs text-white truncate">{person.nombre}</p>
+                                  {person.codigo && <p className="text-[10px] text-white/30">{person.codigo}</p>}
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-1 shrink-0 ml-2">
+                                {isEditing ? (
+                                  <>
+                                    <select
+                                      value={personAsistencia}
+                                      onChange={e => setPersonAsistencia(e.target.value as 'PRESENTE' | 'AUSENTE' | 'COMISIONADO')}
+                                      className="bg-white/5 border border-white/10 rounded text-[10px] text-white px-1 py-0.5 focus:border-cbvp-red/50 focus:outline-none"
+                                    >
+                                      <option value="PRESENTE">Presente</option>
+                                      <option value="AUSENTE">Ausente</option>
+                                      <option value="COMISIONADO">Comisionado</option>
+                                    </select>
+                                    <button
+                                      onClick={() => savePersonEdit(selectedPlanilla!, person.codigo)}
+                                      disabled={editarPersonMutation.isPending}
+                                      className="p-1 rounded bg-cbvp-green/20 text-cbvp-green hover:bg-cbvp-green/30 transition-colors"
+                                      title="Guardar"
+                                    >
+                                      <Check className="w-3 h-3" />
+                                    </button>
+                                    <button
+                                      onClick={() => setEditingPerson(null)}
+                                      className="p-1 rounded bg-white/5 text-white/40 hover:text-white transition-colors"
+                                      title="Cancelar"
+                                    >
+                                      <X className="w-3 h-3" />
+                                    </button>
+                                  </>
+                                ) : (
+                                  <>
+                                    <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${getAsistenciaBadge(person.asistencia)}`}>
+                                      {person.asistencia}
+                                    </span>
+                                    <button
+                                      onClick={() => startEditPerson(person)}
+                                      className="p-1 rounded hover:bg-cbvp-yellow/20 text-white/30 hover:text-cbvp-yellow transition-colors"
+                                      title="Editar asistencia"
+                                    >
+                                      <Edit3 className="w-3 h-3" />
+                                    </button>
+                                  </>
+                                )}
+                              </div>
                             </div>
                           </div>
-                          <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${getAsistenciaBadge(person.asistencia)}`}>
-                            {person.asistencia}
-                          </span>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 )}
