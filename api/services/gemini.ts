@@ -39,16 +39,16 @@ Misma estructura que combatientes.
 
 ## 3. REGLAS CRITICAS PARA ASISTENCIA (la parte mas importante)
 
-La columna ASISTENCIA tiene 3 opciones posibles. Fijate BIEN que esta marcado con una X, un tick (✓), una tilde, un circulo, o un palomita:
+La planilla tiene TRES columnas de checkboxes para asistencia: PRESENTE, AUSENTE, y CON AVISO. Fijate BIEN en cada fila que checkbox esta marcado con una X, un tick (✓), una tilde, un circulo, o una palomita:
 
-- "PRESENTE" → El bombero estuvo presente. Hay una marca (X, tick, circulo) junto a PRESENTE.
-- "AUSENTE" → El bombero no vino. Hay una marca junto a AUSENTE y NINGUNA otra marca adicional.
-- "AUSENTE CON AVISO" → El bombero no vino pero aviso. Hay una marca junto a AUSENTE y ADEMAS dice "con aviso" o "c/aviso" o hay una marca especial que indica que aviso.
+- "PRESENTE" → El bombero estuvo presente. Hay una marca (X, tick, circulo, palomita) en el checkbox de la columna PRESENTE.
+- "AUSENTE" → El bombero no vino. Hay una marca en el checkbox de la columna AUSENTE y NINGUNA marca adicional en el checkbox de la columna CON AVISO.
+- "AUSENTE CON AVISO" → El bombero no vino pero aviso. Hay una marca en el checkbox de la columna AUSENTE y ADEMAS UNA MARCA EN EL CHECKBOX DE LA COLUMNA CON AVISO.
 
 REGLAS IMPORTANTES:
 - NO inventes asistencia. Si no podes determinar con claridad, usa "AUSENTE".
-- Si hay una marca (X, tick, circulo, palomita) en la casilla, eso indica que SI corresponde esa opcion.
-- Si NO hay ninguna marca, generalmente significa que vino (PRESENTE) en planillas donde solo marcan los ausentes.
+- Si hay una marca (X, tick, circulo, palomita) en un checkbox, eso indica que SI corresponde esa opcion.
+- Si NO hay ninguna marca en ninguna columna, generalmente significa que vino (PRESENTE) en planillas donde solo marcan los ausentes.
 - Lee el formato de la planilla: algunas marcan los presentes, otras marcan los ausentes.
 
 ## 4. REGLAS PARA CODIGOS
