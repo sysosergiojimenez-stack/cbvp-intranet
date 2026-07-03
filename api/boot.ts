@@ -8,6 +8,7 @@ import { env } from "./lib/env";
 import { serve } from "@hono/node-server";
 import { serveStaticFiles } from "./lib/vite";
 import { getSheetsClient } from "./services/googleAuth";
+import { uploadFile } from "./services/drive";
 
 const app = new Hono<{ Bindings: HttpBindings }>();
 
@@ -37,6 +38,26 @@ app.get("/debug/sheets", async (c) => {
     });
   } catch (err: unknown) {
     return c.json({
+      error: err instanceof Error ? err.message : String(err),
+    }, 500);
+  }
+});
+
+// Debug: test Drive upload permissions
+app.get("/debug/drive", async (c) => {
+  try {
+    const folderId = env.DRIVE_FOLDER_ID;
+    const testUrl = await uploadFile(
+      folderId,
+      `test_${Date.now()}.txt`,
+      "text/plain",
+      Buffer.from("Test de permisos de Drive CBVP").toString("base64")
+    );
+    return c.json({ ok: true, folderId, uploadUrl: testUrl }, 200);
+  } catch (err: unknown) {
+    return c.json({
+      ok: false,
+      folderId: env.DRIVE_FOLDER_ID,
       error: err instanceof Error ? err.message : String(err),
     }, 500);
   }

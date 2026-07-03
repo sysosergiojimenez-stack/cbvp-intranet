@@ -21,6 +21,8 @@ export default function PracticasCitaciones() {
     fechaActividad: string;
     totalPersonnel: number;
     presentes: number;
+    imageUrl?: string;
+    uploadError?: string;
   } | null>(null);
   const [error, setError] = useState('');
   const [dragOver, setDragOver] = useState(false);
@@ -99,6 +101,8 @@ export default function PracticasCitaciones() {
             fechaActividad: resp.fechaActividad,
             totalPersonnel: resp.totalPersonnel,
             presentes: resp.presentes,
+            imageUrl: resp.imageUrl,
+            uploadError: resp.uploadError,
           });
           setFile(null);
           setFilePreview(null);
@@ -217,6 +221,18 @@ export default function PracticasCitaciones() {
               <div><span className="text-white/30">Fecha:</span> {result.fechaActividad}</div>
               <div><span className="text-white/30">Presentes:</span> {result.presentes}/{result.totalPersonnel}</div>
             </div>
+            {result.uploadError && (
+              <div className="mt-2 p-2 bg-cbvp-yellow/10 border border-cbvp-yellow/20 rounded text-xs text-cbvp-yellow">
+                <span className="font-semibold">Advertencia:</span> La planilla se guardo pero el PDF no se pudo subir a Drive. Error: {result.uploadError}
+              </div>
+            )}
+            {result.imageUrl && (
+              <div className="mt-2">
+                <a href={result.imageUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-cbvp-blue hover:underline">
+                  Ver archivo en Google Drive
+                </a>
+              </div>
+            )}
           </div>
         )}
       </div>
