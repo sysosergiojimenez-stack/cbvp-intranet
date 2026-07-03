@@ -1,14 +1,14 @@
-import { useState, useCallback } from 'react';
-import { usePermiso } from '@/hooks/usePermiso';
-import { useAuth } from '@/context/AuthContext';
-import { trpc } from '@/providers/trpc';
-import type { GuardiaPersonal, PlanillaEncabezado } from '@/types';
+import { useState, useCallback } from "react";
+import { usePermiso } from "@/hooks/usePermiso";
+import { useAuth } from "@/context/AuthContext";
+import { trpc } from "@/providers/trpc";
+import type { GuardiaPersonal, PlanillaEncabezado } from "@/types";
 import {
   Upload, FileText, Zap, CheckCircle, AlertTriangle,
-  X, Clock, Calendar, User, Users, Radio, Shield,
+  X, Clock, Calendar, User, Users, Shield,
   ChevronDown, ChevronUp, Eye, BookOpen,
   Edit3, Trash2, ExternalLink, Save, RotateCcw, Check
-} from 'lucide-react';
+} from "lucide-react";
 
 export default function Planillas() {
   const { puedeCargarPlanillas, esVoluntario } = usePermiso();
@@ -23,24 +23,19 @@ export default function Planillas() {
     totalPersonnel: number;
     presentes: number;
   } | null>(null);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [dragOver, setDragOver] = useState(false);
   const [showHistory, setShowHistory] = useState(true);
   const [selectedPlanilla, setSelectedPlanilla] = useState<string | null>(null);
 
-  // Edit modal state
   const [editingPlanilla, setEditingPlanilla] = useState<PlanillaEncabezado | null>(null);
   const [editForm, setEditForm] = useState({
-    fechaGuardia: '', grupo: '', inicioGuardia: '', finalizaGuardia: '',
-    directorSem: '', comandanteSemana: '', oficialK20: '', novedades: '',
+    fechaGuardia: "", grupo: "", inicioGuardia: "", finalizaGuardia: "",
+    directorSem: "", comandanteSemana: "", oficialK20: "", novedades: "",
   });
-
-  // Delete confirmation
   const [deletingId, setDeletingId] = useState<string | null>(null);
-
-  // Person edit inline
   const [editingPerson, setEditingPerson] = useState<{ codigo: string; nombre: string; asistencia: string } | null>(null);
-  const [personAsistencia, setPersonAsistencia] = useState<'PRESENTE' | 'ACACR' | 'ACASR' | 'ASASR'>('PRESENTE');
+  const [personAsistencia, setPersonAsistencia] = useState<"PRESENTE" | "ACACR" | "ACASR" | "ASASR">("PRESENTE");
 
   const utils = trpc.useUtils();
   const procesarMutation = trpc.planillas.procesar.useMutation();
@@ -48,7 +43,7 @@ export default function Planillas() {
     {}, { enabled: showHistory }
   );
   const { data: detalleData } = trpc.planillas.detalle.useQuery(
-    { idPlanilla: selectedPlanilla || '' },
+    { idPlanilla: selectedPlanilla || "" },
     { enabled: !!selectedPlanilla }
   );
 
@@ -69,17 +64,17 @@ export default function Planillas() {
     if (e.dataTransfer.files.length > 0) handleFile(e.dataTransfer.files[0]);
   }, []);
 
-  const isMobile = typeof window !== 'undefined' && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  const isMobile = typeof window !== "undefined" && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
   const MAX_SIZE = isMobile ? 5 * 1024 * 1024 : 10 * 1024 * 1024;
 
   const handleFile = (selectedFile: File) => {
-    setError(''); setResult(null);
+    setError(""); setResult(null);
     if (selectedFile.size > MAX_SIZE) {
-      setError(`Maximo ${MAX_SIZE / 1024 / 1024}MB permitido${isMobile ? ' en movil' : ''}.`);
+      setError(`Maximo ${MAX_SIZE / 1024 / 1024}MB permitido${isMobile ? " en movil" : ""}.`);
       return;
     }
     setFile(selectedFile);
-    if (selectedFile.type.startsWith('image/')) {
+    if (selectedFile.type.startsWith("image/")) {
       const reader = new FileReader();
       reader.onload = e => setFilePreview(e.target?.result as string);
       reader.readAsDataURL(selectedFile);
@@ -93,7 +88,7 @@ export default function Planillas() {
 
   const arrayBufferToBase64 = (buffer: ArrayBuffer): string => {
     const bytes = new Uint8Array(buffer);
-    let binary = '';
+    let binary = "";
     const chunkSize = 8192;
     for (let i = 0; i < bytes.length; i += chunkSize) {
       const chunk = bytes.subarray(i, Math.min(i + chunkSize, bytes.length));
@@ -104,7 +99,7 @@ export default function Planillas() {
 
   const procesarPlanilla = async () => {
     if (!file || !usuario) return;
-    setIsProcessing(true); setError('');
+    setIsProcessing(true); setError("");
     try {
       const buffer = await file.arrayBuffer();
       const base64Data = arrayBufferToBase64(buffer);
@@ -116,19 +111,19 @@ export default function Planillas() {
         const datos = resp.datos as { fechaGuardia: string; grupo: string; personal: Array<{ asistencia?: string }> };
         const personal = datos.personal || [];
         setResult({
-          idPlanilla: resp.idPlanilla || 'unknown',
-          fechaGuardia: datos.fechaGuardia || '',
-          grupo: datos.grupo || '',
+          idPlanilla: resp.idPlanilla || "unknown",
+          fechaGuardia: datos.fechaGuardia || "",
+          grupo: datos.grupo || "",
           totalPersonnel: personal.length,
-          presentes: personal.filter((p) => p.asistencia === 'PRESENTE').length,
+          presentes: personal.filter((p) => p.asistencia === "PRESENTE").length,
         });
         setFile(null); setFilePreview(null);
         utils.planillas.historial.invalidate();
       } else {
-        setError(resp.mensaje || 'Error al procesar');
+        setError(resp.mensaje || "Error al procesar");
       }
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Error de conexion');
+      setError(err instanceof Error ? err.message : "Error de conexion");
     } finally { setIsProcessing(false); }
   };
 
@@ -151,7 +146,7 @@ export default function Planillas() {
 
   const startEditPerson = (person: GuardiaPersonal) => {
     setEditingPerson({ codigo: person.codigo, nombre: person.nombre, asistencia: person.asistencia });
-    setPersonAsistencia((person.asistencia === 'ACACR' || person.asistencia === 'ACASR' || person.asistencia === 'ASASR') ? person.asistencia as 'ACACR' | 'ACASR' | 'ASASR' : 'PRESENTE');
+    setPersonAsistencia((person.asistencia === "ACACR" || person.asistencia === "ACASR" || person.asistencia === "ASASR") ? person.asistencia as "PRESENTE" | "ACACR" | "ACASR" | "ASASR" : "PRESENTE");
   };
   const savePersonEdit = async (idPlanilla: string, codigo: string) => {
     await editarPersonMutation.mutateAsync({ idPlanilla, codigo, nuevaAsistencia: personAsistencia });
@@ -159,26 +154,26 @@ export default function Planillas() {
 
   const getAsistenciaBadge = (a: string) => {
     switch (a) {
-      case 'PRESENTE': return 'bg-cbvp-green/20 text-cbvp-green';
-      case 'ACACR': return 'bg-cbvp-orange/20 text-cbvp-orange';
-      case 'ACASR': return 'bg-cbvp-yellow/20 text-cbvp-yellow';
-      case 'ASASR': return 'bg-cbvp-red/20 text-cbvp-red-light';
-      default: return 'bg-white/10 text-white/40';
+      case "PRESENTE": return "bg-cbvp-green/20 text-cbvp-green";
+      case "ACACR": return "bg-cbvp-orange/20 text-cbvp-orange";
+      case "ACASR": return "bg-cbvp-yellow/20 text-cbvp-yellow";
+      case "ASASR": return "bg-cbvp-red/20 text-cbvp-red-light";
+      default: return "bg-white/10 text-white/40";
     }
   };
   const getTipoBadge = (tipo: string) => {
     switch (tipo) {
-      case 'GUARDIA NORMAL': return 'bg-cbvp-red/10 text-cbvp-red';
-      case 'GUARDIA ESPECIAL': return 'bg-cbvp-orange/10 text-cbvp-orange';
-      case 'REFUERZO': return 'bg-cbvp-purple/10 text-cbvp-purple';
-      case 'RADIO OPERADOR': return 'bg-cbvp-blue/10 text-cbvp-blue';
-      case 'MOVIL': return 'bg-cbvp-teal/10 text-cbvp-teal';
-      default: return 'bg-white/10 text-white/40';
+      case "GUARDIA NORMAL": return "bg-cbvp-red/10 text-cbvp-red";
+      case "GUARDIA ESPECIAL": return "bg-cbvp-orange/10 text-cbvp-orange";
+      case "REFUERZO": return "bg-cbvp-purple/10 text-cbvp-purple";
+      case "RADIO OPERADOR": return "bg-cbvp-blue/10 text-cbvp-blue";
+      case "MOVIL": return "bg-cbvp-teal/10 text-cbvp-teal";
+      default: return "bg-white/10 text-white/40";
     }
   };
   const groupByTipo = (personal: GuardiaPersonal[]) => {
     const groups: Record<string, GuardiaPersonal[]> = {};
-    for (const p of personal) { const t = p.tipo || 'GUARDIA NORMAL'; if (!groups[t]) groups[t] = []; groups[t].push(p); }
+    for (const p of personal) { const t = p.tipo || "GUARDIA NORMAL"; if (!groups[t]) groups[t] = []; groups[t].push(p); }
     return groups;
   };
 
@@ -195,16 +190,14 @@ export default function Planillas() {
 
   return (
     <div className="animate-fade-in space-y-6">
-      {/* Upload Area */}
       <div className="bg-white/[0.03] border border-white/5 rounded-xl p-5">
         <h2 className="text-sm font-semibold text-white/60 uppercase tracking-wider mb-4 flex items-center gap-2">
           <Upload className="w-4 h-4 text-cbvp-red" /> Cargar Planilla de Guardia
         </h2>
-
         {!file ? (
           <div onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}
-            className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors cursor-pointer ${dragOver ? 'border-cbvp-red bg-cbvp-red/5' : 'border-white/10 hover:border-white/20'}`}
-            onClick={() => document.getElementById('file-input-guardia')?.click()}>
+            className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors cursor-pointer ${dragOver ? "border-cbvp-red bg-cbvp-red/5" : "border-white/10 hover:border-white/20"}`}
+            onClick={() => document.getElementById("file-input-guardia")?.click()}>
             <Upload className="w-10 h-10 text-white/20 mx-auto mb-3" />
             <p className="text-white/40 text-sm mb-1">Arrastra una imagen o PDF aqui</p>
             <p className="text-white/20 text-xs">O haz clic para seleccionar</p>
@@ -218,7 +211,7 @@ export default function Planillas() {
                 <span className="text-white text-sm">{file.name}</span>
                 <span className="text-white/30 text-xs">({(file.size / 1024 / 1024).toFixed(2)} MB)</span>
               </div>
-              <button onClick={() => { setFile(null); setFilePreview(null); setResult(null); setError(''); }} className="p-1.5 rounded-lg hover:bg-white/5 text-white/40 hover:text-white transition-colors"><X className="w-4 h-4" /></button>
+              <button onClick={() => { setFile(null); setFilePreview(null); setResult(null); setError(""); }} className="p-1.5 rounded-lg hover:bg-white/5 text-white/40 hover:text-white transition-colors"><X className="w-4 h-4" /></button>
             </div>
             {filePreview && <img src={filePreview} alt="Preview" className="max-h-48 rounded-lg mb-3 border border-white/10" />}
             <button onClick={procesarPlanilla} disabled={isProcessing}
@@ -227,9 +220,7 @@ export default function Planillas() {
             </button>
           </div>
         )}
-
         {error && <div className="mt-3 p-3 bg-cbvp-red/10 border border-cbvp-red/20 rounded-lg text-sm text-cbvp-red-light flex items-center gap-2"><AlertTriangle className="w-4 h-4 shrink-0" /> {error}</div>}
-
         {result && (
           <div className="mt-3 p-4 bg-cbvp-green/10 border border-cbvp-green/20 rounded-lg">
             <div className="flex items-center gap-2 mb-2"><CheckCircle className="w-5 h-5 text-cbvp-green" /><span className="text-cbvp-green font-semibold text-sm">Planilla procesada correctamente</span></div>
@@ -243,7 +234,6 @@ export default function Planillas() {
         )}
       </div>
 
-      {/* Historial */}
       <div className="bg-white/[0.03] border border-white/5 rounded-xl p-5">
         <button onClick={() => setShowHistory(!showHistory)} className="flex items-center gap-2 mb-4 w-full">
           {showHistory ? <ChevronUp className="w-4 h-4 text-white/40" /> : <ChevronDown className="w-4 h-4 text-white/40" />}
@@ -273,8 +263,8 @@ export default function Planillas() {
                         <tr key={p.idPlanilla} className="hover:bg-cbvp-red/5 transition-colors group">
                           <td className="px-3 py-2.5"><div className="flex items-center gap-1.5"><Calendar className="w-3 h-3 text-white/30" /><span className="text-white/80 text-xs">{p.fechaGuardia}</span></div></td>
                           <td className="px-3 py-2.5 text-white/60 text-xs">{p.fechaCarga}</td>
-                          <td className="px-3 py-2.5 text-white/60 text-xs">{p.grupo || '-'}</td>
-                          <td className="px-3 py-2.5 text-white/60 text-xs">{p.inicioGuardia || '-'} - {p.finalizaGuardia || '-'}</td>
+                          <td className="px-3 py-2.5 text-white/60 text-xs">{p.grupo || "-"}</td>
+                          <td className="px-3 py-2.5 text-white/60 text-xs">{p.inicioGuardia || "-"} - {p.finalizaGuardia || "-"}</td>
                           <td className="px-3 py-2.5">
                             <div className="flex items-center justify-center gap-1">
                               {p.urlImagen && (
@@ -295,7 +285,6 @@ export default function Planillas() {
                   </table>
                 </div>
 
-                {/* Detail Panel */}
                 {selectedPlanilla && detalleData?.personal && (
                   <div className="mt-3 bg-white/5 rounded-lg p-4 border border-white/10">
                     <div className="flex items-center justify-between mb-3">
@@ -323,7 +312,7 @@ export default function Planillas() {
                                     <div className="flex items-center gap-1 shrink-0 ml-2">
                                       {isEditing ? (
                                         <>
-                                          <select value={personAsistencia} onChange={e => setPersonAsistencia(e.target.value as 'PRESENTE' | 'ACACR' | 'ACASR' | 'ASASR')}
+                                          <select value={personAsistencia} onChange={e => setPersonAsistencia(e.target.value as "PRESENTE" | "ACACR" | "ACASR" | "ASASR")}
                                             className="bg-white/5 border border-white/10 rounded text-[10px] text-white px-1 py-0.5 focus:border-cbvp-red/50 focus:outline-none">
                                             <option value="PRESENTE">Presente</option>
                                             <option value="ACACR">ACACR</option>
@@ -337,7 +326,7 @@ export default function Planillas() {
                                       ) : (
                                         <>
                                           {person.asignacion && <span className="text-[10px] text-white/30 bg-white/5 px-1.5 py-0.5 rounded">{person.asignacion}</span>}
-                                          <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${getAsistenciaBadge(person.asistencia)}`}>{person.asistencia || '-'}</span>
+                                          <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${getAsistenciaBadge(person.asistencia)}`}>{person.asistencia || "-"}</span>
                                           {!esVoluntario && (
                                             <button onClick={() => startEditPerson(person)} className="p-1 rounded hover:bg-cbvp-yellow/20 text-white/30 hover:text-cbvp-yellow transition-colors" title="Editar asistencia"><Edit3 className="w-3 h-3" /></button>
                                           )}
@@ -362,7 +351,6 @@ export default function Planillas() {
         )}
       </div>
 
-      {/* Edit Modal */}
       {editingPlanilla && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-[#1a1a24] border border-white/10 rounded-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
@@ -390,7 +378,6 @@ export default function Planillas() {
         </div>
       )}
 
-      {/* Delete Modal */}
       {deletingId && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-[#1a1a24] border border-white/10 rounded-xl w-full max-w-sm p-5">
