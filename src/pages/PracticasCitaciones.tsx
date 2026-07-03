@@ -6,7 +6,8 @@ import type { AsistenciaEncabezado, AsistenciaPersonal } from '@/types';
 import {
   Upload, FileText, CheckCircle, AlertTriangle, X,
   Clock, Calendar, Users, MapPin, UserCheck,
-  ChevronDown, ChevronUp, Eye, BookOpen, Zap
+  ChevronDown, ChevronUp, Eye, BookOpen, Zap,
+  Edit3, Trash2, ExternalLink, Save, RotateCcw
 } from 'lucide-react';
 
 export default function PracticasCitaciones() {
@@ -29,6 +30,21 @@ export default function PracticasCitaciones() {
   const [showHistory, setShowHistory] = useState(true);
   const [selectedPlanilla, setSelectedPlanilla] = useState<string | null>(null);
 
+  // Edit modal state
+  const [editingPlanilla, setEditingPlanilla] = useState<AsistenciaEncabezado | null>(null);
+  const [editForm, setEditForm] = useState({
+    fechaActividad: '',
+    tipoActividad: '',
+    inicioActividad: '',
+    finalizaActividad: '',
+    acargoActividad: '',
+    detalles: '',
+  });
+
+  // Delete confirmation
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const utils = trpc.useUtils();
   const procesarMutation = trpc.asistencia.procesar.useMutation();
   const { data: historialData, isLoading: historialLoading } = trpc.asistencia.historial.useQuery(
     { page: 1, limit: 50 },
@@ -38,6 +54,21 @@ export default function PracticasCitaciones() {
     { idPlanilla: selectedPlanilla || '' },
     { enabled: !!selectedPlanilla }
   );
+
+  const eliminarMutation = trpc.asistencia.eliminar.useMutation({
+    onSuccess: () => {
+      utils.asistencia.historial.invalidate();
+      setDeletingId(null);
+      setSelectedPlanilla(null);
+    },
+  });
+
+  const editarMutation = trpc.asistencia.editar.useMutation({
+    onSuccess: () => {
+      utils.asistencia.historial.invalidate();
+      setEditingPlanilla(null);
+    },
+  });
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -106,6 +137,7 @@ export default function PracticasCitaciones() {
           });
           setFile(null);
           setFilePreview(null);
+          utils.asistencia.historial.invalidate();
         } else {
           setError(resp.error || 'Error al procesar');
         }
@@ -116,6 +148,31 @@ export default function PracticasCitaciones() {
       }
     };
     reader.readAsDataURL(file);
+  };
+
+  const openEdit = (p: AsistenciaEncabezado) => {
+    setEditingPlanilla(p);
+    setEditForm({
+      fechaActividad: p.fechaActividad,
+      tipoActividad: p.tipoActividad,
+      inicioActividad: p.inicioActividad,
+      finalizaActividad: p.finalizaActividad,
+      acargoActividad: p.acargoActividad,
+      detalles: p.detalles,
+    });
+  };
+
+  const saveEdit = async () => {
+    if (!editingPlanilla) return;
+    await editarMutation.mutateAsync({
+      idPlanilla: editingPlanilla.idPlanilla,
+      ...editForm,
+    });
+  };
+
+  const confirmDelete = async () => {
+    if (!deletingId) return;
+    await eliminarMutation.mutateAsync({ idPlanilla: deletingId });
   };
 
   const getTipoBadge = (tipo: string) => {
@@ -223,13 +280,13 @@ export default function PracticasCitaciones() {
             </div>
             {result.uploadError && (
               <div className="mt-2 p-2 bg-cbvp-yellow/10 border border-cbvp-yellow/20 rounded text-xs text-cbvp-yellow">
-                <span className="font-semibold">Advertencia:</span> La planilla se guardo pero el PDF no se pudo subir a Drive. Error: {result.uploadError}
+                <span className="font-semibold">Advertencia:</span> La planilla se guardo pero el archivo no se pudo subir. Error: {result.uploadError}
               </div>
             )}
             {result.imageUrl && (
               <div className="mt-2">
-                <a href={result.imageUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-cbvp-blue hover:underline">
-                  Ver archivo en Google Drive
+                <a href={result.imageUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-cbvp-blue hover:underline flex items-center gap-1">
+                  <ExternalLink className="w-3 h-3" /> Ver archivo subido
                 </a>
               </div>
             )}
@@ -267,9 +324,8 @@ export default function PracticasCitaciones() {
                       <tr className="bg-cbvp-red/10 text-white/60 text-xs uppercase">
                         <th className="px-3 py-2 text-left rounded-tl-lg">Fecha</th>
                         <th className="px-3 py-2 text-left">Tipo</th>
-                        <th className="px-3 py-2 text-left">Inicio</th>
                         <th className="px-3 py-2 text-left">A Cargo</th>
-                        <th className="px-3 py-2 text-left rounded-tr-lg">Acciones</th>
+                        <th className="px-3 py-2 text-center rounded-tr-lg">Acciones</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-white/5">
@@ -286,16 +342,42 @@ export default function PracticasCitaciones() {
                               {p.tipoActividad}
                             </span>
                           </td>
-                          <td className="px-3 py-2.5 text-white/60 text-xs">{p.inicioActividad || '-'}</td>
                           <td className="px-3 py-2.5 text-white/60 text-xs">{p.acargoActividad || '-'}</td>
                           <td className="px-3 py-2.5">
-                            <button
-                              onClick={() => setSelectedPlanilla(selectedPlanilla === p.idPlanilla ? null : p.idPlanilla)}
-                              className="p-1.5 rounded-lg bg-white/5 hover:bg-cbvp-blue/20 text-white/40 hover:text-cbvp-blue transition-colors"
-                              title="Ver detalle"
-                            >
-                              <Eye className="w-3.5 h-3.5" />
-                            </button>
+                            <div className="flex items-center justify-center gap-1">
+                              {p.urlImagen && (
+                                <a
+                                  href={p.urlImagen}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="p-1.5 rounded-lg bg-white/5 hover:bg-cbvp-green/20 text-white/40 hover:text-cbvp-green transition-colors"
+                                  title="Ver archivo"
+                                >
+                                  <ExternalLink className="w-3.5 h-3.5" />
+                                </a>
+                              )}
+                              <button
+                                onClick={() => openEdit(p)}
+                                className="p-1.5 rounded-lg bg-white/5 hover:bg-cbvp-yellow/20 text-white/40 hover:text-cbvp-yellow transition-colors"
+                                title="Editar"
+                              >
+                                <Edit3 className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => setSelectedPlanilla(selectedPlanilla === p.idPlanilla ? null : p.idPlanilla)}
+                                className="p-1.5 rounded-lg bg-white/5 hover:bg-cbvp-blue/20 text-white/40 hover:text-cbvp-blue transition-colors"
+                                title="Ver detalle"
+                              >
+                                <Eye className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => setDeletingId(p.idPlanilla)}
+                                className="p-1.5 rounded-lg bg-white/5 hover:bg-cbvp-red/20 text-white/40 hover:text-cbvp-red transition-colors"
+                                title="Eliminar"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -342,6 +424,135 @@ export default function PracticasCitaciones() {
           </>
         )}
       </div>
+
+      {/* Edit Modal */}
+      {editingPlanilla && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-[#1a1a24] border border-white/10 rounded-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div className="p-5 border-b border-white/10 flex items-center justify-between">
+              <h3 className="text-white font-semibold flex items-center gap-2">
+                <Edit3 className="w-4 h-4 text-cbvp-yellow" /> Editar Planilla
+              </h3>
+              <button onClick={() => setEditingPlanilla(null)} className="p-1.5 rounded-lg hover:bg-white/5 text-white/40 hover:text-white">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div>
+                <label className="text-xs text-white/40 mb-1 block">Fecha de Actividad</label>
+                <input
+                  type="text"
+                  value={editForm.fechaActividad}
+                  onChange={e => setEditForm({ ...editForm, fechaActividad: e.target.value })}
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-white/40 mb-1 block">Tipo de Actividad</label>
+                <input
+                  type="text"
+                  value={editForm.tipoActividad}
+                  onChange={e => setEditForm({ ...editForm, tipoActividad: e.target.value })}
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-white/40 mb-1 block">Hora Inicio</label>
+                  <input
+                    type="text"
+                    value={editForm.inicioActividad}
+                    onChange={e => setEditForm({ ...editForm, inicioActividad: e.target.value })}
+                    className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-white/40 mb-1 block">Hora Finaliza</label>
+                  <input
+                    type="text"
+                    value={editForm.finalizaActividad}
+                    onChange={e => setEditForm({ ...editForm, finalizaActividad: e.target.value })}
+                    className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-white/40 mb-1 block">A Cargo</label>
+                <input
+                  type="text"
+                  value={editForm.acargoActividad}
+                  onChange={e => setEditForm({ ...editForm, acargoActividad: e.target.value })}
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-white/40 mb-1 block">Detalles</label>
+                <textarea
+                  value={editForm.detalles}
+                  onChange={e => setEditForm({ ...editForm, detalles: e.target.value })}
+                  rows={3}
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none resize-none"
+                />
+              </div>
+            </div>
+            <div className="p-5 border-t border-white/10 flex gap-3">
+              <button
+                onClick={() => setEditingPlanilla(null)}
+                className="flex-1 py-2.5 bg-white/5 hover:bg-white/10 text-white/60 rounded-lg transition-colors text-sm flex items-center justify-center gap-2"
+              >
+                <RotateCcw className="w-4 h-4" /> Cancelar
+              </button>
+              <button
+                onClick={saveEdit}
+                disabled={editarMutation.isPending}
+                className="flex-1 py-2.5 bg-cbvp-yellow hover:bg-cbvp-yellow/80 disabled:opacity-50 text-black font-semibold rounded-lg transition-all text-sm flex items-center justify-center gap-2"
+              >
+                {editarMutation.isPending ? (
+                  <><Clock className="w-4 h-4 animate-spin" /> Guardando...</>
+                ) : (
+                  <><Save className="w-4 h-4" /> Guardar Cambios</>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deletingId && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-[#1a1a24] border border-white/10 rounded-xl w-full max-w-sm p-5">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-cbvp-red/10 rounded-full">
+                <Trash2 className="w-5 h-5 text-cbvp-red" />
+              </div>
+              <div>
+                <h3 className="text-white font-semibold text-sm">Eliminar Planilla</h3>
+                <p className="text-white/40 text-xs">Esta accion no se puede deshacer.</p>
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setDeletingId(null)}
+                className="flex-1 py-2.5 bg-white/5 hover:bg-white/10 text-white/60 rounded-lg transition-colors text-sm"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={confirmDelete}
+                disabled={eliminarMutation.isPending}
+                className="flex-1 py-2.5 bg-cbvp-red hover:bg-cbvp-red/80 disabled:opacity-50 text-white font-semibold rounded-lg transition-all text-sm flex items-center justify-center gap-2"
+              >
+                {eliminarMutation.isPending ? (
+                  <><Clock className="w-4 h-4 animate-spin" /> Eliminando...</>
+                ) : (
+                  <><Trash2 className="w-4 h-4" /> Eliminar</>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

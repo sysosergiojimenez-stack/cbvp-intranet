@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { createRouter, publicQuery } from "../middleware";
-import { readSheet, appendRow } from "../services/sheets";
+import { readSheet, appendRow, updateRange, deleteRows, getSheetId } from "../services/sheets";
 import { env } from "../lib/env";
 import { extractAsistenciaData } from "../services/gemini";
 import { uploadFile as uploadToGCS } from "../services/storage";
@@ -282,6 +282,95 @@ export const asistenciaRouter = createRouter({
       };
 
       return { exito: true as const, asistencias, stats };
+    }),
+
+  eliminar: publicQuery
+    .input(z.object({ idPlanilla: z.string() }))
+    .mutation(async ({ input }) => {
+      // Find header row
+      const encData = await readSheet(env.SHEET_GUARDIAS_ID, "Asistencia_Encabezado!A1:I5000");
+      let encRowIndex = -1;
+      for (let i = 1; i < encData.length; i++) {
+        if (String(encData[i][0] || "").trim() === input.idPlanilla.trim()) {
+          encRowIndex = i;
+          break;
+        }
+      }
+      if (encRowIndex === -1) {
+        return { exito: false as const, error: "Planilla no encontrada" };
+      }
+
+      // Delete header row
+      const encSheetId = await getSheetId(env.SHEET_GUARDIAS_ID, "Asistencia_Encabezado");
+      await deleteRows(env.SHEET_GUARDIAS_ID, encSheetId, [encRowIndex]);
+
+      // Find and delete all personnel rows (from bottom to top)
+      const persData = await readSheet(env.SHEET_GUARDIAS_ID, "Asistencia_Personal!A1:K5000");
+      const rowsToDelete: number[] = [];
+      for (let i = 1; i < persData.length; i++) {
+        if (String(persData[i][1] || "").trim() === input.idPlanilla.trim()) {
+          rowsToDelete.push(i);
+        }
+      }
+
+      if (rowsToDelete.length > 0) {
+        const persSheetId = await getSheetId(env.SHEET_GUARDIAS_ID, "Asistencia_Personal");
+        rowsToDelete.sort((a, b) => b - a);
+        for (const rowIdx of rowsToDelete) {
+          await deleteRows(env.SHEET_GUARDIAS_ID, persSheetId, [rowIdx]);
+        }
+      }
+
+      return { exito: true as const, mensaje: "Planilla eliminada correctamente" };
+    }),
+
+  editar: publicQuery
+    .input(
+      z.object({
+        idPlanilla: z.string(),
+        fechaActividad: z.string().optional(),
+        tipoActividad: z.string().optional(),
+        inicioActividad: z.string().optional(),
+        finalizaActividad: z.string().optional(),
+        acargoActividad: z.string().optional(),
+        detalles: z.string().optional(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      // Find header row
+      const encData = await readSheet(env.SHEET_GUARDIAS_ID, "Asistencia_Encabezado!A1:I5000");
+      let encRowIndex = -1;
+      for (let i = 1; i < encData.length; i++) {
+        if (String(encData[i][0] || "").trim() === input.idPlanilla.trim()) {
+          encRowIndex = i;
+          break;
+        }
+      }
+      if (encRowIndex === -1) {
+        return { exito: false as const, error: "Planilla no encontrada" };
+      }
+
+      // Build updated row preserving existing values
+      const existingRow = encData[encRowIndex];
+      const updatedRow = [
+        existingRow[0],                                     // A: idPlanilla (unchanged)
+        existingRow[1],                                     // B: fechaCarga (unchanged)
+        input.fechaActividad ?? existingRow[2] ?? "",      // C: fechaActividad
+        input.tipoActividad ?? existingRow[3] ?? "",       // D: tipoActividad
+        input.inicioActividad ?? existingRow[4] ?? "",     // E: inicioActividad
+        input.finalizaActividad ?? existingRow[5] ?? "",   // F: finalizaActividad
+        input.acargoActividad ?? existingRow[6] ?? "",     // G: acargoActividad
+        input.detalles ?? existingRow[7] ?? "",            // H: detalles
+        existingRow[8] ?? "",                              // I: urlImagen (unchanged)
+      ];
+
+      await updateRange(
+        env.SHEET_GUARDIAS_ID,
+        `Asistencia_Encabezado!A${encRowIndex + 1}:I${encRowIndex + 1}`,
+        [updatedRow]
+      );
+
+      return { exito: true as const, mensaje: "Planilla actualizada correctamente" };
     }),
 });
 
