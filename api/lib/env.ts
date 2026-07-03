@@ -17,6 +17,6 @@ export const env = {
   GEMINI_API_KEY: required("GEMINI_API_KEY").replace(/^'|'$/g, ""),
   SHEET_USUARIOS_ID: required("SHEET_USUARIOS_ID"),
   SHEET_GUARDIAS_ID: required("SHEET_GUARDIAS_ID"),
-  DRIVE_FOLDER_ID: required("DRIVE_FOLDER_ID"),
+  DRIVE_FOLDER_ID: process.env.DRIVE_FOLDER_ID || "root",
   GCS_BUCKET_NAME: required("GCS_BUCKET_NAME"),
 };

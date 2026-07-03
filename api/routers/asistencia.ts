@@ -67,7 +67,7 @@ export const asistenciaRouter = createRouter({
       // Upload image to Drive
       let imageUrl = "";
       try {
-        const folderId = env.DRIVE_FOLDER_ID || "root";
+        const folderId = env.DRIVE_FOLDER_ID;
         imageUrl = await uploadFile(
           folderId,
           `asistencia_${generateId()}.${input.mimeType.split("/")[1] || "jpg"}`,
