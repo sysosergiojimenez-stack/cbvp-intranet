@@ -349,6 +349,57 @@ export const planillasRouter = createRouter({
       return { exito: true as const, mensaje: "Personal actualizado" };
     }),
 
+  editar: publicQuery
+    .input(
+      z.object({
+        idPlanilla: z.string(),
+        fechaGuardia: z.string().optional(),
+        grupo: z.string().optional(),
+        inicioGuardia: z.string().optional(),
+        finalizaGuardia: z.string().optional(),
+        directorSem: z.string().optional(),
+        comandanteSemana: z.string().optional(),
+        oficialK20: z.string().optional(),
+        novedades: z.string().optional(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const encData = await readSheet(env.SHEET_GUARDIAS_ID, "Guardias_Encabezado!A1:K5000");
+      let encRowIndex = -1;
+      for (let i = 1; i < encData.length; i++) {
+        if (String(encData[i][0] || "").trim() === input.idPlanilla.trim()) {
+          encRowIndex = i;
+          break;
+        }
+      }
+      if (encRowIndex === -1) {
+        return { exito: false as const, error: "Planilla no encontrada" };
+      }
+
+      const existingRow = encData[encRowIndex];
+      const updatedRow = [
+        existingRow[0],
+        existingRow[1],
+        input.fechaGuardia ?? existingRow[2] ?? "",
+        input.grupo ?? existingRow[3] ?? "",
+        input.inicioGuardia ?? existingRow[4] ?? "",
+        input.finalizaGuardia ?? existingRow[5] ?? "",
+        input.directorSem ?? existingRow[6] ?? "",
+        input.comandanteSemana ?? existingRow[7] ?? "",
+        input.oficialK20 ?? existingRow[8] ?? "",
+        input.novedades ?? existingRow[9] ?? "",
+        existingRow[10] ?? "",
+      ];
+
+      await updateRange(
+        env.SHEET_GUARDIAS_ID,
+        `Guardias_Encabezado!A${encRowIndex + 1}:K${encRowIndex + 1}`,
+        [updatedRow]
+      );
+
+      return { exito: true as const, mensaje: "Planilla actualizada correctamente" };
+    }),
+
   eliminar: publicQuery
     .input(z.object({ idPlanilla: z.string() }))
     .mutation(async ({ input }) => {
