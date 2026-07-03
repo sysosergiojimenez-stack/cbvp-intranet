@@ -3,7 +3,7 @@ import { createRouter, publicQuery } from "../middleware";
 import { readSheet, appendRow } from "../services/sheets";
 import { env } from "../lib/env";
 import { extractAsistenciaData } from "../services/gemini";
-import { uploadFile } from "../services/drive";
+import { uploadFile as uploadToGCS } from "../services/storage";
 
 function extractNumber(code: string): string {
   const match = code.match(/\d+/);
@@ -67,21 +67,26 @@ export const asistenciaRouter = createRouter({
       const idPlanilla = generateId();
       const fechaCarga = new Date().toLocaleDateString("es-ES");
 
-      // Upload image to Drive
+      // Upload image to GCS
       let imageUrl = "";
       let uploadError = "";
       try {
-        const folderId = env.DRIVE_FOLDER_ID;
-        imageUrl = await uploadFile(
-          folderId,
-          `asistencia_${idPlanilla}.${input.mimeType.split("/")[1] || "jpg"}`,
-          input.mimeType,
-          input.imageBase64
-        );
-        console.log("[Asistencia] Imagen subida a Drive:", imageUrl);
+        const bucketName = env.GCS_BUCKET_NAME;
+        if (bucketName && bucketName !== "dummy-bucket") {
+          imageUrl = await uploadToGCS(
+            bucketName,
+            `asistencia_${idPlanilla}.${input.mimeType.split("/")[1] || "jpg"}`,
+            input.mimeType,
+            input.imageBase64
+          );
+          console.log("[Asistencia] Imagen subida a GCS:", imageUrl);
+        } else {
+          uploadError = "GCS_BUCKET_NAME no configurado";
+          console.error("[Asistencia] GCS_BUCKET_NAME no configurado");
+        }
       } catch (err) {
         uploadError = err instanceof Error ? err.message : String(err);
-        console.error("[Asistencia] Error subiendo imagen a Drive:", uploadError);
+        console.error("[Asistencia] Error subiendo imagen a GCS:", uploadError);
       }
 
       // Save header
