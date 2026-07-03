@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 
 export default function PracticasCitaciones() {
-  const { puedeCargarPlanillas } = usePermiso();
+  const { puedeCargarPlanillas, esVoluntario } = usePermiso();
   const { usuario } = useAuth();
   const [file, setFile] = useState<File | null>(null);
   const [filePreview, setFilePreview] = useState<string | null>(null);
@@ -395,13 +395,15 @@ export default function PracticasCitaciones() {
                                   <ExternalLink className="w-3.5 h-3.5" />
                                 </a>
                               )}
-                              <button
-                                onClick={() => openEdit(p)}
-                                className="p-1.5 rounded-lg bg-white/5 hover:bg-cbvp-yellow/20 text-white/40 hover:text-cbvp-yellow transition-colors"
-                                title="Editar"
-                              >
-                                <Edit3 className="w-3.5 h-3.5" />
-                              </button>
+                              {!esVoluntario && (
+                                <button
+                                  onClick={() => openEdit(p)}
+                                  className="p-1.5 rounded-lg bg-white/5 hover:bg-cbvp-yellow/20 text-white/40 hover:text-cbvp-yellow transition-colors"
+                                  title="Editar"
+                                >
+                                  <Edit3 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
                               <button
                                 onClick={() => setSelectedPlanilla(selectedPlanilla === p.idPlanilla ? null : p.idPlanilla)}
                                 className="p-1.5 rounded-lg bg-white/5 hover:bg-cbvp-blue/20 text-white/40 hover:text-cbvp-blue transition-colors"
@@ -409,13 +411,15 @@ export default function PracticasCitaciones() {
                               >
                                 <Eye className="w-3.5 h-3.5" />
                               </button>
-                              <button
-                                onClick={() => setDeletingId(p.idPlanilla)}
-                                className="p-1.5 rounded-lg bg-white/5 hover:bg-cbvp-red/20 text-white/40 hover:text-cbvp-red transition-colors"
-                                title="Eliminar"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
+                              {!esVoluntario && (
+                                <button
+                                  onClick={() => setDeletingId(p.idPlanilla)}
+                                  className="p-1.5 rounded-lg bg-white/5 hover:bg-cbvp-red/20 text-white/40 hover:text-cbvp-red transition-colors"
+                                  title="Eliminar"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -481,13 +485,15 @@ export default function PracticasCitaciones() {
                                     <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${getAsistenciaBadge(person.asistencia)}`}>
                                       {person.asistencia}
                                     </span>
-                                    <button
-                                      onClick={() => startEditPerson(person)}
-                                      className="p-1 rounded hover:bg-cbvp-yellow/20 text-white/30 hover:text-cbvp-yellow transition-colors"
-                                      title="Editar asistencia"
-                                    >
-                                      <Edit3 className="w-3 h-3" />
-                                    </button>
+                                    {!esVoluntario && (
+                                      <button
+                                        onClick={() => startEditPerson(person)}
+                                        className="p-1 rounded hover:bg-cbvp-yellow/20 text-white/30 hover:text-cbvp-yellow transition-colors"
+                                        title="Editar asistencia"
+                                      >
+                                        <Edit3 className="w-3 h-3" />
+                                      </button>
+                                    )}
                                   </>
                                 )}
                               </div>
