@@ -64,18 +64,19 @@ export const asistenciaRouter = createRouter({
 
       const tipoFinal = tipoNormalizado === "OTRO" && otroTipo ? `OTRO: ${otroTipo}` : tipoNormalizado;
 
-      // Upload image to Drive (optional)
+      // Upload image to Drive
       let imageUrl = "";
       try {
-        const folderId = (env as Record<string, string>).DRIVE_FOLDER_ID || "root";
+        const folderId = env.DRIVE_FOLDER_ID || "root";
         imageUrl = await uploadFile(
           folderId,
           `asistencia_${generateId()}.${input.mimeType.split("/")[1] || "jpg"}`,
           input.mimeType,
           input.imageBase64
         );
-      } catch {
-        // Continue without image URL
+        console.log("[Asistencia] Imagen subida a Drive:", imageUrl);
+      } catch (err) {
+        console.error("[Asistencia] Error subiendo imagen a Drive:", err);
       }
 
       const idPlanilla = generateId();
