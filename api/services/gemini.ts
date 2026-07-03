@@ -39,17 +39,17 @@ Misma estructura que combatientes.
 
 ## 3. REGLAS CRITICAS PARA ASISTENCIA (la parte mas importante)
 
-La planilla tiene TRES columnas de checkboxes para asistencia: PRESENTE, AUSENTE, y CON AVISO. Fijate BIEN en cada fila que checkbox esta marcado con una X, un tick (✓), una tilde, un circulo, o una palomita:
+La asistencia se determina por la columna FIRMA y la columna OBSERVACIONES. Fijate BIEN en cada fila:
 
-- "PRESENTE" → El bombero estuvo presente. Hay una marca (X, tick, circulo, palomita) en el checkbox de la columna PRESENTE.
-- "AUSENTE" → El bombero no vino. Hay una marca en el checkbox de la columna AUSENTE y NINGUNA marca adicional en el checkbox de la columna CON AVISO.
-- "AUSENTE CON AVISO" → El bombero no vino pero aviso. Hay una marca en el checkbox de la columna AUSENTE y ADEMAS UNA MARCA EN EL CHECKBOX DE LA COLUMNA CON AVISO.
+- "PRESENTE" → El bombero estuvo presente. La columna FIRMA esta firmada (tiene una firma escrita).
+- "AUSENTE" → El bombero no vino. NO hay firma en la columna FIRMA y en la columna OBSERVACIONES no dice nada o esta vacia.
+- "COMISIONADO" → El bombero esta comisionado a otra dependencia del CBVP y esta exento de practicas y citaciones en esta Compañia. NO hay firma en la columna FIRMA y en la columna OBSERVACIONES esta escrita la palabra "COMISIONADO" o "COMISIONADA".
 
 REGLAS IMPORTANTES:
 - NO inventes asistencia. Si no podes determinar con claridad, usa "AUSENTE".
-- Si hay una marca (X, tick, circulo, palomita) en un checkbox, eso indica que SI corresponde esa opcion.
-- Si NO hay ninguna marca en ninguna columna, generalmente significa que vino (PRESENTE) en planillas donde solo marcan los ausentes.
-- Lee el formato de la planilla: algunas marcan los presentes, otras marcan los ausentes.
+- Si la columna FIRMA tiene una firma escrita → "PRESENTE".
+- Si NO hay firma y NO hay texto "COMISIONADO/COMISIONADA" en observaciones → "AUSENTE".
+- Si NO hay firma Y en observaciones dice "COMISIONADO" o "COMISIONADA" → "COMISIONADO".
 
 ## 4. REGLAS PARA CODIGOS
 
@@ -86,7 +86,7 @@ REGLAS IMPORTANTES:
     {"numero":"1","codigo":"A-1025/18","nombre":"Fernandez Carlos","asistencia":"PRESENTE","observaciones":""}
   ],
   "especiales": [
-    {"numero":"1","codigo":"E-0098/20","nombre":"Rivera Pedro","asistencia":"AUSENTE CON AVISO","observaciones":"problemas familiares"}
+    {"numero":"1","codigo":"E-0098/20","nombre":"Rivera Pedro","asistencia":"COMISIONADO","observaciones":"COMISIONADO"}
   ]
 }
 

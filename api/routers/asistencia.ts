@@ -108,7 +108,7 @@ export const asistenciaRouter = createRouter({
             if (!codigoRaw && !nombreRaw) continue;
 
             const asistenciaRaw = String((item as Record<string, unknown>).asistencia || "AUSENTE").trim().toUpperCase();
-            const asistenciaNormalizada = asistenciaRaw === "AUSENTE CON AVISO" ? "AUSENTE CON AVISO" :
+            const asistenciaNormalizada = asistenciaRaw === "COMISIONADO" || asistenciaRaw === "COMISIONADA" ? "COMISIONADO" :
               asistenciaRaw === "PRESENTE" ? "PRESENTE" : "AUSENTE";
 
             allPersonnel.push({
@@ -268,7 +268,7 @@ export const asistenciaRouter = createRouter({
         totalActividades: asistencias.length,
         presentes: asistencias.filter(a => a.asistencia === "PRESENTE").length,
         ausentes: asistencias.filter(a => a.asistencia === "AUSENTE").length,
-        ausentesConAviso: asistencias.filter(a => a.asistencia === "AUSENTE CON AVISO").length,
+        comisionados: asistencias.filter(a => a.asistencia === "COMISIONADO").length,
       };
 
       return { exito: true as const, asistencias, stats };

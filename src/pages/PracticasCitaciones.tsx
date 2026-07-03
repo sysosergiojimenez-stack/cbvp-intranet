@@ -125,7 +125,7 @@ export default function PracticasCitaciones() {
   const getAsistenciaBadge = (asistencia: string) => {
     switch (asistencia) {
       case 'PRESENTE': return 'bg-cbvp-green/20 text-cbvp-green';
-      case 'AUSENTE CON AVISO': return 'bg-cbvp-yellow/20 text-cbvp-yellow';
+      case 'COMISIONADO': return 'bg-cbvp-blue/20 text-cbvp-blue';
       default: return 'bg-cbvp-red/20 text-cbvp-red-light';
     }
   };

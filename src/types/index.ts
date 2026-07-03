@@ -183,5 +183,5 @@ export interface EstadisticasAsistencia {
   totalActividades: number;
   presentes: number;
   ausentes: number;
-  ausentesConAviso: number;
+  comisionados: number;
 }
