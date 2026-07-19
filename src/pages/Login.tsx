@@ -1,13 +1,16 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { Flame, AlertCircle } from 'lucide-react';
+import { Flame, AlertCircle, Eye, EyeOff } from 'lucide-react';
 
 export default function Login() {
   const { login, isLoading, error } = useAuth();
   const [correo, setCorreo] = useState('');
   const [contrasena, setContrasena] = useState('');
   const [localError, setLocalError] = useState('');
+  const [recordarme, setRecordarme] = useState(false);
+  const [mostrarPassword, setMostrarPassword] = useState(false);
+  const [mostrarAyuda, setMostrarAyuda] = useState(false);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -16,7 +19,7 @@ export default function Login() {
       setLocalError('Complete todos los campos');
       return;
     }
-    const success = await login(correo, contrasena);
+    const success = await login(correo, contrasena, recordarme);
     if (!success) {
       setLocalError(error || 'Correo o contrasena incorrectos');
     }
@@ -45,16 +48,49 @@ export default function Login() {
                 disabled={isLoading}
               />
             </div>
-            <div>
+            <div className="relative">
               <input
-                type="password"
+                type={mostrarPassword ? 'text' : 'password'}
                 value={contrasena}
                 onChange={e => setContrasena(e.target.value)}
                 placeholder="Contrasena"
-                className="w-full px-4 py-3.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:border-cbvp-red/50 focus:ring-1 focus:ring-cbvp-red/30 transition-all text-sm"
+                className="w-full px-4 py-3.5 pr-12 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:border-cbvp-red/50 focus:ring-1 focus:ring-cbvp-red/30 transition-all text-sm"
                 disabled={isLoading}
               />
+              <button
+                type="button"
+                onClick={() => setMostrarPassword(!mostrarPassword)}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition-colors"
+                tabIndex={-1}
+              >
+                {mostrarPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
             </div>
+
+            <div className="flex items-center justify-between text-sm">
+              <label className="flex items-center gap-2 text-white/50 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={recordarme}
+                  onChange={e => setRecordarme(e.target.checked)}
+                  className="w-4 h-4 rounded border-white/20 bg-white/5 text-cbvp-red focus:ring-cbvp-red/30 focus:ring-offset-0"
+                />
+                Recordarme
+              </label>
+              <button
+                type="button"
+                onClick={() => setMostrarAyuda(!mostrarAyuda)}
+                className="text-white/40 hover:text-white/70 transition-colors"
+              >
+                ¿Olvidaste tu contrasena?
+              </button>
+            </div>
+
+            {mostrarAyuda && (
+              <div className="text-xs text-white/50 bg-white/5 rounded-lg px-3 py-2.5">
+                Contactate con el encargado de personal para restablecer tu contrasena.
+              </div>
+            )}
 
             {(localError || error) && (
               <div className="flex items-center gap-2 text-cbvp-red-light text-sm bg-cbvp-red/10 rounded-lg px-3 py-2.5">
@@ -79,16 +115,6 @@ export default function Login() {
             </button>
           </form>
 
-          <div className="mt-6 pt-5 border-t border-white/5">
-            <p className="text-xs text-white/30 text-center mb-3">Cuentas de prueba:</p>
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <div className="bg-white/5 rounded-lg px-2 py-1.5 text-white/40 text-center">admin@cbvp.py</div>
-              <div className="bg-white/5 rounded-lg px-2 py-1.5 text-white/40 text-center">oficial@cbvp.py</div>
-              <div className="bg-white/5 rounded-lg px-2 py-1.5 text-white/40 text-center">bombero@cbvp.py</div>
-              <div className="bg-white/5 rounded-lg px-2 py-1.5 text-white/40 text-center">perfil@cbvp.py</div>
-            </div>
-            <p className="text-[10px] text-white/20 text-center mt-2">Todas con password: la palabra antes del @ + 123</p>
-          </div>
         </div>
       </div>
     </div>

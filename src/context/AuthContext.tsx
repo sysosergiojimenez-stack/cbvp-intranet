@@ -27,7 +27,7 @@ interface Usuario {
 
 interface AuthContextType {
   usuario: Usuario | null;
-  login: (correo: string, contrasena: string) => Promise<boolean>;
+  login: (correo: string, contrasena: string, recordar?: boolean) => Promise<boolean>;
   logout: () => void;
   tienePermiso: (accion: AccionPermiso) => boolean;
   isLoading: boolean;
@@ -38,11 +38,12 @@ const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [usuario, setUsuario] = useState<Usuario | null>(() => {
-    const saved = sessionStorage.getItem('cbvp_sesion');
-    if (saved) {
+    const leerSesion = (storage: Storage, maxAge: number) => {
+      const saved = storage.getItem('cbvp_sesion');
+      if (!saved) return null;
       try {
         const data = JSON.parse(saved);
-        if (data.timestamp && (Date.now() - data.timestamp) < 8 * 60 * 60 * 1000) {
+        if (data.timestamp && (Date.now() - data.timestamp) < maxAge) {
           const u = data.usuario;
           // Validate that usuario has codigo (force re-login if old format)
           if (u && u.exito && u.codigo && u.codigo !== 'undefined') {
@@ -50,16 +51,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         }
       } catch { /* ignore */ }
-      sessionStorage.removeItem('cbvp_sesion');
-    }
-    return null;
+      storage.removeItem('cbvp_sesion');
+      return null;
+    };
+    // "Recordarme" guarda en localStorage (30 dias); sesion normal en sessionStorage (8 horas)
+    return leerSesion(localStorage, 30 * 24 * 60 * 60 * 1000) || leerSesion(sessionStorage, 8 * 60 * 60 * 1000);
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const loginMutation = trpc.auth.login.useMutation();
 
-  const login = useCallback(async (correo: string, contrasena: string): Promise<boolean> => {
+  const login = useCallback(async (correo: string, contrasena: string, recordar = false): Promise<boolean> => {
     setIsLoading(true);
     setError(null);
 
@@ -86,12 +89,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         };
         setUsuario(user);
         try {
-          sessionStorage.setItem('cbvp_sesion', JSON.stringify({
+          const storage = recordar ? localStorage : sessionStorage;
+          (recordar ? sessionStorage : localStorage).removeItem('cbvp_sesion');
+          storage.setItem('cbvp_sesion', JSON.stringify({
             usuario: user,
             timestamp: Date.now(),
           }));
         } catch {
-          // sessionStorage may fail in private mode on mobile - ignore
+          // storage may fallar en modo privado en mobile - ignorar
         }
         setIsLoading(false);
         return true;
@@ -118,6 +123,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = useCallback(() => {
     setUsuario(null);
     sessionStorage.removeItem('cbvp_sesion');
+    localStorage.removeItem('cbvp_sesion');
   }, []);
 
   const tienePermiso = useCallback((accion: AccionPermiso): boolean => {
