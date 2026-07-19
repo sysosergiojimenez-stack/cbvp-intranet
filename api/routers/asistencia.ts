@@ -24,6 +24,17 @@ function toTitleCase(str: string): string {
   return str.toLowerCase().split(" ").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
 }
 
+function parseImageUrls(value: string): string[] {
+  if (!value) return [];
+  try {
+    const parsed = JSON.parse(value);
+    if (Array.isArray(parsed)) return parsed.filter((x): x is string => typeof x === "string");
+  } catch {
+    // No es JSON, es el formato viejo (una sola URL como texto plano)
+  }
+  return [value];
+}
+
 interface PersonalAsistencia {
   codigo: string;
   nombre: string;
@@ -31,21 +42,26 @@ interface PersonalAsistencia {
 }
 
 export const asistenciaRouter = createRouter({
-  procesar: publicQuery
+  extraer: publicQuery
     .input(
       z.object({
-        imageBase64: z.string().min(1),
-        mimeType: z.string().min(1),
-        usuarioId: z.string(),
-        usuarioNombre: z.string(),
+        images: z
+          .array(
+            z.object({
+              base64: z.string().min(1),
+              mimeType: z.string().min(1),
+            })
+          )
+          .min(1),
       })
     )
     .mutation(async ({ input }) => {
-      // Extract data using Gemini
-      const extractedData = await extractAsistenciaData(input.imageBase64, input.mimeType);
+      const extractedData = await extractAsistenciaData(
+        input.images.map(img => ({ base64Content: img.base64, mimeType: img.mimeType }))
+      );
 
       if (!extractedData || typeof extractedData !== "object") {
-        return { exito: false as const, error: "No se pudieron extraer datos de la imagen" };
+        return { exito: false as const, error: "No se pudieron extraer datos de las imagenes" };
       }
 
       const tipoActividad = String(extractedData.tipoActividad || "").trim().toUpperCase();
@@ -61,48 +77,33 @@ export const asistenciaRouter = createRouter({
       if (!validTypes.includes(tipoNormalizado)) {
         return { exito: false as const, error: `Tipo de actividad no reconocido: ${tipoActividad}` };
       }
-
       const tipoFinal = tipoNormalizado === "OTRO" && otroTipo ? `OTRO: ${otroTipo}` : tipoNormalizado;
 
-      const idPlanilla = generateId();
-      const fechaCarga = new Date().toLocaleDateString("es-ES");
-
-      // Upload image to GCS
-      let imageUrl = "";
+      const imageUrls: string[] = [];
       let uploadError = "";
-      try {
-        const bucketName = env.GCS_BUCKET_NAME;
-        if (bucketName && bucketName !== "dummy-bucket") {
-          imageUrl = await uploadToGCS(
-            bucketName,
-            `asistencia_${idPlanilla}.${input.mimeType.split("/")[1] || "jpg"}`,
-            input.mimeType,
-            input.imageBase64
-          );
-          console.log("[Asistencia] Imagen subida a GCS:", imageUrl);
-        } else {
-          uploadError = "GCS_BUCKET_NAME no configurado";
-          console.error("[Asistencia] GCS_BUCKET_NAME no configurado");
+      const bucketName = env.GCS_BUCKET_NAME;
+      if (bucketName && bucketName !== "dummy-bucket") {
+        for (let i = 0; i < input.images.length; i++) {
+          try {
+            const img = input.images[i];
+            const url = await uploadToGCS(
+              bucketName,
+              `asistencia_${generateId()}_${i}.${img.mimeType.split("/")[1] || "jpg"}`,
+              img.mimeType,
+              img.base64
+            );
+            imageUrls.push(url);
+            console.log("[Asistencia] Imagen subida a GCS:", url);
+          } catch (err) {
+            uploadError = err instanceof Error ? err.message : String(err);
+            console.error("[Asistencia] Error subiendo imagen a GCS:", uploadError);
+          }
         }
-      } catch (err) {
-        uploadError = err instanceof Error ? err.message : String(err);
-        console.error("[Asistencia] Error subiendo imagen a GCS:", uploadError);
+      } else {
+        uploadError = "GCS_BUCKET_NAME no configurado";
+        console.error("[Asistencia] GCS_BUCKET_NAME no configurado");
       }
 
-      // Save header
-      await appendRow(env.SHEET_GUARDIAS_ID, "Asistencia_Encabezado", [
-        idPlanilla,
-        fechaCarga,
-        fechaActividad,
-        tipoFinal,
-        inicioActividad,
-        finalizaActividad,
-        acargoActividad,
-        detalles,
-        imageUrl,
-      ]);
-
-      // Extract and save personnel
       const secciones = ["combatientes", "activos", "especiales"] as const;
       const allPersonnel: PersonalAsistencia[] = [];
 
@@ -128,13 +129,68 @@ export const asistenciaRouter = createRouter({
         }
       }
 
-      // Save to Asistencia_Personal
-      for (const p of allPersonnel) {
+      return {
+        exito: true as const,
+        imageUrls,
+        uploadError: uploadError || undefined,
+        datos: {
+          tipoActividad: tipoFinal,
+          fechaActividad,
+          inicioActividad,
+          finalizaActividad,
+          acargoActividad,
+          detalles,
+          personal: allPersonnel,
+        },
+      };
+    }),
+
+  guardar: publicQuery
+    .input(
+      z.object({
+        imageUrls: z.array(z.string()),
+        datos: z.object({
+          tipoActividad: z.string(),
+          fechaActividad: z.string(),
+          inicioActividad: z.string(),
+          finalizaActividad: z.string(),
+          acargoActividad: z.string(),
+          detalles: z.string(),
+          personal: z.array(
+            z.object({
+              codigo: z.string(),
+              nombre: z.string(),
+              asistencia: z.string(),
+            })
+          ),
+        }),
+        usuarioId: z.string(),
+        usuarioNombre: z.string(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const idPlanilla = generateId();
+      const fechaCarga = new Date().toLocaleDateString("es-ES");
+      const d = input.datos;
+
+      await appendRow(env.SHEET_GUARDIAS_ID, "Asistencia_Encabezado", [
+        idPlanilla,
+        fechaCarga,
+        d.fechaActividad,
+        d.tipoActividad,
+        d.inicioActividad,
+        d.finalizaActividad,
+        d.acargoActividad,
+        d.detalles,
+        JSON.stringify(input.imageUrls),
+      ]);
+
+      for (const p of d.personal) {
         await appendRow(env.SHEET_GUARDIAS_ID, "Asistencia_Personal", [
           "",
           idPlanilla,
           fechaCarga,
-          fechaActividad,
+          d.fechaActividad,
           "",
           "",
           p.codigo,
@@ -148,12 +204,8 @@ export const asistenciaRouter = createRouter({
       return {
         exito: true as const,
         idPlanilla,
-        tipoActividad: tipoFinal,
-        fechaActividad,
-        totalPersonnel: allPersonnel.length,
-        presentes: allPersonnel.filter(p => p.asistencia === "PRESENTE").length,
-        imageUrl,
-        uploadError: uploadError || undefined,
+        totalPersonnel: d.personal.length,
+        presentes: d.personal.filter(p => p.asistencia === "PRESENTE").length,
       };
     }),
 
@@ -176,7 +228,7 @@ export const asistenciaRouter = createRouter({
         finalizaActividad: string;
         acargoActividad: string;
         detalles: string;
-        urlImagen: string;
+        urlImagenes: string[];
       }> = [];
 
       for (let i = 1; i < data.length; i++) {
@@ -193,7 +245,7 @@ export const asistenciaRouter = createRouter({
           finalizaActividad: String(row[5] || ""),
           acargoActividad: String(row[6] || ""),
           detalles: String(row[7] || ""),
-          urlImagen: String(row[8] || ""),
+          urlImagenes: parseImageUrls(String(row[8] || "")),
         });
       }
 

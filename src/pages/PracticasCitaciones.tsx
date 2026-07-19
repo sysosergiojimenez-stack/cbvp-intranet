@@ -13,8 +13,7 @@ import {
 export default function PracticasCitaciones() {
   const { puedeCargarPlanillas, esVoluntario } = usePermiso();
   const { usuario } = useAuth();
-  const [file, setFile] = useState<File | null>(null);
-  const [filePreview, setFilePreview] = useState<string | null>(null);
+  const [files, setFiles] = useState<Array<{ file: File; preview: string | null }>>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [result, setResult] = useState<{
     idPlanilla: string;
@@ -22,13 +21,21 @@ export default function PracticasCitaciones() {
     fechaActividad: string;
     totalPersonnel: number;
     presentes: number;
-    imageUrl?: string;
+    imageUrls?: string[];
     uploadError?: string;
+  } | null>(null);
+  const [extraccion, setExtraccion] = useState<{
+    imageUrls: string[];
+    uploadError?: string;
+    tipoActividad: string; fechaActividad: string; inicioActividad: string;
+    finalizaActividad: string; acargoActividad: string; detalles: string;
+    personal: Array<{ codigo: string; nombre: string; asistencia: string }>;
   } | null>(null);
   const [error, setError] = useState('');
   const [dragOver, setDragOver] = useState(false);
   const [showHistory, setShowHistory] = useState(true);
   const [selectedPlanilla, setSelectedPlanilla] = useState<string | null>(null);
+  const [mostrarImagenes, setMostrarImagenes] = useState<string | null>(null);
 
   // Edit modal state
   const [editingPlanilla, setEditingPlanilla] = useState<AsistenciaEncabezado | null>(null);
@@ -49,7 +56,8 @@ export default function PracticasCitaciones() {
   const [personAsistencia, setPersonAsistencia] = useState<'PRESENTE' | 'AUSENTE' | 'COMISIONADO'>('PRESENTE');
 
   const utils = trpc.useUtils();
-  const procesarMutation = trpc.asistencia.procesar.useMutation();
+  const extraerMutation = trpc.asistencia.extraer.useMutation();
+  const guardarMutation = trpc.asistencia.guardar.useMutation();
   const { data: historialData, isLoading: historialLoading } = trpc.asistencia.historial.useQuery(
     { page: 1, limit: 50 },
     { enabled: showHistory }
@@ -94,32 +102,40 @@ export default function PracticasCitaciones() {
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setDragOver(false);
-    if (e.dataTransfer.files.length > 0) handleFile(e.dataTransfer.files[0]);
+    if (e.dataTransfer.files.length > 0) handleFiles(e.dataTransfer.files);
   }, []);
 
   // Detect mobile for smaller limits
   const isMobile = typeof window !== 'undefined' && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
   const MAX_SIZE = isMobile ? 5 * 1024 * 1024 : 10 * 1024 * 1024;
 
-  const handleFile = (selectedFile: File) => {
+  const handleFiles = (fileList: FileList | File[]) => {
     setError('');
     setResult(null);
-    if (selectedFile.size > MAX_SIZE) {
-      setError(`Maximo ${MAX_SIZE / 1024 / 1024}MB permitido${isMobile ? ' en movil' : ''}.`);
+    const nuevos = Array.from(fileList);
+    const muyGrande = nuevos.find(f => f.size > MAX_SIZE);
+    if (muyGrande) {
+      setError(`Maximo ${MAX_SIZE / 1024 / 1024}MB permitido${isMobile ? ' en movil' : ''} (archivo: ${muyGrande.name}).`);
       return;
     }
-    setFile(selectedFile);
-    if (selectedFile.type.startsWith('image/')) {
-      const reader = new FileReader();
-      reader.onload = e => setFilePreview(e.target?.result as string);
-      reader.readAsDataURL(selectedFile);
-    } else {
-      setFilePreview(null);
-    }
+    nuevos.forEach(f => {
+      if (f.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = e => setFiles(prev => [...prev, { file: f, preview: e.target?.result as string }]);
+        reader.readAsDataURL(f);
+      } else {
+        setFiles(prev => [...prev, { file: f, preview: null }]);
+      }
+    });
   };
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files?.[0]) handleFile(e.target.files[0]);
+    if (e.target.files && e.target.files.length > 0) handleFiles(e.target.files);
+    e.target.value = '';
+  };
+
+  const removeFile = (idx: number) => {
+    setFiles(prev => prev.filter((_, i) => i !== idx));
   };
 
   // Efficient ArrayBuffer to base64 without creating huge intermediate strings
@@ -137,35 +153,31 @@ export default function PracticasCitaciones() {
   };
 
   const procesarPlanilla = async () => {
-    if (!file || !usuario) return;
+    if (files.length === 0) return;
     setIsProcessing(true);
     setError('');
+    setExtraccion(null);
 
     try {
-      // Read as ArrayBuffer (much more memory efficient than DataURL)
-      const buffer = await file.arrayBuffer();
-      const base64Data = arrayBufferToBase64(buffer);
+      const imagesData = await Promise.all(files.map(async ({ file }) => {
+        const buffer = await file.arrayBuffer();
+        return { base64: arrayBufferToBase64(buffer), mimeType: file.type || 'image/jpeg' };
+      }));
 
-      const resp = await procesarMutation.mutateAsync({
-        imageBase64: base64Data,
-        mimeType: file.type || 'image/jpeg',
-        usuarioId: usuario.codigo,
-        usuarioNombre: usuario.nombreCompleto,
-      });
+      const resp = await extraerMutation.mutateAsync({ images: imagesData });
 
       if (resp.exito) {
-        setResult({
-          idPlanilla: resp.idPlanilla,
-          tipoActividad: resp.tipoActividad,
-          fechaActividad: resp.fechaActividad,
-          totalPersonnel: resp.totalPersonnel,
-          presentes: resp.presentes,
-          imageUrl: resp.imageUrl,
+        setExtraccion({
+          imageUrls: resp.imageUrls || [],
           uploadError: resp.uploadError,
+          tipoActividad: resp.datos.tipoActividad,
+          fechaActividad: resp.datos.fechaActividad,
+          inicioActividad: resp.datos.inicioActividad,
+          finalizaActividad: resp.datos.finalizaActividad,
+          acargoActividad: resp.datos.acargoActividad,
+          detalles: resp.datos.detalles,
+          personal: resp.datos.personal,
         });
-        setFile(null);
-        setFilePreview(null);
-        utils.asistencia.historial.invalidate();
       } else {
         setError(resp.error || 'Error al procesar');
       }
@@ -174,6 +186,55 @@ export default function PracticasCitaciones() {
     } finally {
       setIsProcessing(false);
     }
+  };
+
+  const confirmarGuardar = async () => {
+    if (!extraccion || !usuario) return;
+    setIsProcessing(true);
+    setError('');
+    try {
+      const resp = await guardarMutation.mutateAsync({
+        imageUrls: extraccion.imageUrls,
+        datos: {
+          tipoActividad: extraccion.tipoActividad,
+          fechaActividad: extraccion.fechaActividad,
+          inicioActividad: extraccion.inicioActividad,
+          finalizaActividad: extraccion.finalizaActividad,
+          acargoActividad: extraccion.acargoActividad,
+          detalles: extraccion.detalles,
+          personal: extraccion.personal,
+        },
+        usuarioId: usuario.codigo,
+        usuarioNombre: usuario.nombreCompleto,
+      });
+      if (resp.exito) {
+        setResult({
+          idPlanilla: resp.idPlanilla,
+          tipoActividad: extraccion.tipoActividad,
+          fechaActividad: extraccion.fechaActividad,
+          totalPersonnel: resp.totalPersonnel,
+          presentes: resp.presentes,
+          imageUrls: extraccion.imageUrls,
+          uploadError: extraccion.uploadError,
+        });
+        setExtraccion(null);
+        setFiles([]);
+        utils.asistencia.historial.invalidate();
+      } else {
+        setError('Error al guardar');
+      }
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Error desconocido');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const updatePersonalField = (idx: number, campo: 'codigo' | 'nombre' | 'asistencia', valor: string) => {
+    if (!extraccion) return;
+    const nuevaLista = [...extraccion.personal];
+    nuevaLista[idx] = { ...nuevaLista[idx], [campo]: valor };
+    setExtraccion({ ...extraccion, personal: nuevaLista });
   };
 
   const openEdit = (p: AsistenciaEncabezado) => {
@@ -249,42 +310,46 @@ export default function PracticasCitaciones() {
           <Upload className="w-4 h-4 text-cbvp-red" /> Cargar Planilla de Asistencia
         </h2>
 
-        {!file ? (
-          <div
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
-            className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors cursor-pointer ${
-              dragOver ? 'border-cbvp-red bg-cbvp-red/5' : 'border-white/10 hover:border-white/20'
-            }`}
-            onClick={() => document.getElementById('file-input-asistencia')?.click()}
-          >
-            <Upload className="w-10 h-10 text-white/20 mx-auto mb-3" />
-            <p className="text-white/40 text-sm mb-1">Arrastra una imagen o PDF aqui</p>
-            <p className="text-white/20 text-xs">O haz clic para seleccionar</p>
-            <input
-              id="file-input-asistencia"
-              type="file"
-              accept="image/*,application/pdf"
-              onChange={handleFileInput}
-              className="hidden"
-            />
-          </div>
-        ) : (
-          <div className="bg-white/5 rounded-xl p-4 border border-white/10">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-3">
-                <FileText className="w-5 h-5 text-cbvp-red" />
-                <span className="text-white text-sm">{file.name}</span>
-                <span className="text-white/30 text-xs">({(file.size / 1024 / 1024).toFixed(2)} MB)</span>
+        <div
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          className={`border-2 border-dashed rounded-xl p-6 text-center transition-colors cursor-pointer ${
+            dragOver ? 'border-cbvp-red bg-cbvp-red/5' : 'border-white/10 hover:border-white/20'
+          }`}
+          onClick={() => document.getElementById('file-input-asistencia')?.click()}
+        >
+          <Upload className="w-8 h-8 text-white/20 mx-auto mb-2" />
+          <p className="text-white/40 text-sm mb-1">Arrastra una o varias imagenes aqui</p>
+          <p className="text-white/20 text-xs">O haz clic para seleccionar (podes agregar mas de una)</p>
+          <input
+            id="file-input-asistencia"
+            type="file"
+            accept="image/*"
+            multiple
+            onChange={handleFileInput}
+            className="hidden"
+          />
+        </div>
+
+        {files.length > 0 && (
+          <div className="mt-3 space-y-2">
+            {files.map((f, idx) => (
+              <div key={idx} className="bg-white/5 rounded-xl p-3 border border-white/10 flex items-center gap-3">
+                {f.preview ? (
+                  <img src={f.preview} alt="Preview" className="w-12 h-12 object-cover rounded-lg border border-white/10 shrink-0" />
+                ) : (
+                  <FileText className="w-8 h-8 text-cbvp-red shrink-0" />
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="text-white text-sm truncate">{f.file.name}</p>
+                  <p className="text-white/30 text-xs">({(f.file.size / 1024 / 1024).toFixed(2)} MB)</p>
+                </div>
+                <button onClick={() => removeFile(idx)} className="p-1.5 rounded-lg hover:bg-white/5 text-white/40 hover:text-white transition-colors shrink-0">
+                  <X className="w-4 h-4" />
+                </button>
               </div>
-              <button onClick={() => { setFile(null); setFilePreview(null); setResult(null); setError(''); }} className="p-1.5 rounded-lg hover:bg-white/5 text-white/40 hover:text-white transition-colors">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            {filePreview && (
-              <img src={filePreview} alt="Preview" className="max-h-48 rounded-lg mb-3 border border-white/10" />
-            )}
+            ))}
             <button
               onClick={procesarPlanilla}
               disabled={isProcessing}
@@ -293,9 +358,68 @@ export default function PracticasCitaciones() {
               {isProcessing ? (
                 <><Clock className="w-4 h-4 animate-spin" /> Procesando con IA...</>
               ) : (
-                <><Zap className="w-4 h-4" /> Procesar Planilla</>
+                <><Zap className="w-4 h-4" /> Procesar Planilla ({files.length} imagen{files.length > 1 ? 'es' : ''})</>
               )}
             </button>
+          </div>
+        )}
+
+        {extraccion && (
+          <div className="mt-3 bg-white/[0.03] border border-cbvp-yellow/20 rounded-xl p-4 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-cbvp-yellow flex items-center gap-2"><Edit3 className="w-4 h-4" /> Revisa los datos antes de guardar</h3>
+              <div className="flex flex-wrap gap-2">
+                {extraccion.imageUrls.map((url, idx) => (
+                  <a key={idx} href={url} target="_blank" rel="noopener noreferrer" className="text-xs text-cbvp-blue hover:underline flex items-center gap-1"><ExternalLink className="w-3.5 h-3.5" /> Ver imagen {extraccion.imageUrls.length > 1 ? idx + 1 : 'subida'}</a>
+                ))}
+              </div>
+            </div>
+            {extraccion.uploadError && (
+              <div className="p-2 bg-cbvp-yellow/10 border border-cbvp-yellow/20 rounded text-xs text-cbvp-yellow">
+                <span className="font-semibold">Advertencia:</span> No se pudo subir el archivo. Error: {extraccion.uploadError}
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs text-white/40 mb-1 block">Tipo de Actividad</label>
+                <select value={extraccion.tipoActividad} onChange={e => setExtraccion({ ...extraccion, tipoActividad: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none">
+                  <option value="PRACTICA">Practica</option>
+                  <option value="CITACION">Citacion</option>
+                  <option value="REUNION DE Cia">Reunion de Cia</option>
+                  <option value="OTRO">Otro</option>
+                </select>
+              </div>
+              <div><label className="text-xs text-white/40 mb-1 block">Fecha de Actividad</label><input type="text" value={extraccion.fechaActividad} onChange={e => setExtraccion({ ...extraccion, fechaActividad: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
+              <div><label className="text-xs text-white/40 mb-1 block">Hora Inicio</label><input type="text" value={extraccion.inicioActividad} onChange={e => setExtraccion({ ...extraccion, inicioActividad: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
+              <div><label className="text-xs text-white/40 mb-1 block">Hora Finaliza</label><input type="text" value={extraccion.finalizaActividad} onChange={e => setExtraccion({ ...extraccion, finalizaActividad: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
+              <div className="col-span-2"><label className="text-xs text-white/40 mb-1 block">A Cargo</label><input type="text" value={extraccion.acargoActividad} onChange={e => setExtraccion({ ...extraccion, acargoActividad: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
+            </div>
+            <div><label className="text-xs text-white/40 mb-1 block">Detalles</label><textarea value={extraccion.detalles} onChange={e => setExtraccion({ ...extraccion, detalles: e.target.value })} rows={2} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none resize-none" /></div>
+
+            <div>
+              <h4 className="text-xs font-semibold text-white/60 uppercase mb-2">Personal ({extraccion.personal.length})</h4>
+              <div className="space-y-2">
+                {extraccion.personal.map((p, idx) => (
+                  <div key={idx} className="grid grid-cols-12 gap-2 items-center bg-white/[0.03] rounded-lg p-2">
+                    <input type="text" value={p.codigo} onChange={e => updatePersonalField(idx, 'codigo', e.target.value)} placeholder="Codigo" className="col-span-2 bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-white focus:border-cbvp-red/50 focus:outline-none" />
+                    <input type="text" value={p.nombre} onChange={e => updatePersonalField(idx, 'nombre', e.target.value)} placeholder="Nombre" className="col-span-7 bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-white focus:border-cbvp-red/50 focus:outline-none" />
+                    <select value={p.asistencia} onChange={e => updatePersonalField(idx, 'asistencia', e.target.value)} className="col-span-3 bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-white focus:border-cbvp-red/50 focus:outline-none">
+                      <option value="PRESENTE">Presente</option>
+                      <option value="AUSENTE">Ausente</option>
+                      <option value="COMISIONADO">Comisionado</option>
+                    </select>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button onClick={() => setExtraccion(null)} className="flex-1 py-2.5 bg-white/5 hover:bg-white/10 text-white/60 rounded-lg transition-colors text-sm flex items-center justify-center gap-2"><RotateCcw className="w-4 h-4" /> Cancelar</button>
+              <button onClick={confirmarGuardar} disabled={isProcessing} className="flex-1 py-2.5 bg-cbvp-green hover:bg-cbvp-green/80 disabled:opacity-50 text-white font-semibold rounded-lg transition-all text-sm flex items-center justify-center gap-2">
+                {isProcessing ? <><Clock className="w-4 h-4 animate-spin" /> Guardando...</> : <><Save className="w-4 h-4" /> Confirmar y Guardar</>}
+              </button>
+            </div>
           </div>
         )}
 
@@ -322,11 +446,13 @@ export default function PracticasCitaciones() {
                 <span className="font-semibold">Advertencia:</span> La planilla se guardo pero el archivo no se pudo subir. Error: {result.uploadError}
               </div>
             )}
-            {result.imageUrl && (
-              <div className="mt-2">
-                <a href={result.imageUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-cbvp-blue hover:underline flex items-center gap-1">
-                  <ExternalLink className="w-3 h-3" /> Ver archivo subido
-                </a>
+            {result.imageUrls && result.imageUrls.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {result.imageUrls.map((url, idx) => (
+                  <a key={idx} href={url} target="_blank" rel="noopener noreferrer" className="text-xs text-cbvp-blue hover:underline flex items-center gap-1">
+                    <ExternalLink className="w-3 h-3" /> Ver archivo {result.imageUrls!.length > 1 ? idx + 1 : 'subido'}
+                  </a>
+                ))}
               </div>
             )}
           </div>
@@ -384,16 +510,30 @@ export default function PracticasCitaciones() {
                           <td className="px-3 py-2.5 text-white/60 text-xs">{p.acargoActividad || '-'}</td>
                           <td className="px-3 py-2.5">
                             <div className="flex items-center justify-center gap-1">
-                              {p.urlImagen && (
-                                <a
-                                  href={p.urlImagen}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="p-1.5 rounded-lg bg-white/5 hover:bg-cbvp-green/20 text-white/40 hover:text-cbvp-green transition-colors"
-                                  title="Ver archivo"
-                                >
+                              {p.urlImagenes && p.urlImagenes.length === 1 && (
+                                <a href={p.urlImagenes[0]} target="_blank" rel="noopener noreferrer" className="p-1.5 rounded-lg bg-white/5 hover:bg-cbvp-green/20 text-white/40 hover:text-cbvp-green transition-colors" title="Ver archivo">
                                   <ExternalLink className="w-3.5 h-3.5" />
                                 </a>
+                              )}
+                              {p.urlImagenes && p.urlImagenes.length > 1 && (
+                                <div className="relative">
+                                  <button
+                                    onClick={() => setMostrarImagenes(mostrarImagenes === p.idPlanilla ? null : p.idPlanilla)}
+                                    className="p-1.5 rounded-lg bg-white/5 hover:bg-cbvp-green/20 text-white/40 hover:text-cbvp-green transition-colors"
+                                    title={`Ver archivos (${p.urlImagenes.length})`}
+                                  >
+                                    <ExternalLink className="w-3.5 h-3.5" />
+                                  </button>
+                                  {mostrarImagenes === p.idPlanilla && (
+                                    <div className="absolute right-0 top-full mt-1 z-20 bg-[#1a1a24] border border-white/10 rounded-lg shadow-lg p-2 space-y-1 min-w-[140px]">
+                                      {p.urlImagenes.map((url, idx) => (
+                                        <a key={idx} href={url} target="_blank" rel="noopener noreferrer" onClick={() => setMostrarImagenes(null)} className="block text-xs text-cbvp-blue hover:underline px-2 py-1 rounded hover:bg-white/5">
+                                          Archivo {idx + 1}
+                                        </a>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
                               )}
                               {!esVoluntario && (
                                 <button

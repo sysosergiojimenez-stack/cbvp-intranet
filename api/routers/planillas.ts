@@ -114,25 +114,19 @@ export const planillasRouter = createRouter({
       return { exito: true as const, personal };
     }),
 
-  procesar: publicQuery
+  extraer: publicQuery
     .input(
       z.object({
         base64Data: z.string(),
         fileName: z.string(),
         fileType: z.string(),
-        user: z.object({
-          identificador: z.string(),
-          nombreCompleto: z.string(),
-        }),
       })
     )
     .mutation(async ({ input }) => {
       try {
-        // 1. Extract base64 content
         const parts = input.base64Data.split(",");
         const base64Content = parts.length > 1 ? parts[1] : parts[0];
 
-        // 2. Upload to Google Drive
         let urlImagen = "";
         if (env.GCS_BUCKET_NAME) {
           urlImagen = await uploadFile(
@@ -143,10 +137,74 @@ export const planillasRouter = createRouter({
           );
         }
 
-        // 3. Extract data with Gemini
         const datosExtraidos = await extractGuardiaData(base64Content, input.fileType);
 
-        // 4. Generate planilla ID
+        return {
+          exito: true as const,
+          urlImagen,
+          datos: datosExtraidos,
+        };
+      } catch (error) {
+        return {
+          exito: false as const,
+          mensaje: error instanceof Error ? error.message : String(error),
+        };
+      }
+    }),
+
+  guardar: publicQuery
+    .input(
+      z.object({
+        urlImagen: z.string(),
+        datos: z.object({
+          fechaGuardia: z.string().optional(),
+          grupo: z.string().optional(),
+          inicioGuardia: z.string().optional(),
+          finalizaGuardia: z.string().optional(),
+          directorSem: z.string().optional(),
+          comandanteSemana: z.string().optional(),
+          oficialK20: z.string().optional(),
+          novedades: z.string().optional(),
+          personal: z
+            .array(
+              z.object({
+                codigo: z.string().optional(),
+                nombre: z.string().optional(),
+                asignacion: z.string().optional(),
+                asistencia: z.string().optional(),
+              })
+            )
+            .optional(),
+          guardiasEspeciales: z
+            .array(
+              z.object({
+                codigo: z.string().optional(),
+                nombre: z.string().optional(),
+                asignacion: z.string().optional(),
+              })
+            )
+            .optional(),
+          refuerzos: z
+            .array(
+              z.object({
+                codigo: z.string().optional(),
+                nombre: z.string().optional(),
+                asignacion: z.string().optional(),
+              })
+            )
+            .optional(),
+        }),
+        user: z.object({
+          identificador: z.string(),
+          nombreCompleto: z.string(),
+        }),
+      })
+    )
+    .mutation(async ({ input }) => {
+      try {
+        const datosExtraidos = input.datos;
+        const urlImagen = input.urlImagen;
+
         const now = new Date();
         const idPlanilla =
           "GRD-" +
@@ -164,7 +222,6 @@ export const planillasRouter = createRouter({
           })
           .replace(/\//g, "/");
 
-        // 5. Save header
         await appendRow(env.SHEET_GUARDIAS_ID, "Guardias_Encabezado", [
           idPlanilla,
           fechaCargaStr,
@@ -179,28 +236,59 @@ export const planillasRouter = createRouter({
           urlImagen,
         ]);
 
-        // 6. Save personal
-        const personal = datosExtraidos.personal as Array<Record<string, unknown>>;
-        const guardiasEspeciales = datosExtraidos.guardiasEspeciales as Array<
-          Record<string, unknown>
-        >;
-        const refuerzos = datosExtraidos.refuerzos as Array<Record<string, unknown>>;
-
         let filaIdx = 1;
-
-        if (Array.isArray(personal)) {
-          for (const p of personal) {
+        const personal = datosExtraidos.personal || [];
+        for (const p of personal) {
+          await appendRow(env.SHEET_GUARDIAS_ID, "Guardias_Personal", [
+            `${idPlanilla}-${filaIdx}`,
+            idPlanilla,
+            fechaCargaStr,
+            String(datosExtraidos.fechaGuardia || ""),
+            String(datosExtraidos.grupo || ""),
+            "GUARDIA NORMAL",
+            String(p.codigo || ""),
+            String(p.nombre || ""),
+            String(p.asignacion || ""),
+            String(p.asistencia || ""),
+            input.user.identificador,
+            input.user.nombreCompleto,
+          ]);
+          filaIdx++;
+        }
+        const guardiasEspeciales = datosExtraidos.guardiasEspeciales || [];
+        for (const e of guardiasEspeciales) {
+          if (e.codigo || e.nombre) {
             await appendRow(env.SHEET_GUARDIAS_ID, "Guardias_Personal", [
               `${idPlanilla}-${filaIdx}`,
               idPlanilla,
               fechaCargaStr,
               String(datosExtraidos.fechaGuardia || ""),
               String(datosExtraidos.grupo || ""),
-              "GUARDIA NORMAL",
-              String(p.codigo || ""),
-              String(p.nombre || ""),
-              String(p.asignacion || ""),
-              String(p.asistencia || ""),
+              "GUARDIA ESPECIAL",
+              String(e.codigo || ""),
+              String(e.nombre || ""),
+              String(e.asignacion || ""),
+              "",
+              input.user.identificador,
+              input.user.nombreCompleto,
+            ]);
+            filaIdx++;
+          }
+        }
+        const refuerzos = datosExtraidos.refuerzos || [];
+        for (const r of refuerzos) {
+          if (r.codigo || r.nombre) {
+            await appendRow(env.SHEET_GUARDIAS_ID, "Guardias_Personal", [
+              `${idPlanilla}-${filaIdx}`,
+              idPlanilla,
+              fechaCargaStr,
+              String(datosExtraidos.fechaGuardia || ""),
+              String(datosExtraidos.grupo || ""),
+              "REFUERZO",
+              String(r.codigo || ""),
+              String(r.nombre || ""),
+              String(r.asignacion || ""),
+              "",
               input.user.identificador,
               input.user.nombreCompleto,
             ]);
@@ -208,55 +296,10 @@ export const planillasRouter = createRouter({
           }
         }
 
-        if (Array.isArray(guardiasEspeciales)) {
-          for (const e of guardiasEspeciales) {
-            if (e.codigo || e.nombre) {
-              await appendRow(env.SHEET_GUARDIAS_ID, "Guardias_Personal", [
-                `${idPlanilla}-${filaIdx}`,
-                idPlanilla,
-                fechaCargaStr,
-                String(datosExtraidos.fechaGuardia || ""),
-                String(datosExtraidos.grupo || ""),
-                "GUARDIA ESPECIAL",
-                String(e.codigo || ""),
-                String(e.nombre || ""),
-                String(e.asignacion || ""),
-                "",
-                input.user.identificador,
-                input.user.nombreCompleto,
-              ]);
-              filaIdx++;
-            }
-          }
-        }
-
-        if (Array.isArray(refuerzos)) {
-          for (const r of refuerzos) {
-            if (r.codigo || r.nombre) {
-              await appendRow(env.SHEET_GUARDIAS_ID, "Guardias_Personal", [
-                `${idPlanilla}-${filaIdx}`,
-                idPlanilla,
-                fechaCargaStr,
-                String(datosExtraidos.fechaGuardia || ""),
-                String(datosExtraidos.grupo || ""),
-                "REFUERZO",
-                String(r.codigo || ""),
-                String(r.nombre || ""),
-                String(r.asignacion || ""),
-                "",
-                input.user.identificador,
-                input.user.nombreCompleto,
-              ]);
-              filaIdx++;
-            }
-          }
-        }
-
         return {
           exito: true as const,
-          mensaje: "Planilla procesada correctamente",
+          mensaje: "Planilla guardada correctamente",
           idPlanilla,
-          datos: datosExtraidos,
         };
       } catch (error) {
         return {

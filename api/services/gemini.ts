@@ -1,15 +1,14 @@
 import { env } from "../lib/env";
 
 export async function extractAsistenciaData(
-  base64Content: string,
-  mimeType: string
+  images: Array<{ base64Content: string; mimeType: string }>
 ): Promise<Record<string, unknown>> {
   const apiKey = env.GEMINI_API_KEY;
   if (!apiKey) {
     throw new Error("GEMINI_API_KEY not configured in .env");
   }
 
-  const prompt = `Sos un sistema experto en leer planillas de asistencia escaneadas del Cuerpo de Bomberos Voluntarios del Paraguay (CBVP). Tu tarea es extraer TODOS los datos y devolver SOLO un JSON valido, sin explicaciones ni markdown.
+  const prompt = `Sos un sistema experto en leer planillas de asistencia escaneadas del Cuerpo de Bomberos Voluntarios del Paraguay (CBVP). Puede que se te envien VARIAS imagenes que corresponden a distintas paginas o secciones de la MISMA planilla (por ejemplo, una pagina con combatientes y otra con activos). Analiza TODAS las imagenes en conjunto y combina los datos en un unico resultado, sin duplicar personas que aparezcan repetidas en mas de una imagen. Tu tarea es extraer TODOS los datos y devolver SOLO un JSON valido, sin explicaciones ni markdown.
 
 === INSTRUCCIONES DE EXTRACCION ===
 
@@ -92,18 +91,20 @@ REGLAS IMPORTANTES:
 
 INSTRUCCION FINAL: Analiza la imagen y extrae TODOS los datos. Devolve SOLO el JSON, sin texto adicional, sin markdown, sin explicaciones.`;
 
+  const parts: GeminiPart[] = [{ text: prompt } as GeminiPart];
+  for (const img of images) {
+    parts.push({
+      inline_data: {
+        mime_type: img.mimeType,
+        data: img.base64Content,
+      },
+    } as unknown as GeminiPart);
+  }
+
   const payload = {
     contents: [
       {
-        parts: [
-          { text: prompt } as GeminiPart,
-          {
-            inline_data: {
-              mime_type: mimeType,
-              data: base64Content,
-            },
-          } as unknown as GeminiPart,
-        ],
+        parts,
       },
     ],
     generationConfig: {
@@ -179,80 +180,81 @@ export async function extractGuardiaData(
 === INSTRUCCIONES DE EXTRACCION ===
 
 ## 1. ENCABEZADO (parte superior)
-- **compania**: Nombre de la compañia. Ej: "20ma. Compañia Mercado 4".
-- **grupo**: Grupo de guardia. Ej: "GRUPO 1", "GRUPO A".
-- **fechaGuardia**: Fecha. Formato DD/MM/YYYY.
-- **tipoGuardia**: Tipo de guardia. Ej: "NORMAL", "ESPECIAL", "DE DIA", "NOCTURNA".
+- **grupo**: Numero de grupo, escrito junto a "GRUPO N". Ej: "GRUPO 1".
+- **fechaGuardia**: Fecha escrita a mano en el recuadro "FECHA". Formato DD/MM/YYYY.
 
 ## 2. GUARDIA NORMAL
-Columnas: Nº | Cód. | Personal | Asignación | Asistencia
-Extrae TODAS las filas que tengan nombre o codigo.
+Tabla con columnas: N | Cod. | Personal | Asignacion | HORARIO (Entrada, Salida) | FIRMA | REEMPLAZANTE (Cod., Personal)
+
+Para cada fila con nombre o codigo, extrae:
+- numero, codigo, nombre, asignacion
+- entrada: hora de entrada escrita en la columna HORARIO. Si dice "-:-" o esta en blanco, usa "".
+- salida: hora de salida. Si dice "-:-" o esta en blanco, usa "".
+- reemplazanteCodigo: codigo escrito en la columna REEMPLAZANTE > Cod. Si esta vacio, usa "".
+- reemplazanteNombre: nombre escrito en la columna REEMPLAZANTE > Personal. Si esta vacio, usa "".
+
+### REGLA CRITICA PARA ASISTENCIA (GUARDIA NORMAL):
+- Si la fila tiene Entrada Y Salida completas (con hora real, no "-:-") Y hay una firma escrita en la columna FIRMA -> "PRESENTE".
+- Si la fila NO tiene entrada/salida completas (vacia o "-:-") Y la columna REEMPLAZANTE tiene codigo o nombre cargado -> "AUSENTE CON REEMPLAZO".
+- Si la fila NO tiene entrada/salida completas Y la columna REEMPLAZANTE esta vacia -> "AUSENTE".
+- NO inventes datos. Si el horario esta vacio o son solo guiones "-:-" o "_:-", consideralo vacio.
 
 ## 3. GUARDIAS ESPECIALES
-Columnas: Nº | Cód. | Personal | Asignación
-Extrae filas con datos.
+Tabla con columnas: N | Cod | Personal | Asignacion | ENTRADA | SALIDA | FIRMA
+Extrae TODAS las filas que tengan nombre o codigo: numero, codigo, nombre, asignacion, entrada, salida (mismo criterio que arriba, "" si esta vacio o son guiones).
 
 ## 4. REFUERZOS
-Columnas: Nº | Cód. | Personal | Asignación
-Extrae filas con datos.
+Tabla con columnas: N | Cod | Personal | Asignacion | Firma
+Extrae filas con datos: numero, codigo, nombre, asignacion.
 
-## 5. RADIO OPERADORES
-Columnas: Cód. | Personal | Alfa | K20
-Extrae filas con datos.
+## 5. MOVILES
+Tabla con columnas: Cod | Situacion | Kilometraje Inicial
+La columna Situacion tiene 3 codigos de radio pre-impresos con checkbox al lado: "10:77", "10:78", "10:79". Fijate cual esta tildado/marcado con una X o check.
+Para cada movil con datos, extrae:
+- codigo: codigo del movil (ej: "AB-202").
+- situacion: el codigo que esta marcado con checkbox (ej: "10:78"). Si ninguno esta marcado, usa "".
+- kilometraje: el numero escrito en la columna "Kilometraje Inicial" (ej: "73.696"). Extraelo tal cual esta escrito.
 
-## 6. MOVILES
-Columnas: Cód. | Situación | Kilometraje (formato XX:XX)
-Extrae filas con datos.
+## 6. NOVEDADES Y PIE DE PLANILLA
+- **novedades**: Texto escrito en la seccion "NOVEDADES DE LA GUARDIA" / "Obs.". Si no hay nada, deja vacio "".
+- **inicioGuardia**: Hora junto a "Inicio la Guardia". Formato HH:MM.
+- **finalizaGuardia**: Hora junto a "Finaliza la Guardia". Formato HH:MM.
+- **directorSem**: Codigo o texto junto a "Director de Semana". Ej: "C-1".
+- **comandanteSemana**: Codigo o texto junto a "Comandante de Semana". Ej: "A-8".
+- **oficialK20**: Codigo o texto junto a "Oficial K20". Ej: "C201".
+- **radioOperadoresAlfa**: Nombres escritos junto a "Radio Operadores ALFA". Si hay varios, separalos con coma. Ej: "Veronica, Lugo".
 
-## 7. FIRMAS Y OTROS
-- **novedades**: Texto de la seccion Novedades.
-- **inicioGuardia**: Hora de inicio.
-- **finalizaGuardia**: Hora de finalizacion.
-- **directorSem**: Nombre del Director de Semana.
-- **comandanteSemana**: Nombre del Comandante de Semana.
-- **oficialK20**: Nombre del Oficial K20.
-
-## 8. REGLAS CRITICAS PARA ASISTENCIA
-
-En la columna ASISTENCIA de GUARDIA NORMAL hay 4 opciones posibles. Fijate BIEN que esta marcada con X, tick, circulo o palomita:
-
-- "PRESENTE" → Hay marca junto a PRESENTE. El bombero vino.
-- "ACACR" → Ausente con Aviso Con Reemplazo. Hay marca junto a ACACR.
-- "ACASR" → Ausente Con Aviso Sin Reemplazo. Hay marca junto a ACASR.
-- "ASASR" → Ausente Sin Aviso Sin Reemplazo. Hay marca junto a ASASR.
-
-REGLAS IMPORTANTES:
-- Copia EXACTAMENTE la opcion marcada. NO inventes ni simplifiques.
-- NO uses "AUSENTE" como valor generico.
-- Si no podes determinar con claridad, usa "PRESENTE" (es lo mas comun).
-- Si NO hay ninguna marca en la columna asistencia, probablemente es "PRESENTE".
-
-## 9. REGLAS GENERALES
-- Extrae codigos exactamente como aparecen: "C-4852/14", "AB-202".
-- Extrae nombres tal cual: "Garcia Martinez Juan".
-- Extrae kilometraje en formato HH:MM (ej: "10:77").
-- Si un campo esta vacio, usa string vacio "".
+## 7. REGLAS GENERALES
+- Extrae codigos exactamente como aparecen escritos: "C-4852/14", "AB-202".
+- Extrae nombres tal cual estan escritos, manteniendo tildes y mayusculas/minusculas.
+- Si un campo esta vacio o no lo podes leer con claridad, usa string vacio "".
+- NO inventes datos que no esten en la imagen.
 
 === FORMATO DE RESPUESTA (SOLO JSON) ===
 
 {
-  "compania": "20ma. Compañia Mercado 4",
   "grupo": "GRUPO 1",
-  "fechaGuardia": "15/03/2025",
-  "tipoGuardia": "NORMAL",
+  "fechaGuardia": "06/07/2026",
   "personal": [
-    {"numero":"1","codigo":"C-9876/22","nombre":"Garcia Martinez Juan","asignacion":"MOTO BOMBA","asistencia":"PRESENTE"}
+    {"numero":"1","codigo":"C-2009/05","nombre":"Capitan Mayor BVC Carlos Cespedes","asignacion":"A cargo / Conductor","entrada":"22:00","salida":"06:00","asistencia":"PRESENTE","reemplazanteCodigo":"","reemplazanteNombre":""},
+    {"numero":"2","codigo":"C-4763/14","nombre":"BVC Julio Peralta","asignacion":"Combatiente / Conductor","entrada":"","salida":"","asistencia":"AUSENTE","reemplazanteCodigo":"","reemplazanteNombre":""}
   ],
-  "guardiasEspeciales": [],
-  "refuerzos": [],
-  "radioOperadores": [],
-  "moviles": [{"codigo":"AB-202","situacion":"Operativa","kilometraje":"10:77"}],
-  "novedades": "",
-  "inicioGuardia": "19:00",
-  "finalizaGuardia": "07:00",
-  "directorSem": "",
-  "comandanteSemana": "",
-  "oficialK20": ""
+  "guardiasEspeciales": [
+    {"numero":"1","codigo":"","nombre":"","asignacion":"","entrada":"","salida":""}
+  ],
+  "refuerzos": [
+    {"numero":"1","codigo":"C4852","nombre":"BVC Sergio Jimenez","asignacion":"Combatiente"}
+  ],
+  "moviles": [
+    {"codigo":"AB-202","situacion":"10:78","kilometraje":"73.696"}
+  ],
+  "novedades": "Se cargo combustible por valor de 30.000 gs.",
+  "inicioGuardia": "22:00",
+  "finalizaGuardia": "06:00",
+  "directorSem": "C-1",
+  "comandanteSemana": "A-8",
+  "oficialK20": "C201",
+  "radioOperadoresAlfa": "Veronica, Lugo"
 }
 
 INSTRUCCION FINAL: Analiza la imagen y extrae TODOS los datos. Devolve SOLO el JSON, sin texto adicional, sin markdown, sin explicaciones.`;
