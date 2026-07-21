@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { createRouter, publicQuery } from "../middleware";
-import { readSheet, appendRow } from "../services/sheets";
+import { readSheet, appendRow, updateRange, deleteRows, getSheetId } from "../services/sheets";
 import { env } from "../lib/env";
 import { extractSalidaMovilData } from "../services/gemini";
 import { uploadFile as uploadToGCS } from "../services/storage";
@@ -129,22 +129,26 @@ export const salidaMovilRouter = createRouter({
 
       for (let i = 0; i < input.registros.length; i++) {
         const r = input.registros[i];
+        // Forzamos TODOS los campos como texto plano (anteponiendo un apostrofo),
+        // para que Google Sheets no los reinterprete como fecha/hora/numero
+        // segun el formato que ya tenga la columna.
+        const t = (valor: string) => (valor ? `'${valor}` : "");
         await appendRow(env.SHEET_GUARDIAS_ID, "SALIDAS_MOVIL", [
           `${idPlanilla}-${i + 1}`,
           idPlanilla,
           fechaCarga,
-          r.movil,
-          r.conductor,
-          r.oficialACargo,
-          r.nroTripulantes,
-          r.tipoServicio,
-          r.fechaSalida,
-          r.horaSalida,
-          r.kilometrajeSalida,
-          r.direccion,
-          r.fechaLlegada,
-          r.horaLlegada,
-          r.kilometrajeLlegada,
+          t(r.movil),
+          t(r.conductor),
+          t(r.oficialACargo),
+          t(r.nroTripulantes),
+          t(r.tipoServicio),
+          t(r.fechaSalida),
+          t(r.horaSalida),
+          t(r.kilometrajeSalida),
+          t(r.direccion),
+          t(r.fechaLlegada),
+          t(r.horaLlegada),
+          t(r.kilometrajeLlegada),
           urlImagenes,
         ]);
       }
@@ -185,6 +189,93 @@ export const salidaMovilRouter = createRouter({
     const planillas = Array.from(porPlanilla.values()).sort((a, b) => b.idPlanilla.localeCompare(a.idPlanilla));
     return { exito: true as const, planillas };
   }),
+
+  listado: publicQuery.query(async () => {
+    const data = await readSheet(env.SHEET_GUARDIAS_ID, "SALIDAS_MOVIL!A1:P5000");
+    const registros: Array<{
+      id: string; rowIndex: number; movil: string; conductor: string; oficialACargo: string;
+      nroTripulantes: string; tipoServicio: string; fechaSalida: string; horaSalida: string;
+      kilometrajeSalida: string; direccion: string; fechaLlegada: string; horaLlegada: string;
+      kilometrajeLlegada: string; imageUrls: string[];
+    }> = [];
+
+    for (let i = 1; i < data.length; i++) {
+      const row = data[i];
+      if (!row[1]) continue;
+      let imageUrls: string[] = [];
+      try {
+        const parsed = JSON.parse(String(row[15] || ""));
+        if (Array.isArray(parsed)) imageUrls = parsed;
+      } catch {
+        /* ignore */
+      }
+      registros.push({
+        id: String(row[0] || ""),
+        rowIndex: i + 1,
+        movil: String(row[3] || ""),
+        conductor: String(row[4] || ""),
+        oficialACargo: String(row[5] || ""),
+        nroTripulantes: String(row[6] || ""),
+        tipoServicio: String(row[7] || ""),
+        fechaSalida: String(row[8] || ""),
+        horaSalida: String(row[9] || ""),
+        kilometrajeSalida: String(row[10] || ""),
+        direccion: String(row[11] || ""),
+        fechaLlegada: String(row[12] || ""),
+        horaLlegada: String(row[13] || ""),
+        kilometrajeLlegada: String(row[14] || ""),
+        imageUrls,
+      });
+    }
+
+    const claveOrden = (r: (typeof registros)[0]): string => {
+      const partes = r.fechaSalida.split("/");
+      if (partes.length !== 3) return "0000-00-00 00:00";
+      const [d, m, y] = partes;
+      const hora = r.horaSalida || "00:00";
+      return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")} ${hora}`;
+    };
+
+    registros.sort((a, b) => claveOrden(b).localeCompare(claveOrden(a)));
+
+    return { exito: true as const, registros };
+  }),
+
+  editar: publicQuery
+    .input(
+      z.object({
+        rowIndex: z.number(),
+        movil: z.string(),
+        conductor: z.string(),
+        oficialACargo: z.string(),
+        nroTripulantes: z.string(),
+        tipoServicio: z.string(),
+        fechaSalida: z.string(),
+        horaSalida: z.string(),
+        kilometrajeSalida: z.string(),
+        direccion: z.string(),
+        fechaLlegada: z.string(),
+        horaLlegada: z.string(),
+        kilometrajeLlegada: z.string(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const t = (valor: string) => (valor ? `'${valor}` : "");
+      await updateRange(env.SHEET_GUARDIAS_ID, `SALIDAS_MOVIL!D${input.rowIndex}:O${input.rowIndex}`, [[
+        t(input.movil), t(input.conductor), t(input.oficialACargo), t(input.nroTripulantes),
+        t(input.tipoServicio), t(input.fechaSalida), t(input.horaSalida), t(input.kilometrajeSalida),
+        t(input.direccion), t(input.fechaLlegada), t(input.horaLlegada), t(input.kilometrajeLlegada),
+      ]]);
+      return { exito: true as const, mensaje: "Registro actualizado" };
+    }),
+
+  eliminar: publicQuery
+    .input(z.object({ rowIndex: z.number() }))
+    .mutation(async ({ input }) => {
+      const sheetId = await getSheetId(env.SHEET_GUARDIAS_ID, "SALIDAS_MOVIL");
+      await deleteRows(env.SHEET_GUARDIAS_ID, sheetId, [input.rowIndex]);
+      return { exito: true as const, mensaje: "Registro eliminado" };
+    }),
 
   detalle: publicQuery
     .input(z.object({ idPlanilla: z.string() }))

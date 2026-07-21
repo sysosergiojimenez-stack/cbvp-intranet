@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, Fragment } from 'react';
 import { trpc } from '@/providers/trpc';
 import { Truck, Upload, X, FileText, Clock, Zap, AlertTriangle, CheckCircle, ExternalLink, Edit3, RotateCcw, Save, Trash2, Plus } from 'lucide-react';
 
@@ -39,7 +39,45 @@ export default function SalidaMovil() {
   const utils = trpc.useUtils();
   const extraerMutation = trpc.salidaMovil.extraer.useMutation();
   const guardarMutation = trpc.salidaMovil.guardar.useMutation();
-  const { data: historialData, isLoading: historialLoading } = trpc.salidaMovil.historial.useQuery();
+  const { data: listadoData, isLoading: listadoLoading } = trpc.salidaMovil.listado.useQuery();
+  const editarMutation = trpc.salidaMovil.editar.useMutation();
+  const eliminarMutation = trpc.salidaMovil.eliminar.useMutation();
+  const [editandoRowIndex, setEditandoRowIndex] = useState<number | null>(null);
+  const [editForm, setEditForm] = useState<RegistroMovil>({ ...registroVacio });
+
+  const iniciarEdicion = (r: NonNullable<typeof listadoData>['registros'][number]) => {
+    setEditandoRowIndex(r.rowIndex);
+    setEditForm({
+      movil: r.movil, conductor: r.conductor, oficialACargo: r.oficialACargo,
+      nroTripulantes: r.nroTripulantes, tipoServicio: r.tipoServicio,
+      fechaSalida: r.fechaSalida, horaSalida: r.horaSalida, kilometrajeSalida: r.kilometrajeSalida,
+      direccion: r.direccion, fechaLlegada: r.fechaLlegada, horaLlegada: r.horaLlegada,
+      kilometrajeLlegada: r.kilometrajeLlegada,
+    });
+  };
+
+  const guardarEdicion = async () => {
+    if (editandoRowIndex === null) return;
+    try {
+      const resp = await editarMutation.mutateAsync({ rowIndex: editandoRowIndex, ...editForm });
+      if (!resp.exito) throw new Error('Error al guardar');
+      setEditandoRowIndex(null);
+      utils.salidaMovil.listado.invalidate();
+    } catch (err: unknown) {
+      alert('Error: ' + (err instanceof Error ? err.message : 'desconocido'));
+    }
+  };
+
+  const eliminarFila = async (rowIndex: number) => {
+    if (!confirm('Eliminar este registro?')) return;
+    try {
+      const resp = await eliminarMutation.mutateAsync({ rowIndex });
+      if (!resp.exito) throw new Error('Error al eliminar');
+      utils.salidaMovil.listado.invalidate();
+    } catch (err: unknown) {
+      alert('Error: ' + (err instanceof Error ? err.message : 'desconocido'));
+    }
+  };
 
   const [files, setFiles] = useState<Array<{ file: File; preview: string | null }>>([]);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -47,7 +85,6 @@ export default function SalidaMovil() {
   const [dragOver, setDragOver] = useState(false);
   const [result, setResult] = useState<{ idPlanilla: string; totalRegistros: number; imageUrls: string[] } | null>(null);
   const [extraccion, setExtraccion] = useState<{ imageUrls: string[]; uploadError?: string; registros: RegistroMovil[] } | null>(null);
-  const [expandido, setExpandido] = useState<string | null>(null);
 
   const handleFiles = (fileList: FileList | File[]) => {
     setError(''); setResult(null);
@@ -146,7 +183,7 @@ export default function SalidaMovil() {
         setResult({ idPlanilla: resp.idPlanilla, totalRegistros: resp.totalRegistros, imageUrls: extraccion.imageUrls });
         setExtraccion(null);
         setFiles([]);
-        utils.salidaMovil.historial.invalidate();
+        utils.salidaMovil.listado.invalidate();
       } else {
         setError('Error al guardar');
       }
@@ -155,10 +192,6 @@ export default function SalidaMovil() {
     } finally {
       setIsProcessing(false);
     }
-  };
-
-  const toggleDetalle = (idPlanilla: string) => {
-    setExpandido(expandido === idPlanilla ? null : idPlanilla);
   };
 
   return (
@@ -311,34 +344,76 @@ export default function SalidaMovil() {
 
       <div className="mt-6 bg-white/[0.03] border border-white/10 rounded-2xl overflow-hidden">
         <div className="px-4 py-3 border-b border-white/10">
-          <h3 className="text-sm font-semibold text-white">Historial de cargas</h3>
+          <h3 className="text-sm font-semibold text-white">Registro de Salidas (mas reciente primero)</h3>
         </div>
-        {historialLoading ? (
+        {listadoLoading ? (
           <div className="p-4 text-sm text-white/40">Cargando...</div>
-        ) : !historialData?.planillas || historialData.planillas.length === 0 ? (
-          <div className="p-4 text-sm text-white/40">No hay cargas registradas todavia</div>
+        ) : !listadoData?.registros || listadoData.registros.length === 0 ? (
+          <div className="p-4 text-sm text-white/40">No hay registros todavia</div>
         ) : (
-          <div className="divide-y divide-white/5">
-            {historialData.planillas.map(p => (
-              <div key={p.idPlanilla}>
-                <button onClick={() => toggleDetalle(p.idPlanilla)} className="w-full px-4 py-3 flex items-center justify-between hover:bg-white/[0.02] transition-colors text-left">
-                  <div>
-                    <p className="text-sm text-white">{p.fechaCarga}</p>
-                    <p className="text-xs text-white/40">{p.cantidadRegistros} registro{p.cantidadRegistros !== 1 ? 's' : ''}</p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    {p.urlImagenes.length > 0 && (
-                      <div className="flex gap-2" onClick={e => e.stopPropagation()}>
-                        {p.urlImagenes.map((url, idx) => (
-                          <a key={idx} href={url} target="_blank" rel="noopener noreferrer" className="text-xs text-cbvp-blue hover:underline flex items-center gap-1"><ExternalLink className="w-3 h-3" /> {p.urlImagenes.length > 1 ? idx + 1 : ''}</a>
-                        ))}
-                      </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-white/5 border-b border-white/10">
+                  <th className="text-left px-3 py-2 font-medium text-white/50 whitespace-nowrap">Fecha y Hora Salida</th>
+                  <th className="text-left px-3 py-2 font-medium text-white/50">Movil</th>
+                  <th className="text-left px-3 py-2 font-medium text-white/50">Tipo Servicio</th>
+                  <th className="text-left px-3 py-2 font-medium text-white/50">Direccion</th>
+                  <th className="text-left px-3 py-2 font-medium text-white/50">Conductor</th>
+                  <th className="text-left px-3 py-2 font-medium text-white/50">A Cargo</th>
+                  <th className="text-left px-3 py-2 font-medium text-white/50 whitespace-nowrap">Km Llegada</th>
+                  <th className="text-left px-3 py-2 font-medium text-white/50">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {listadoData.registros.map(r => (
+                  <Fragment key={r.id}>
+                    <tr className="border-b border-white/5 hover:bg-white/[0.02] transition-colors">
+                      <td className="px-3 py-2 text-white/70 whitespace-nowrap">{r.fechaSalida} {r.horaSalida}</td>
+                      <td className="px-3 py-2 text-white">{r.movil || '-'}</td>
+                      <td className="px-3 py-2 text-white/70">{r.tipoServicio || '-'}</td>
+                      <td className="px-3 py-2 text-white/70">{r.direccion || '-'}</td>
+                      <td className="px-3 py-2 text-white/70">{r.conductor || '-'}</td>
+                      <td className="px-3 py-2 text-white/70">{r.oficialACargo || '-'}</td>
+                      <td className="px-3 py-2 text-white/70">{r.kilometrajeLlegada || '-'}</td>
+                      <td className="px-3 py-2">
+                        <div className="flex items-center gap-2">
+                          <button onClick={() => iniciarEdicion(r)} className="p-1.5 rounded-lg hover:bg-white/10 text-white/40 hover:text-white transition-colors" title="Editar"><Edit3 className="w-3.5 h-3.5" /></button>
+                          <button onClick={() => eliminarFila(r.rowIndex)} className="p-1.5 rounded-lg hover:bg-cbvp-red/20 text-white/40 hover:text-cbvp-red transition-colors" title="Eliminar"><Trash2 className="w-3.5 h-3.5" /></button>
+                          {r.imageUrls.length > 0 && (
+                            <a href={r.imageUrls[0]} target="_blank" rel="noopener noreferrer" className="p-1.5 rounded-lg hover:bg-white/10 text-white/40 hover:text-cbvp-blue transition-colors" title="Ver imagen"><ExternalLink className="w-3.5 h-3.5" /></a>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                    {editandoRowIndex === r.rowIndex && (
+                      <tr className="border-b border-white/5 bg-white/[0.02]">
+                        <td colSpan={8} className="px-3 py-4">
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+                            <div><label className="text-xs text-white/40 mb-1 block">Movil</label><input type="text" value={editForm.movil} onChange={e => setEditForm({ ...editForm, movil: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
+                            <div><label className="text-xs text-white/40 mb-1 block">Conductor</label><input type="text" value={editForm.conductor} onChange={e => setEditForm({ ...editForm, conductor: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
+                            <div><label className="text-xs text-white/40 mb-1 block">A Cargo</label><input type="text" value={editForm.oficialACargo} onChange={e => setEditForm({ ...editForm, oficialACargo: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
+                            <div><label className="text-xs text-white/40 mb-1 block">Tripulantes</label><input type="text" value={editForm.nroTripulantes} onChange={e => setEditForm({ ...editForm, nroTripulantes: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
+                            <div className="col-span-2 md:col-span-4"><label className="text-xs text-white/40 mb-1 block">Tipo Servicio</label><input type="text" value={editForm.tipoServicio} onChange={e => setEditForm({ ...editForm, tipoServicio: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
+                            <div><label className="text-xs text-white/40 mb-1 block">Fecha Salida</label><input type="text" value={editForm.fechaSalida} onChange={e => setEditForm({ ...editForm, fechaSalida: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
+                            <div><label className="text-xs text-white/40 mb-1 block">Hora Salida</label><input type="text" value={editForm.horaSalida} onChange={e => setEditForm({ ...editForm, horaSalida: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
+                            <div><label className="text-xs text-white/40 mb-1 block">Km Salida</label><input type="text" value={editForm.kilometrajeSalida} onChange={e => setEditForm({ ...editForm, kilometrajeSalida: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
+                            <div><label className="text-xs text-white/40 mb-1 block">Direccion</label><input type="text" value={editForm.direccion} onChange={e => setEditForm({ ...editForm, direccion: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
+                            <div><label className="text-xs text-white/40 mb-1 block">Fecha Llegada</label><input type="text" value={editForm.fechaLlegada} onChange={e => setEditForm({ ...editForm, fechaLlegada: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
+                            <div><label className="text-xs text-white/40 mb-1 block">Hora Llegada</label><input type="text" value={editForm.horaLlegada} onChange={e => setEditForm({ ...editForm, horaLlegada: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
+                            <div><label className="text-xs text-white/40 mb-1 block">Km Llegada</label><input type="text" value={editForm.kilometrajeLlegada} onChange={e => setEditForm({ ...editForm, kilometrajeLlegada: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
+                          </div>
+                          <div className="flex gap-2">
+                            <button onClick={guardarEdicion} className="px-4 py-2 bg-cbvp-green hover:bg-cbvp-green/80 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2"><Save className="w-4 h-4" /> Guardar</button>
+                            <button onClick={() => setEditandoRowIndex(null)} className="px-4 py-2 bg-white/5 hover:bg-white/10 text-white/60 text-sm rounded-lg transition-colors">Cancelar</button>
+                          </div>
+                        </td>
+                      </tr>
                     )}
-                  </div>
-                </button>
-                {expandido === p.idPlanilla && <DetalleSalidaMovil idPlanilla={p.idPlanilla} />}
-              </div>
-            ))}
+                  </Fragment>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </div>
