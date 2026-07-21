@@ -311,3 +311,109 @@ INSTRUCCION FINAL: Analiza la imagen y extrae TODOS los datos. Devolve SOLO el J
     throw new Error("Failed to parse Gemini response as JSON");
   }
 }
+
+export async function extractSalidaMovilData(
+  images: Array<{ base64Content: string; mimeType: string }>
+): Promise<Record<string, unknown>> {
+  const apiKey = env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error("GEMINI_API_KEY not configured in .env");
+  }
+
+  const prompt = `Sos un sistema experto en leer planillas de "Registro de Salidas de Moviles" del Cuerpo de Bomberos Voluntarios del Paraguay (CBVP). La planilla puede contener VARIAS paginas o imagenes; analiza TODAS en conjunto, sin duplicar registros que aparezcan repetidos.
+
+La planilla tiene hasta 5 registros numerados (1 a 5), cada uno correspondiente a un movil distinto. No todos los registros estan necesariamente llenos - ignora completamente los que no tengan ningun dato escrito.
+
+Para cada registro numerado CON DATOS, extrae:
+- movil: codigo o nombre del movil, escrito junto a "MOVIL:"
+- conductor: texto escrito junto a "10:30:" (codigo de radio que significa "conductor")
+- oficialACargo: texto escrito junto a "10:31:" (codigo de radio que significa "oficial o a cargo")
+- nroTripulantes: numero escrito junto a "10:32:" (codigo de radio que significa "numero de tripulantes")
+- tipoServicio: texto escrito junto a "TIPO DE SERVICIO:"
+- fechaSalida: fecha en la fila "DATOS DE SALIDA", columna FECHA. Formato DD/MM/YYYY.
+- horaSalida: hora en la fila "DATOS DE SALIDA", columna HORA.
+- kilometrajeSalida: numero en la fila "DATOS DE SALIDA", columna KILOMETRAJE.
+- direccion: texto en la fila "DATOS DE SALIDA", columna DIRECCION.
+- fechaLlegada: fecha en la fila "DATOS DE LLEGADA", columna FECHA. Formato DD/MM/YYYY.
+- horaLlegada: hora en la fila "DATOS DE LLEGADA", columna HORA.
+- kilometrajeLlegada: numero en la fila "DATOS DE LLEGADA", columna KILOMETRAJE.
+
+Si un campo esta vacio o no es legible, usa string vacio "". NO inventes datos.
+
+Responde UNICAMENTE en formato JSON con esta estructura exacta:
+
+{
+  "registros": [
+    {
+      "movil": "AB-202",
+      "conductor": "C-4852/14",
+      "oficialACargo": "C-2009/05",
+      "nroTripulantes": "3",
+      "tipoServicio": "Traslado",
+      "fechaSalida": "15/03/2026",
+      "horaSalida": "10:30",
+      "kilometrajeSalida": "73696",
+      "direccion": "Av. Mariscal Lopez y Brasil",
+      "fechaLlegada": "15/03/2026",
+      "horaLlegada": "11:15",
+      "kilometrajeLlegada": "73710"
+    }
+  ]
+}
+
+INSTRUCCION FINAL: Analiza todas las imagenes, extrae SOLO los registros numerados que tengan datos escritos, y devolve UNICAMENTE el JSON, sin texto adicional, sin markdown, sin explicaciones.`;
+
+  const parts: GeminiPart[] = [{ text: prompt } as GeminiPart];
+  for (const img of images) {
+    parts.push({
+      inline_data: {
+        mime_type: img.mimeType,
+        data: img.base64Content,
+      },
+    } as unknown as GeminiPart);
+  }
+
+  const payload = {
+    contents: [
+      {
+        parts,
+      },
+    ],
+    generationConfig: {
+      temperature: 0.1,
+      topP: 0.1,
+      topK: 1,
+      responseMimeType: "application/json",
+    },
+  };
+
+  const url = `${GEMINI_API_URL}?key=${apiKey}`;
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
+  }
+
+  const result = (await response.json()) as GeminiResponse;
+
+  if (result.error) {
+    throw new Error(`Gemini API error: ${result.error.message}`);
+  }
+
+  const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!text) {
+    throw new Error("No content in Gemini response");
+  }
+
+  const jsonClean = text.replace(/```json\s*|```\s*|```/g, "").trim();
+  try {
+    return JSON.parse(jsonClean) as Record<string, unknown>;
+  } catch {
+    throw new Error("Failed to parse Gemini response as JSON");
+  }
+}

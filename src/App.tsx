@@ -12,6 +12,7 @@ import AgregarBombero from '@/pages/AgregarBombero';
 import EditarBombero from '@/pages/EditarBombero';
 import ConfigurarAcceso from '@/pages/ConfigurarAcceso';
 import PracticasCitaciones from '@/pages/PracticasCitaciones';
+import SalidaMovil from '@/pages/SalidaMovil';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { usuario } = useAuth();
@@ -58,6 +59,11 @@ function AppRoutes() {
         <Route path="/practicas-citaciones" element={
           <ProtectedRoute>
             {permisos.puedeCargarPlanillas ? <PracticasCitaciones /> : <Navigate to="/" replace />}
+          </ProtectedRoute>
+        } />
+        <Route path="/salida-movil" element={
+          <ProtectedRoute>
+            {permisos.puedeCargarPlanillas ? <SalidaMovil /> : <Navigate to="/" replace />}
           </ProtectedRoute>
         } />
         <Route path="/personal" element={
