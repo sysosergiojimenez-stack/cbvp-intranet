@@ -10,7 +10,24 @@ export function serveStaticFiles(app: App) {
   // Use process.cwd() for compatibility with bundled (esbuild) and Docker environments
   const distPath = path.resolve(process.cwd(), "dist/public");
 
-  app.use("*", serveStatic({ root: "./dist/public" }));
+  app.use(
+    "*",
+    serveStatic({
+      root: "./dist/public",
+      onFound: (filePath, c) => {
+        if (filePath.endsWith("index.html")) {
+          // index.html debe revalidarse siempre: es el que referencia los archivos
+          // con hash del build actual. Si el navegador lo cachea, se queda pegado
+          // en una version vieja del sitio (con endpoints que ya no existen).
+          c.header("Cache-Control", "no-cache");
+        } else {
+          // Los archivos dentro de /assets/ tienen hash en el nombre (cambia en
+          // cada build), asi que son seguros para cachear por mucho tiempo.
+          c.header("Cache-Control", "public, max-age=31536000, immutable");
+        }
+      },
+    })
+  );
 
   app.notFound((c) => {
     const accept = c.req.header("accept") ?? "";
@@ -22,6 +39,7 @@ export function serveStaticFiles(app: App) {
       return c.json({ error: "index.html not found. Build may be incomplete." }, 500);
     }
     const content = fs.readFileSync(indexPath, "utf-8");
+    c.header("Cache-Control", "no-cache");
     return c.html(content);
   });
 }
