@@ -7,6 +7,7 @@ const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
   '/mi-dashboard': { title: 'Mi Dashboard', subtitle: 'Mis datos y metricas de asistencia' },
   '/planillas': { title: 'Planillas de Guardia', subtitle: 'Carga y procesamiento de planillas' },
   '/practicas-citaciones': { title: 'Practicas y Citaciones', subtitle: 'Asistencia a practicas, citaciones y reuniones' },
+  '/salida-movil': { title: 'Salidas de Movil', subtitle: 'Registro de movimientos de la flota de vehiculos' },
   '/historial': { title: 'Historial de Planillas', subtitle: 'Registro historico de guardias' },
   '/personal': { title: 'Personal', subtitle: 'Listado de bomberos voluntarios' },
   '/agregar-bombero': { title: 'Agregar Bombero', subtitle: 'Registrar nuevo bombero voluntario' },

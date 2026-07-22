@@ -195,17 +195,7 @@ export default function SalidaMovil() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8">
-      <div className="flex items-center gap-3 mb-6">
-        <div className="p-2.5 rounded-xl bg-cbvp-red/10">
-          <Truck className="w-6 h-6 text-cbvp-red" />
-        </div>
-        <div>
-          <h1 className="text-2xl font-bold text-white">Salidas de Movil</h1>
-          <p className="text-sm text-white/50">Registro de movimientos de la flota de vehiculos</p>
-        </div>
-      </div>
-
+    <div className="animate-fade-in space-y-6">
       <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-6">
         <div
           onDragOver={handleDragOver}
