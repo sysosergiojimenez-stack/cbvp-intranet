@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, Fragment } from "react";
 import { usePermiso } from "@/hooks/usePermiso";
 import { useAuth } from "@/context/AuthContext";
 import { trpc } from "@/providers/trpc";
@@ -401,7 +401,8 @@ export default function Planillas() {
                     </thead>
                     <tbody className="divide-y divide-white/5">
                       {historialData.planillas.map((p: PlanillaEncabezado) => (
-                        <tr key={p.idPlanilla} className="hover:bg-cbvp-red/5 transition-colors group">
+                        <Fragment key={p.idPlanilla}>
+                        <tr className="hover:bg-cbvp-red/5 transition-colors group">
                           <td className="px-3 py-2.5"><div className="flex items-center gap-1.5"><Calendar className="w-3 h-3 text-white/30" /><span className="text-white/80 text-xs">{p.fechaGuardia}</span></div></td>
                           <td className="px-3 py-2.5 text-white/60 text-xs">{p.fechaCarga}</td>
                           <td className="px-3 py-2.5 text-white/60 text-xs">{p.grupo || "-"}</td>
@@ -421,68 +422,101 @@ export default function Planillas() {
                             </div>
                           </td>
                         </tr>
+                        {selectedPlanilla === p.idPlanilla && detalleData?.personal && (
+                          <tr>
+                            <td colSpan={5} className="px-3 pb-3 pt-1 bg-white/[0.02]">
+                              <div className="bg-white/5 rounded-lg p-4 border border-white/10">
+                                <div className="flex items-center justify-between mb-3">
+                                  <h3 className="text-sm font-semibold text-white flex items-center gap-2"><Users className="w-4 h-4 text-cbvp-red" /> Personal</h3>
+                                  <button onClick={() => setSelectedPlanilla(null)} className="p-1 rounded hover:bg-white/5 text-white/40 hover:text-white"><X className="w-4 h-4" /></button>
+                                </div>
+                                {(() => {
+                                  const groups = groupByTipo(detalleData.personal);
+                                  return Object.entries(groups).map(([tipo, personas]) => (
+                                    <div key={tipo} className="mb-3 last:mb-0">
+                                      <h4 className={`text-[10px] font-semibold uppercase tracking-wider mb-2 px-2 py-1 rounded ${getTipoBadge(tipo)}`}>{tipo} ({personas.length})</h4>
+                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                        {personas.map((person: GuardiaPersonal, idx: number) => {
+                                          const isEditing = editingPerson?.codigo === person.codigo;
+                                          return (
+                                            <div key={idx} className="bg-white/[0.03] rounded-lg p-2">
+                                              <div className="flex items-center justify-between">
+                                                <div className="flex items-center gap-2 min-w-0">
+                                                  <User className="w-3.5 h-3.5 text-white/30 shrink-0" />
+                                                  <div className="min-w-0">
+                                                    <p className="text-xs text-white truncate">{person.nombre}</p>
+                                                    {person.codigo && <p className="text-[10px] text-white/30">{person.codigo}</p>}
+                                                  </div>
+                                                </div>
+                                                <div className="flex items-center gap-1 shrink-0 ml-2">
+                                                  {isEditing ? (
+                                                    <>
+                                                      <select value={personAsistencia} onChange={e => setPersonAsistencia(e.target.value as "PRESENTE" | "AUSENTE" | "AUSENTE CON REEMPLAZO")}
+                                                        className="bg-white/5 border border-white/10 rounded text-[10px] text-white px-1 py-0.5 focus:border-cbvp-red/50 focus:outline-none">
+                                                        <option value="PRESENTE">Presente</option>
+                                                        <option value="AUSENTE">Ausente</option>
+                                                        <option value="AUSENTE CON REEMPLAZO">Ausente con reemplazo</option>
+                                                      </select>
+                                                      <button onClick={() => savePersonEdit(selectedPlanilla!, person.codigo)} disabled={editarPersonMutation.isPending}
+                                                        className="p-1 rounded bg-cbvp-green/20 text-cbvp-green hover:bg-cbvp-green/30 transition-colors" title="Guardar"><Check className="w-3 h-3" /></button>
+                                                      <button onClick={() => setEditingPerson(null)} className="p-1 rounded bg-white/5 text-white/40 hover:text-white transition-colors" title="Cancelar"><X className="w-3 h-3" /></button>
+                                                    </>
+                                                  ) : (
+                                                    <>
+                                                      {person.asignacion && <span className="text-[10px] text-white/30 bg-white/5 px-1.5 py-0.5 rounded">{person.asignacion}</span>}
+                                                      <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${getAsistenciaBadge(person.asistencia)}`}>{person.asistencia || "-"}</span>
+                                                      {!esVoluntario && (
+                                                        <button onClick={() => startEditPerson(person)} className="p-1 rounded hover:bg-cbvp-yellow/20 text-white/30 hover:text-cbvp-yellow transition-colors" title="Editar asistencia"><Edit3 className="w-3 h-3" /></button>
+                                                      )}
+                                                    </>
+                                                  )}
+                                                </div>
+                                              </div>
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                    </div>
+                                  ));
+                                })()}
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                        {editingPlanilla?.idPlanilla === p.idPlanilla && (
+                          <tr>
+                            <td colSpan={5} className="px-3 pb-3 pt-1 bg-white/[0.02]">
+                              <div className="bg-white/5 rounded-lg p-4 border border-white/10">
+                                <div className="flex items-center justify-between mb-3">
+                                  <h3 className="text-sm font-semibold text-white flex items-center gap-2"><Edit3 className="w-4 h-4 text-cbvp-yellow" /> Editar Planilla</h3>
+                                  <button onClick={() => setEditingPlanilla(null)} className="p-1 rounded hover:bg-white/5 text-white/40 hover:text-white"><X className="w-4 h-4" /></button>
+                                </div>
+                                <div className="space-y-3">
+                                  <div><label className="text-xs text-white/40 mb-1 block">Fecha de Guardia</label><input type="text" value={editForm.fechaGuardia} onChange={e => setEditForm({ ...editForm, fechaGuardia: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
+                                  <div><label className="text-xs text-white/40 mb-1 block">Grupo</label><input type="text" value={editForm.grupo} onChange={e => setEditForm({ ...editForm, grupo: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
+                                  <div className="grid grid-cols-2 gap-3">
+                                    <div><label className="text-xs text-white/40 mb-1 block">Hora Inicio</label><input type="text" value={editForm.inicioGuardia} onChange={e => setEditForm({ ...editForm, inicioGuardia: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
+                                    <div><label className="text-xs text-white/40 mb-1 block">Hora Finaliza</label><input type="text" value={editForm.finalizaGuardia} onChange={e => setEditForm({ ...editForm, finalizaGuardia: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
+                                  </div>
+                                  <div><label className="text-xs text-white/40 mb-1 block">Director de Semana</label><input type="text" value={editForm.directorSem} onChange={e => setEditForm({ ...editForm, directorSem: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
+                                  <div><label className="text-xs text-white/40 mb-1 block">Comandante de Semana</label><input type="text" value={editForm.comandanteSemana} onChange={e => setEditForm({ ...editForm, comandanteSemana: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
+                                  <div><label className="text-xs text-white/40 mb-1 block">Oficial K20</label><input type="text" value={editForm.oficialK20} onChange={e => setEditForm({ ...editForm, oficialK20: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
+                                  <div><label className="text-xs text-white/40 mb-1 block">Novedades</label><textarea value={editForm.novedades} onChange={e => setEditForm({ ...editForm, novedades: e.target.value })} rows={3} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none resize-none" /></div>
+                                </div>
+                                <div className="flex gap-3 mt-4">
+                                  <button onClick={() => setEditingPlanilla(null)} className="flex-1 py-2.5 bg-white/5 hover:bg-white/10 text-white/60 rounded-lg transition-colors text-sm flex items-center justify-center gap-2"><RotateCcw className="w-4 h-4" /> Cancelar</button>
+                                  <button onClick={saveEdit} disabled={editarMutation.isPending} className="flex-1 py-2.5 bg-cbvp-yellow hover:bg-cbvp-yellow/80 disabled:opacity-50 text-black font-semibold rounded-lg transition-all text-sm flex items-center justify-center gap-2">{editarMutation.isPending ? <><Clock className="w-4 h-4 animate-spin" /> Guardando...</> : <><Save className="w-4 h-4" /> Guardar Cambios</>}</button>
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                        </Fragment>
                       ))}
                     </tbody>
                   </table>
                 </div>
 
-                {selectedPlanilla && detalleData?.personal && (
-                  <div className="mt-3 bg-white/5 rounded-lg p-4 border border-white/10">
-                    <div className="flex items-center justify-between mb-3">
-                      <h3 className="text-sm font-semibold text-white flex items-center gap-2"><Users className="w-4 h-4 text-cbvp-red" /> Personal</h3>
-                      <button onClick={() => setSelectedPlanilla(null)} className="p-1 rounded hover:bg-white/5 text-white/40 hover:text-white"><X className="w-4 h-4" /></button>
-                    </div>
-                    {(() => {
-                      const groups = groupByTipo(detalleData.personal);
-                      return Object.entries(groups).map(([tipo, personas]) => (
-                        <div key={tipo} className="mb-3 last:mb-0">
-                          <h4 className={`text-[10px] font-semibold uppercase tracking-wider mb-2 px-2 py-1 rounded ${getTipoBadge(tipo)}`}>{tipo} ({personas.length})</h4>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                            {personas.map((person: GuardiaPersonal, idx: number) => {
-                              const isEditing = editingPerson?.codigo === person.codigo;
-                              return (
-                                <div key={idx} className="bg-white/[0.03] rounded-lg p-2">
-                                  <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-2 min-w-0">
-                                      <User className="w-3.5 h-3.5 text-white/30 shrink-0" />
-                                      <div className="min-w-0">
-                                        <p className="text-xs text-white truncate">{person.nombre}</p>
-                                        {person.codigo && <p className="text-[10px] text-white/30">{person.codigo}</p>}
-                                      </div>
-                                    </div>
-                                    <div className="flex items-center gap-1 shrink-0 ml-2">
-                                      {isEditing ? (
-                                        <>
-                                          <select value={personAsistencia} onChange={e => setPersonAsistencia(e.target.value as "PRESENTE" | "AUSENTE" | "AUSENTE CON REEMPLAZO")}
-                                            className="bg-white/5 border border-white/10 rounded text-[10px] text-white px-1 py-0.5 focus:border-cbvp-red/50 focus:outline-none">
-                                            <option value="PRESENTE">Presente</option>
-                                            <option value="AUSENTE">Ausente</option>
-                                            <option value="AUSENTE CON REEMPLAZO">Ausente con reemplazo</option>
-                                          </select>
-                                          <button onClick={() => savePersonEdit(selectedPlanilla!, person.codigo)} disabled={editarPersonMutation.isPending}
-                                            className="p-1 rounded bg-cbvp-green/20 text-cbvp-green hover:bg-cbvp-green/30 transition-colors" title="Guardar"><Check className="w-3 h-3" /></button>
-                                          <button onClick={() => setEditingPerson(null)} className="p-1 rounded bg-white/5 text-white/40 hover:text-white transition-colors" title="Cancelar"><X className="w-3 h-3" /></button>
-                                        </>
-                                      ) : (
-                                        <>
-                                          {person.asignacion && <span className="text-[10px] text-white/30 bg-white/5 px-1.5 py-0.5 rounded">{person.asignacion}</span>}
-                                          <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${getAsistenciaBadge(person.asistencia)}`}>{person.asistencia || "-"}</span>
-                                          {!esVoluntario && (
-                                            <button onClick={() => startEditPerson(person)} className="p-1 rounded hover:bg-cbvp-yellow/20 text-white/30 hover:text-cbvp-yellow transition-colors" title="Editar asistencia"><Edit3 className="w-3 h-3" /></button>
-                                          )}
-                                        </>
-                                      )}
-                                    </div>
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      ));
-                    })()}
-                  </div>
-                )}
               </div>
             ) : (
               <div className="text-center py-6 text-white/30 text-sm"><BookOpen className="w-8 h-8 mx-auto mb-2 opacity-30" />No hay planillas de guardia registradas.</div>
@@ -490,33 +524,6 @@ export default function Planillas() {
           </>
         )}
       </div>
-
-      {editingPlanilla && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[#1a1a24] border border-white/10 rounded-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <div className="p-5 border-b border-white/10 flex items-center justify-between">
-              <h3 className="text-white font-semibold flex items-center gap-2"><Edit3 className="w-4 h-4 text-cbvp-yellow" /> Editar Planilla</h3>
-              <button onClick={() => setEditingPlanilla(null)} className="p-1.5 rounded-lg hover:bg-white/5 text-white/40 hover:text-white"><X className="w-4 h-4" /></button>
-            </div>
-            <div className="p-5 space-y-4">
-              <div><label className="text-xs text-white/40 mb-1 block">Fecha de Guardia</label><input type="text" value={editForm.fechaGuardia} onChange={e => setEditForm({ ...editForm, fechaGuardia: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
-              <div><label className="text-xs text-white/40 mb-1 block">Grupo</label><input type="text" value={editForm.grupo} onChange={e => setEditForm({ ...editForm, grupo: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
-              <div className="grid grid-cols-2 gap-3">
-                <div><label className="text-xs text-white/40 mb-1 block">Hora Inicio</label><input type="text" value={editForm.inicioGuardia} onChange={e => setEditForm({ ...editForm, inicioGuardia: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
-                <div><label className="text-xs text-white/40 mb-1 block">Hora Finaliza</label><input type="text" value={editForm.finalizaGuardia} onChange={e => setEditForm({ ...editForm, finalizaGuardia: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
-              </div>
-              <div><label className="text-xs text-white/40 mb-1 block">Director de Semana</label><input type="text" value={editForm.directorSem} onChange={e => setEditForm({ ...editForm, directorSem: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
-              <div><label className="text-xs text-white/40 mb-1 block">Comandante de Semana</label><input type="text" value={editForm.comandanteSemana} onChange={e => setEditForm({ ...editForm, comandanteSemana: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
-              <div><label className="text-xs text-white/40 mb-1 block">Oficial K20</label><input type="text" value={editForm.oficialK20} onChange={e => setEditForm({ ...editForm, oficialK20: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
-              <div><label className="text-xs text-white/40 mb-1 block">Novedades</label><textarea value={editForm.novedades} onChange={e => setEditForm({ ...editForm, novedades: e.target.value })} rows={3} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none resize-none" /></div>
-            </div>
-            <div className="p-5 border-t border-white/10 flex gap-3">
-              <button onClick={() => setEditingPlanilla(null)} className="flex-1 py-2.5 bg-white/5 hover:bg-white/10 text-white/60 rounded-lg transition-colors text-sm flex items-center justify-center gap-2"><RotateCcw className="w-4 h-4" /> Cancelar</button>
-              <button onClick={saveEdit} disabled={editarMutation.isPending} className="flex-1 py-2.5 bg-cbvp-yellow hover:bg-cbvp-yellow/80 disabled:opacity-50 text-black font-semibold rounded-lg transition-all text-sm flex items-center justify-center gap-2">{editarMutation.isPending ? <><Clock className="w-4 h-4 animate-spin" /> Guardando...</> : <><Save className="w-4 h-4" /> Guardar Cambios</>}</button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {deletingId && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
