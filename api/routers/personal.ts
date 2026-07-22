@@ -10,7 +10,7 @@ function extractNumber(code: string): string {
 
 export const personalRouter = createRouter({
   list: publicQuery.query(async () => {
-    const data = await readSheet(env.SHEET_USUARIOS_ID, "USUARIOS!A1:O1000");
+    const data = await readSheet(env.SHEET_USUARIOS_ID, "USUARIOS!A1:O");
     const personal: Array<{
       identificador: string;
       codigo: string;
@@ -65,7 +65,7 @@ export const personalRouter = createRouter({
 
       const data = await readSheet(
         env.SHEET_GUARDIAS_ID,
-        "Guardias_Personal!A1:L5000"
+        "Guardias_Personal!A1:L"
       );
 
       const guardias: Array<{
@@ -155,7 +155,7 @@ export const personalRouter = createRouter({
   obtenerPorCodigo: publicQuery
     .input(z.object({ codigo: z.string() }))
     .query(async ({ input }) => {
-      const data = await readSheet(env.SHEET_USUARIOS_ID, "USUARIOS!A1:Q1000");
+      const data = await readSheet(env.SHEET_USUARIOS_ID, "USUARIOS!A1:Q");
       const searchNum = extractNumber(input.codigo);
       for (let i = 1; i < data.length; i++) {
         const codigoFila = String(data[i][1] || "").trim();
@@ -205,7 +205,7 @@ export const personalRouter = createRouter({
       })
     )
     .mutation(async ({ input }) => {
-      const data = await readSheet(env.SHEET_USUARIOS_ID, "USUARIOS!A1:Q1000");
+      const data = await readSheet(env.SHEET_USUARIOS_ID, "USUARIOS!A1:Q");
       const searchNum = extractNumber(input.codigoOriginal);
       let rowIndex = -1;
       let existingRow: string[] = [];
@@ -255,7 +255,7 @@ export const personalRouter = createRouter({
     .mutation(async ({ input }) => {
       // Buscar por correo+contrasena en vez de por codigo
       // Asi solo puedes modificar tu propia fila
-      const data = await readSheet(env.SHEET_USUARIOS_ID, "USUARIOS!A1:Q1000");
+      const data = await readSheet(env.SHEET_USUARIOS_ID, "USUARIOS!A1:Q");
       let rowIndex = -1;
       for (let i = 1; i < data.length; i++) {
         const row = data[i] as string[];

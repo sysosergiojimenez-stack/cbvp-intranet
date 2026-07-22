@@ -161,7 +161,7 @@ export const salidaMovilRouter = createRouter({
     }),
 
   historial: publicQuery.query(async () => {
-    const data = await readSheet(env.SHEET_GUARDIAS_ID, "SALIDAS_MOVIL!A1:P5000");
+    const data = await readSheet(env.SHEET_GUARDIAS_ID, "SALIDAS_MOVIL!A1:P");
     const porPlanilla = new Map<
       string,
       { idPlanilla: string; fechaCarga: string; cantidadRegistros: number; urlImagenes: string[] }
@@ -191,7 +191,7 @@ export const salidaMovilRouter = createRouter({
   }),
 
   listado: publicQuery.query(async () => {
-    const data = await readSheet(env.SHEET_GUARDIAS_ID, "SALIDAS_MOVIL!A1:P5000");
+    const data = await readSheet(env.SHEET_GUARDIAS_ID, "SALIDAS_MOVIL!A1:P");
     const registros: Array<{
       id: string; rowIndex: number; movil: string; conductor: string; oficialACargo: string;
       nroTripulantes: string; tipoServicio: string; fechaSalida: string; horaSalida: string;
@@ -280,7 +280,7 @@ export const salidaMovilRouter = createRouter({
   detalle: publicQuery
     .input(z.object({ idPlanilla: z.string() }))
     .query(async ({ input }) => {
-      const data = await readSheet(env.SHEET_GUARDIAS_ID, "SALIDAS_MOVIL!A1:P5000");
+      const data = await readSheet(env.SHEET_GUARDIAS_ID, "SALIDAS_MOVIL!A1:P");
       const registros = [];
       for (let i = 1; i < data.length; i++) {
         const row = data[i];

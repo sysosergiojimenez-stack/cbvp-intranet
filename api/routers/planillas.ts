@@ -20,7 +20,7 @@ export const planillasRouter = createRouter({
   historial: publicQuery
     .input(z.object({ codigo: z.string().optional() }).optional())
     .query(async ({ input }) => {
-      const data = await readSheet(env.SHEET_GUARDIAS_ID, "Guardias_Encabezado!A1:K5000");
+      const data = await readSheet(env.SHEET_GUARDIAS_ID, "Guardias_Encabezado!A1:K");
       const planillas = [];
 
       for (let i = 1; i < data.length; i++) {
@@ -42,7 +42,7 @@ export const planillasRouter = createRouter({
       // If codigo provided (Voluntario), filter planillas where bombero appears
       const searchCode = input?.codigo;
       if (searchCode) {
-        const persData = await readSheet(env.SHEET_GUARDIAS_ID, "Guardias_Personal!A1:L5000");
+        const persData = await readSheet(env.SHEET_GUARDIAS_ID, "Guardias_Personal!A1:L");
         const numericSearch = (searchCode.match(/\d+/) || [searchCode])[0];
         const planillaIds = new Set<string>();
         for (let i = 1; i < persData.length; i++) {
@@ -88,7 +88,7 @@ export const planillasRouter = createRouter({
     .query(async ({ input }) => {
       const data = await readSheet(
         env.SHEET_GUARDIAS_ID,
-        "Guardias_Personal!A1:L5000"
+        "Guardias_Personal!A1:L"
       );
       const personal = [];
 
@@ -329,7 +329,7 @@ export const planillasRouter = createRouter({
       try {
         const rowIdx = await findRowIndex(
           env.SHEET_GUARDIAS_ID,
-          "Guardias_Encabezado!A1:K5000",
+          "Guardias_Encabezado!A1:K",
           0,
           input.idPlanilla
         );
@@ -377,7 +377,7 @@ export const planillasRouter = createRouter({
     .mutation(async ({ input }) => {
       const persData = await readSheet(
         env.SHEET_GUARDIAS_ID,
-        "Guardias_Personal!A1:L5000"
+        "Guardias_Personal!A1:L"
       );
 
       // Build a map of idFila -> rowIndex (1-based)
@@ -412,7 +412,7 @@ export const planillasRouter = createRouter({
       })
     )
     .mutation(async ({ input }) => {
-      const data = await readSheet(env.SHEET_GUARDIAS_ID, "Guardias_Personal!A1:L5000");
+      const data = await readSheet(env.SHEET_GUARDIAS_ID, "Guardias_Personal!A1:L");
       for (let i = 1; i < data.length; i++) {
         const rowIdPlanilla = String(data[i][1] || "").trim();
         const rowCodigo = String(data[i][6] || "").trim();
@@ -443,7 +443,7 @@ export const planillasRouter = createRouter({
       })
     )
     .mutation(async ({ input }) => {
-      const encData = await readSheet(env.SHEET_GUARDIAS_ID, "Guardias_Encabezado!A1:K5000");
+      const encData = await readSheet(env.SHEET_GUARDIAS_ID, "Guardias_Encabezado!A1:K");
       let encRowIndex = -1;
       for (let i = 1; i < encData.length; i++) {
         if (String(encData[i][0] || "").trim() === input.idPlanilla.trim()) {
@@ -485,7 +485,7 @@ export const planillasRouter = createRouter({
       // Delete from Encabezado
       const encData = await readSheet(
         env.SHEET_GUARDIAS_ID,
-        "Guardias_Encabezado!A1:K5000"
+        "Guardias_Encabezado!A1:K"
       );
       const encRowsToDelete: number[] = [];
 
@@ -503,7 +503,7 @@ export const planillasRouter = createRouter({
       // Delete from Personal
       const persData = await readSheet(
         env.SHEET_GUARDIAS_ID,
-        "Guardias_Personal!A1:L5000"
+        "Guardias_Personal!A1:L"
       );
       const persRowsToDelete: number[] = [];
 
@@ -526,7 +526,7 @@ export const planillasRouter = createRouter({
     .query(async ({ input }) => {
       const persData = await readSheet(
         env.SHEET_GUARDIAS_ID,
-        "Guardias_Personal!A1:J5000"
+        "Guardias_Personal!A1:J"
       );
 
       let guardiasRegistradas = 0;
@@ -585,7 +585,7 @@ export const planillasRouter = createRouter({
     .query(async () => {
       const persData = await readSheet(
         env.SHEET_GUARDIAS_ID,
-        "Guardias_Personal!A1:J20"
+        "Guardias_Personal!A1:J"
       );
       return {
         exito: true as const,
@@ -599,7 +599,7 @@ export const planillasRouter = createRouter({
     .query(async ({ input }) => {
       const persData = await readSheet(
         env.SHEET_GUARDIAS_ID,
-        "Guardias_Personal!A1:J5000"
+        "Guardias_Personal!A1:J"
       );
 
       const searchCode = input.codigo.trim().toUpperCase().replace(/\s+/g, ' ');

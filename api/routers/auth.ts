@@ -14,7 +14,7 @@ function extractNumber(code: string): string {
 
 async function obtenerNivelPermiso(cargo: string) {
   try {
-    const data = await readSheet(env.SHEET_USUARIOS_ID, "ROLES!A1:D100");
+    const data = await readSheet(env.SHEET_USUARIOS_ID, "ROLES!A1:D");
     const cargoBusqueda = cargo.toString().trim();
     for (let i = 1; i < data.length; i++) {
       const rowCargo = data[i][0] ? String(data[i][0]).trim() : "";
@@ -49,7 +49,7 @@ export const authRouter = createRouter({
       // Columns: 0=ID, 1=Codigo, 2=AnioJuramento, 3=Categoria, 4=Cargo, 5=Rango,
       // 6=CodigoRadial, 7=PrimerNombre, 8=SegundoNombre, 9=PrimerApellido, 10=SegundoApellido,
       // 11=NroDoc, 12=FechaNacimiento, 13=Correo, 14=Contrasena
-      const data = await readSheet(env.SHEET_USUARIOS_ID, "USUARIOS!A1:O1000");
+      const data = await readSheet(env.SHEET_USUARIOS_ID, "USUARIOS!A1:O");
 
       for (let i = 1; i < data.length; i++) {
         const fila = data[i];
@@ -91,7 +91,7 @@ export const authRouter = createRouter({
     .input(z.object({ correo: z.string().email() }))
     .query(async ({ input }) => {
       const correoBusqueda = input.correo.trim().toLowerCase();
-      const data = await readSheet(env.SHEET_USUARIOS_ID, "USUARIOS!A1:O1000");
+      const data = await readSheet(env.SHEET_USUARIOS_ID, "USUARIOS!A1:O");
 
       for (let i = 1; i < data.length; i++) {
         const fila = data[i];

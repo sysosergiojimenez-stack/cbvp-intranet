@@ -218,7 +218,7 @@ export const asistenciaRouter = createRouter({
       })
     )
     .query(async ({ input }) => {
-      const data = await readSheet(env.SHEET_GUARDIAS_ID, "Asistencia_Encabezado!A1:I5000");
+      const data = await readSheet(env.SHEET_GUARDIAS_ID, "Asistencia_Encabezado!A1:I");
       const planillas: Array<{
         idPlanilla: string;
         fechaCarga: string;
@@ -271,7 +271,7 @@ export const asistenciaRouter = createRouter({
   detalle: publicQuery
     .input(z.object({ idPlanilla: z.string() }))
     .query(async ({ input }) => {
-      const data = await readSheet(env.SHEET_GUARDIAS_ID, "Asistencia_Personal!A1:K5000");
+      const data = await readSheet(env.SHEET_GUARDIAS_ID, "Asistencia_Personal!A1:K");
       const personal: Array<{
         idFila: string;
         idPlanilla: string;
@@ -312,7 +312,7 @@ export const asistenciaRouter = createRouter({
       })
     )
     .mutation(async ({ input }) => {
-      const data = await readSheet(env.SHEET_GUARDIAS_ID, "Asistencia_Personal!A1:K5000");
+      const data = await readSheet(env.SHEET_GUARDIAS_ID, "Asistencia_Personal!A1:K");
 
       for (let i = 1; i < data.length; i++) {
         const rowIdPlanilla = String(data[i][1] || "").trim();
@@ -335,7 +335,7 @@ export const asistenciaRouter = createRouter({
     .input(z.object({ codigo: z.string() }))
     .query(async ({ input }) => {
       const searchCode = extractNumber(input.codigo);
-      const data = await readSheet(env.SHEET_GUARDIAS_ID, "Asistencia_Personal!A1:K5000");
+      const data = await readSheet(env.SHEET_GUARDIAS_ID, "Asistencia_Personal!A1:K");
       const asistencias: Array<{
         idPlanilla: string;
         fechaActividad: string;
@@ -368,7 +368,7 @@ export const asistenciaRouter = createRouter({
     .input(z.object({ idPlanilla: z.string() }))
     .mutation(async ({ input }) => {
       // Find header row
-      const encData = await readSheet(env.SHEET_GUARDIAS_ID, "Asistencia_Encabezado!A1:I5000");
+      const encData = await readSheet(env.SHEET_GUARDIAS_ID, "Asistencia_Encabezado!A1:I");
       let encRowIndex = -1;
       for (let i = 1; i < encData.length; i++) {
         if (String(encData[i][0] || "").trim() === input.idPlanilla.trim()) {
@@ -385,7 +385,7 @@ export const asistenciaRouter = createRouter({
       await deleteRows(env.SHEET_GUARDIAS_ID, encSheetId, [encRowIndex + 1]);
 
       // Find and delete all personnel rows (from bottom to top)
-      const persData = await readSheet(env.SHEET_GUARDIAS_ID, "Asistencia_Personal!A1:K5000");
+      const persData = await readSheet(env.SHEET_GUARDIAS_ID, "Asistencia_Personal!A1:K");
       const rowsToDelete: number[] = [];
       for (let i = 1; i < persData.length; i++) {
         if (String(persData[i][1] || "").trim() === input.idPlanilla.trim()) {
@@ -419,7 +419,7 @@ export const asistenciaRouter = createRouter({
     )
     .mutation(async ({ input }) => {
       // Find header row
-      const encData = await readSheet(env.SHEET_GUARDIAS_ID, "Asistencia_Encabezado!A1:I5000");
+      const encData = await readSheet(env.SHEET_GUARDIAS_ID, "Asistencia_Encabezado!A1:I");
       let encRowIndex = -1;
       for (let i = 1; i < encData.length; i++) {
         if (String(encData[i][0] || "").trim() === input.idPlanilla.trim()) {
