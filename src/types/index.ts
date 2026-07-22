@@ -137,9 +137,8 @@ export interface EstadisticasGuardias {
   guardiasEspeciales: number;
   refuerzos: number;
   presentes: number;
-  acacr: number;
-  acasr: number;
-  asasr: number;
+  ausentes: number;
+  ausentesConReemplazo: number;
 }
 
 export type TipoPersonal = 'GUARDIA NORMAL' | 'GUARDIA ESPECIAL' | 'REFUERZO' | 'RADIO OPERADOR' | 'MOVIL';

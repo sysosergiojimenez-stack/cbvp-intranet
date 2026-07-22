@@ -528,57 +528,44 @@ export const planillasRouter = createRouter({
         env.SHEET_GUARDIAS_ID,
         "Guardias_Personal!A1:J"
       );
-
-      let guardiasRegistradas = 0;
-      let presente = 0;
-      let acacr = 0;
-      let acasr = 0;
-      let asasr = 0;
-      let refuerzos = 0;
-
-      // Extract numeric part from search code (e.g., "C-4852/14" → "4852")
       const searchCodeMatch = input.codigo.match(/\d+/);
       const searchCode = searchCodeMatch ? searchCodeMatch[0] : input.codigo.trim();
 
+      const guardias: Array<{
+        idPlanilla: string; fechaGuardia: string; grupo: string;
+        tipo: string; asignacion: string; asistencia: string; fechaCarga: string;
+      }> = [];
+
       for (let i = 1; i < persData.length; i++) {
         const row = persData[i];
-        // Column G (index 6) = CODIGO
         const codigoRaw = String(row[6] || "").trim();
         const codigoMatch = codigoRaw.match(/\d+/);
         const codigo = codigoMatch ? codigoMatch[0] : codigoRaw;
         if (codigo !== searchCode) continue;
-
-        // Column F (index 5) = REGIMEN
-        const regimen = String(row[5] || "").trim().toUpperCase();
-        // Column J (index 9) = ASISTENCIA
-        const asistencia = String(row[9] || "").trim().toUpperCase();
-
-        guardiasRegistradas++;
-
-        if (regimen === "GUARDIA NORMAL") {
-          if (asistencia === "PRESENTE") presente++;
-          else if (asistencia === "ACACR") acacr++;
-          else if (asistencia === "ACASR") acasr++;
-          else if (asistencia === "ASASR") asasr++;
-        } else if (regimen === "REFUERZO") {
-          refuerzos++;
-        } else {
-          // Guardias especiales y otros tipos cuentan como presente
-          presente++;
-        }
+        guardias.push({
+          idPlanilla: String(row[1] || ""),
+          fechaCarga: String(row[2] || ""),
+          fechaGuardia: String(row[3] || ""),
+          grupo: String(row[4] || ""),
+          tipo: String(row[5] || "").trim().toUpperCase(),
+          asignacion: String(row[8] || ""),
+          asistencia: String(row[9] || "").trim().toUpperCase(),
+        });
       }
 
-      return {
-        exito: true as const,
-        metricas: {
-          guardiasRegistradas,
-          presente,
-          acacr,
-          acasr,
-          asasr,
-          refuerzos,
-        },
+      guardias.sort((a, b) => b.idPlanilla.localeCompare(a.idPlanilla));
+
+      const stats = {
+        totalGuardias: guardias.length,
+        guardiasNormales: guardias.filter(g => g.tipo === "GUARDIA NORMAL").length,
+        guardiasEspeciales: guardias.filter(g => g.tipo === "GUARDIA ESPECIAL").length,
+        refuerzos: guardias.filter(g => g.tipo === "REFUERZO").length,
+        presentes: guardias.filter(g => g.asistencia === "PRESENTE").length,
+        ausentes: guardias.filter(g => g.asistencia === "AUSENTE").length,
+        ausentesConReemplazo: guardias.filter(g => g.asistencia === "AUSENTE CON REEMPLAZO").length,
       };
+
+      return { exito: true as const, guardias, stats };
     }),
 
   debugGuardiasPersonal: publicQuery

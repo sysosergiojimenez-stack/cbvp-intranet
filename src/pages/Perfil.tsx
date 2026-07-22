@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { getGuardiasByBombero, PERSONAL_DATA } from '@/data/mockData';
+import { trpc } from '@/providers/trpc';
 import type { Personal, GuardiaHistorial, EstadisticasGuardias } from '@/types';
 import {
   User, Shield, Award, Calendar, Radio, FileText, Mail, Hash,
@@ -9,17 +9,23 @@ import {
 
 export default function Perfil() {
   const { usuario } = useAuth();
-  const [fichaData, setFichaData] = useState<{ guardias: GuardiaHistorial[]; stats: EstadisticasGuardias } | null>(null);
   const [expandedStats, setExpandedStats] = useState(true);
-
-  const personal = PERSONAL_DATA.find((p: Personal) => p.codigo === usuario?.codigo);
-
-  useEffect(() => {
-    if (usuario?.codigo) {
-      const data = getGuardiasByBombero(usuario.codigo);
-      setFichaData(data);
-    }
-  }, [usuario]);
+  const personal = usuario ? {
+    codigo: usuario.codigo,
+    categoria: usuario.categoria,
+    rango: usuario.rango,
+    anioJuramento: usuario.anioJuramento,
+    correo: usuario.correo,
+    codigoRadial: '',
+    nroDoc: '',
+    fechaNacimiento: '',
+  } : null;
+  const { data: metricasData } = trpc.planillas.misMetricas.useQuery(
+    { codigo: usuario?.codigo || '' },
+    { enabled: !!usuario?.codigo }
+  );
+  const fichaData: { guardias: GuardiaHistorial[]; stats: EstadisticasGuardias } | null =
+    metricasData?.exito ? { guardias: metricasData.guardias, stats: metricasData.stats } : null;
 
   const getTipoBadge = (tipo: string) => {
     switch (tipo) {
@@ -109,12 +115,12 @@ export default function Perfil() {
                       <p className="text-[10px] text-white/40 uppercase mt-1">Presentes</p>
                     </div>
                     <div className="bg-white/[0.03] rounded-lg p-3 text-center border border-cbvp-orange/20">
-                      <p className="text-2xl font-bold text-cbvp-orange">{fichaData.stats.acacr}</p>
-                      <p className="text-[10px] text-white/40 uppercase mt-1">ACACR</p>
+                      <p className="text-2xl font-bold text-cbvp-orange">{fichaData.stats.ausentesConReemplazo}</p>
+                      <p className="text-[10px] text-white/40 uppercase mt-1">Ausente c/Reemplazo</p>
                     </div>
                     <div className="bg-white/[0.03] rounded-lg p-3 text-center border border-cbvp-red/20">
-                      <p className="text-2xl font-bold text-cbvp-red-light">{fichaData.stats.asasr}</p>
-                      <p className="text-[10px] text-white/40 uppercase mt-1">ASASR</p>
+                      <p className="text-2xl font-bold text-cbvp-red-light">{fichaData.stats.ausentes}</p>
+                      <p className="text-[10px] text-white/40 uppercase mt-1">Ausentes</p>
                     </div>
                   </div>
                 )}
@@ -139,8 +145,7 @@ export default function Perfil() {
                             {g.asistencia ? (
                               <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
                                 g.asistencia === 'PRESENTE' ? 'bg-cbvp-green/20 text-cbvp-green' :
-                                g.asistencia === 'ACACR' ? 'bg-cbvp-orange/20 text-cbvp-orange' :
-                                g.asistencia === 'ACASR' ? 'bg-cbvp-yellow/20 text-cbvp-yellow' :
+                                g.asistencia === 'AUSENTE CON REEMPLAZO' ? 'bg-cbvp-orange/20 text-cbvp-orange' :
                                 'bg-cbvp-red/20 text-cbvp-red-light'
                               }`}>{g.asistencia}</span>
                             ) : '-'}

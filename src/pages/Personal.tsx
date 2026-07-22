@@ -14,7 +14,12 @@ export default function PersonalPage() {
   const { puedeVerPersonal } = usePermiso();
   const [search, setSearch] = useState('');
   const [selectedBombero, setSelectedBombero] = useState<Personal | null>(null);
-  const [fichaData, setFichaData] = useState<{ guardias: GuardiaHistorial[]; stats: EstadisticasGuardias } | null>(null);
+  const { data: metricasData } = trpc.planillas.misMetricas.useQuery(
+    { codigo: selectedBombero?.codigo || '' },
+    { enabled: !!selectedBombero }
+  );
+  const fichaData: { guardias: GuardiaHistorial[]; stats: EstadisticasGuardias } | null =
+    metricasData?.exito ? { guardias: metricasData.guardias, stats: metricasData.stats } : null;
   const [expandedStats, setExpandedStats] = useState(true);
 
   const { data: rpcData, isLoading: rpcLoading, error: rpcError } = trpc.personal.list.useQuery(
@@ -55,10 +60,6 @@ export default function PersonalPage() {
 
   const handleVerFicha = (bombero: Personal) => {
     setSelectedBombero(bombero);
-    setFichaData({ guardias: [], stats: {
-      totalGuardias: 0, guardiasNormales: 0, guardiasEspeciales: 0,
-      refuerzos: 0, presentes: 0, acacr: 0, acasr: 0, asasr: 0
-    }});
   };
 
   const getTipoBadge = (tipo: string) => {
@@ -310,16 +311,12 @@ export default function PersonalPage() {
                       <p className="text-[10px] text-white/40 uppercase mt-1">Presentes</p>
                     </div>
                     <div className="bg-white/[0.03] rounded-lg p-3 text-center border border-cbvp-orange/20">
-                      <p className="text-2xl font-bold text-cbvp-orange">{fichaData.stats.acacr}</p>
-                      <p className="text-[10px] text-white/40 uppercase mt-1">ACACR</p>
-                    </div>
-                    <div className="bg-white/[0.03] rounded-lg p-3 text-center border border-cbvp-yellow/20">
-                      <p className="text-2xl font-bold text-cbvp-yellow">{fichaData.stats.acasr}</p>
-                      <p className="text-[10px] text-white/40 uppercase mt-1">ACASR</p>
+                      <p className="text-2xl font-bold text-cbvp-orange">{fichaData.stats.ausentesConReemplazo}</p>
+                      <p className="text-[10px] text-white/40 uppercase mt-1">Ausente c/Reemplazo</p>
                     </div>
                     <div className="bg-white/[0.03] rounded-lg p-3 text-center border border-cbvp-red/20">
-                      <p className="text-2xl font-bold text-cbvp-red-light">{fichaData.stats.asasr}</p>
-                      <p className="text-[10px] text-white/40 uppercase mt-1">ASASR</p>
+                      <p className="text-2xl font-bold text-cbvp-red-light">{fichaData.stats.ausentes}</p>
+                      <p className="text-[10px] text-white/40 uppercase mt-1">Ausentes</p>
                     </div>
                   </div>
                 )}
@@ -342,8 +339,7 @@ export default function PersonalPage() {
                               {g.asistencia ? (
                                 <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
                                   g.asistencia === 'PRESENTE' ? 'bg-cbvp-green/20 text-cbvp-green' :
-                                  g.asistencia === 'ACACR' ? 'bg-cbvp-orange/20 text-cbvp-orange' :
-                                  g.asistencia === 'ACASR' ? 'bg-cbvp-yellow/20 text-cbvp-yellow' :
+                                  g.asistencia === 'AUSENTE CON REEMPLAZO' ? 'bg-cbvp-orange/20 text-cbvp-orange' :
                                   'bg-cbvp-red/20 text-cbvp-red-light'
                                 }`}>{g.asistencia}</span>
                               ) : '-'}
