@@ -30,16 +30,12 @@ const NAV_ITEMS: NavItem[] = [
   { path: '/configurar-acceso', label: 'Configurar Acceso', icon: Lock, checkAccess: () => true },
 ];
 
-function CbvpLogo({ className = "" }: { className?: string }) {
+function AppLogo({ className = "" }: { className?: string }) {
   return (
     <svg viewBox="0 0 40 40" fill="none" className={className} xmlns="http://www.w3.org/2000/svg">
-      {/* Shield background */}
-      <path d="M20 2L4 10V19C4 29 11 37 20 38C29 37 36 29 36 19V10L20 2Z" fill="#c0392b" opacity="0.15" stroke="#c0392b" strokeWidth="1.5"/>
-      {/* Maltese cross */}
-      <path d="M20 8L22 15H29L23.5 19.5L25.5 27L20 22.5L14.5 27L16.5 19.5L11 15H18L20 8Z" fill="#c0392b" opacity="0.9"/>
-      {/* Center flame */}
-      <path d="M20 13C20 13 17 17 17 19.5C17 21.5 18.5 23 20 23C21.5 23 23 21.5 23 19.5C23 17 20 13 20 13Z" fill="#e74c3c"/>
-      <circle cx="20" cy="20.5" r="1" fill="#f39c12" opacity="0.8"/>
+      <circle cx="20" cy="20" r="18" fill="#0f0f1e" stroke="#c0392b" strokeWidth="1.5"/>
+      <path d="M20 8 C 14 16, 12 22, 14 26 C 15.5 29, 18 30.5, 20 30.5 C 22 30.5, 24.5 29, 26 26 C 28 22, 26 16, 20 8 Z" fill="#c0392b"/>
+      <path d="M20 16 C 17 21, 16.5 24, 18 26.5 C 18.8 28, 19.5 28.5, 20 28.5 C 20.5 28.5, 21.2 28, 22 26.5 C 23.5 24, 23 21, 20 16 Z" fill="#e74c3c"/>
     </svg>
   );
 }
@@ -75,12 +71,11 @@ export default function AppLayout() {
         {/* Brand */}
         <div className={`flex items-center border-b border-white/[0.04] ${collapsed ? 'justify-center px-2 py-4' : 'px-5 py-4'}`}>
           <div className="flex items-center gap-3">
-            <CbvpLogo className="w-9 h-9 shrink-0" />
+            <AppLogo className="w-9 h-9 shrink-0" />
             {!collapsed && (
               <div className="overflow-hidden">
-                <h2 className="text-sm font-bold text-white tracking-tight leading-tight flex items-center gap-1.5">
-                  <Crown className="w-3.5 h-3.5 text-cbvp-red" />
-                  CBVP
+                <h2 className="text-sm font-bold text-white tracking-tight leading-tight">
+                  Fire Intranet
                 </h2>
                 <p className="text-[10px] text-white/40 leading-tight truncate">20ma Cia. - Mercado 4</p>
               </div>
@@ -153,6 +148,9 @@ export default function AppLayout() {
             <LogOut className="w-3 h-3" />
             {!collapsed && 'Cerrar Sesion'}
           </button>
+          {!collapsed && (
+            <p className="text-[9px] text-white/15 text-center mt-3">Desarrollado por Sergio Jimenez</p>
+          )}
         </div>
       </aside>
 
@@ -164,8 +162,8 @@ export default function AppLayout() {
             <Menu className="w-5 h-5" />
           </button>
           <div className="flex items-center gap-2">
-            <CbvpLogo className="w-6 h-6" />
-            <span className="text-sm font-bold text-white">CBVP</span>
+            <AppLogo className="w-6 h-6" />
+            <span className="text-sm font-bold text-white">Fire Intranet</span>
           </div>
           <div className="w-9" /> {/* spacer */}
         </div>

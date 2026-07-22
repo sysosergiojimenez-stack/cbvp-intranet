@@ -20,7 +20,7 @@ function getPageTitle(pathname: string): { title: string; subtitle: string } {
   if (pathname.startsWith('/editar-bombero/')) {
     return { title: 'Editar Bombero', subtitle: 'Modificar datos del bombero' };
   }
-  return { title: 'CBVP', subtitle: '' };
+  return { title: 'Fire Intranet', subtitle: '' };
 }
 
 export default function Header() {
