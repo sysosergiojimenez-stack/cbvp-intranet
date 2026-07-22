@@ -3,6 +3,7 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { usePermiso } from '@/hooks/usePermiso';
 import Header from './Header';
+import { ORGANIZACION } from '@/config/organizacion';
 import {
   LayoutDashboard, ClipboardList,
   Users, Settings, LogOut, Shield, Menu, X,
@@ -77,7 +78,7 @@ export default function AppLayout() {
                 <h2 className="text-sm font-bold text-white tracking-tight leading-tight">
                   Fire Intranet
                 </h2>
-                <p className="text-[10px] text-white/40 leading-tight truncate">20ma Cia. - Mercado 4</p>
+                <p className="text-[10px] text-white/40 leading-tight truncate">{ORGANIZACION.companiaCorta}</p>
               </div>
             )}
           </div>

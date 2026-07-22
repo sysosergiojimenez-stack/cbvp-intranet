@@ -1,4 +1,5 @@
 import { env } from "../lib/env";
+import { ORGANIZACION } from "../lib/organizacion";
 
 export async function extractAsistenciaData(
   images: Array<{ base64Content: string; mimeType: string }>
@@ -8,7 +9,7 @@ export async function extractAsistenciaData(
     throw new Error("GEMINI_API_KEY not configured in .env");
   }
 
-  const prompt = `Sos un sistema experto en leer planillas de asistencia escaneadas del Cuerpo de Bomberos Voluntarios del Paraguay (CBVP). Puede que se te envien VARIAS imagenes que corresponden a distintas paginas o secciones de la MISMA planilla (por ejemplo, una pagina con combatientes y otra con activos). Analiza TODAS las imagenes en conjunto y combina los datos en un unico resultado, sin duplicar personas que aparezcan repetidas en mas de una imagen. Tu tarea es extraer TODOS los datos y devolver SOLO un JSON valido, sin explicaciones ni markdown.
+  const prompt = `Sos un sistema experto en leer planillas de asistencia escaneadas del ${ORGANIZACION.nombreCompleto} (${ORGANIZACION.nombreCorto}). Puede que se te envien VARIAS imagenes que corresponden a distintas paginas o secciones de la MISMA planilla (por ejemplo, una pagina con combatientes y otra con activos). Analiza TODAS las imagenes en conjunto y combina los datos en un unico resultado, sin duplicar personas que aparezcan repetidas en mas de una imagen. Tu tarea es extraer TODOS los datos y devolver SOLO un JSON valido, sin explicaciones ni markdown.
 
 === INSTRUCCIONES DE EXTRACCION ===
 
@@ -42,7 +43,7 @@ La asistencia se determina por la columna FIRMA y la columna OBSERVACIONES. Fija
 
 - "PRESENTE" → El bombero estuvo presente. La columna FIRMA esta firmada (tiene una firma escrita).
 - "AUSENTE" → El bombero no vino. NO hay firma en la columna FIRMA y en la columna OBSERVACIONES no dice nada o esta vacia.
-- "COMISIONADO" → El bombero esta comisionado a otra dependencia del CBVP y esta exento de practicas y citaciones en esta Compañia. NO hay firma en la columna FIRMA y en la columna OBSERVACIONES esta escrita la palabra "COMISIONADO" o "COMISIONADA".
+- "COMISIONADO" → El bombero esta comisionado a otra dependencia del ${ORGANIZACION.nombreCorto} y esta exento de practicas y citaciones en esta Compañia. NO hay firma en la columna FIRMA y en la columna OBSERVACIONES esta escrita la palabra "COMISIONADO" o "COMISIONADA".
 
 REGLAS IMPORTANTES:
 - NO inventes asistencia. Si no podes determinar con claridad, usa "AUSENTE".
@@ -175,7 +176,7 @@ export async function extractGuardiaData(
     throw new Error("GEMINI_API_KEY not configured in .env");
   }
 
-  const prompt = `Sos un sistema experto en leer planillas de guardia escaneadas del Cuerpo de Bomberos Voluntarios del Paraguay (CBVP). Tu tarea es extraer TODOS los datos y devolver SOLO un JSON valido, sin explicaciones ni markdown.
+  const prompt = `Sos un sistema experto en leer planillas de guardia escaneadas del ${ORGANIZACION.nombreCompleto} (${ORGANIZACION.nombreCorto}). Tu tarea es extraer TODOS los datos y devolver SOLO un JSON valido, sin explicaciones ni markdown.
 
 === INSTRUCCIONES DE EXTRACCION ===
 
@@ -320,7 +321,7 @@ export async function extractSalidaMovilData(
     throw new Error("GEMINI_API_KEY not configured in .env");
   }
 
-  const prompt = `Sos un sistema experto en leer planillas de "Registro de Salidas de Moviles" del Cuerpo de Bomberos Voluntarios del Paraguay (CBVP). La planilla puede contener VARIAS paginas o imagenes; analiza TODAS en conjunto, sin duplicar registros que aparezcan repetidos.
+  const prompt = `Sos un sistema experto en leer planillas de "Registro de Salidas de Moviles" del ${ORGANIZACION.nombreCompleto} (${ORGANIZACION.nombreCorto}). La planilla puede contener VARIAS paginas o imagenes; analiza TODAS en conjunto, sin duplicar registros que aparezcan repetidos.
 
 La planilla tiene hasta 5 registros numerados (1 a 5), cada uno correspondiente a un movil distinto. No todos los registros estan necesariamente llenos - ignora completamente los que no tengan ningun dato escrito.
 

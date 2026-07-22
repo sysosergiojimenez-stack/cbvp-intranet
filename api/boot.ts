@@ -3,6 +3,7 @@ import { bodyLimit } from "hono/body-limit";
 import type { HttpBindings } from "@hono/node-server";
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { appRouter } from "./router";
+import { ORGANIZACION } from "./lib/organizacion";
 import { createContext } from "./context";
 import { env } from "./lib/env";
 import { serve } from "@hono/node-server";
@@ -18,7 +19,7 @@ if (env.isProduction) {
 }
 
 // Health check endpoint
-app.get("/health", (c) => c.json({ ok: true, status: "CBVP API running" }, 200));
+app.get("/health", (c) => c.json({ ok: true, status: `${ORGANIZACION.nombreCorto} API running` }, 200));
 
 // Debug: list sheets in the Guardias spreadsheet (rebuild v2)
 app.get("/debug/sheets", async (c) => {
@@ -51,7 +52,7 @@ app.get("/debug/drive", async (c) => {
       folderId,
       `test_${Date.now()}.txt`,
       "text/plain",
-      Buffer.from("Test de permisos de Drive CBVP").toString("base64")
+      Buffer.from(`Test de permisos de Drive ${ORGANIZACION.nombreCorto}`).toString("base64")
     );
     return c.json({ ok: true, folderId, uploadUrl: testUrl }, 200);
   } catch (err: unknown) {
@@ -82,10 +83,10 @@ if (env.isProduction) {
   const port = parseInt(process.env.PORT || "3000");
   try {
     serve({ fetch: app.fetch, port }, () => {
-      console.log(`[CBVP] Server running on port ${port}`);
+      console.log(`[${ORGANIZACION.nombreCorto}] Server running on port ${port}`);
     });
   } catch (err: unknown) {
-    console.error("[CBVP] Failed to start server:", err instanceof Error ? err.message : String(err));
+    console.error(`[${ORGANIZACION.nombreCorto}] Failed to start server:`, err instanceof Error ? err.message : String(err));
     process.exit(1);
   }
 }

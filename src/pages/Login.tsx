@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Flame, AlertCircle, Eye, EyeOff } from 'lucide-react';
+import { ORGANIZACION } from '@/config/organizacion';
 
 export default function Login() {
   const { login, isLoading, error } = useAuth();
@@ -38,7 +39,7 @@ export default function Login() {
               </svg>
             </div>
             <h1 className="text-3xl font-bold text-white tracking-tight">Fire Intranet</h1>
-            <p className="text-sm text-white/50 mt-2">Vigesima Compania Capital Mercado 4</p>
+            <p className="text-sm text-white/50 mt-2">{ORGANIZACION.compania}</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
