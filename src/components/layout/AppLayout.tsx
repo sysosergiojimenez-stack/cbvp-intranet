@@ -33,11 +33,7 @@ const NAV_ITEMS: NavItem[] = [
 
 function AppLogo({ className = "" }: { className?: string }) {
   return (
-    <svg viewBox="0 0 40 40" fill="none" className={className} xmlns="http://www.w3.org/2000/svg">
-      <circle cx="20" cy="20" r="18" fill="#0f0f1e" stroke="#c0392b" strokeWidth="1.5"/>
-      <path d="M20 8 C 14 16, 12 22, 14 26 C 15.5 29, 18 30.5, 20 30.5 C 22 30.5, 24.5 29, 26 26 C 28 22, 26 16, 20 8 Z" fill="#c0392b"/>
-      <path d="M20 16 C 17 21, 16.5 24, 18 26.5 C 18.8 28, 19.5 28.5, 20 28.5 C 20.5 28.5, 21.2 28, 22 26.5 C 23.5 24, 23 21, 20 16 Z" fill="#e74c3c"/>
-    </svg>
+    <img src="/insignia.jpg" alt="Insignia" className={`${className} rounded-full object-cover`} />
   );
 }
 

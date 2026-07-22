@@ -117,6 +117,7 @@ Como todavia no hay usuarios en la planilla `USUARIOS`, agrega la primera fila m
 
 ## Notas
 
-- El logo (circulo con llama) y el nombre "Fire Intranet" son genericos - no hace falta cambiarlos salvo que quieras un branding distinto para ese cuerpo.
+- Reemplaza `public/insignia.jpg` con la insignia real del cuerpo de bomberos nuevo (se usa en el Login y en el sidebar). Si no tenes una insignia todavia, podes dejar la imagen generica o volver al logo de circulo con llama.
+- El nombre "Fire Intranet" es generico - no hace falta cambiarlo salvo que quieras un branding distinto para ese cuerpo.
 - Los prompts de la IA (extraccion de planillas) ya usan `ORGANIZACION.nombreCompleto` automaticamente, no hay que tocarlos.
 - Si el cuerpo nuevo usa formatos de planilla distintos (Guardia, Asistencia, Salida de Movil), los prompts de `api/services/gemini.ts` estan diseñados para ESTOS formatos especificos - si cambia el diseño de la planilla, hay que ajustar el prompt correspondiente.

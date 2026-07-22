@@ -32,11 +32,7 @@ export default function Login() {
         <div className="bg-white/[0.03] backdrop-blur-sm border border-white/10 rounded-2xl p-10 shadow-glow">
           <div className="text-center mb-8">
             <div className="inline-flex items-center justify-center w-16 h-16 mb-4">
-              <svg viewBox="0 0 40 40" fill="none" className="w-16 h-16" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="20" cy="20" r="18" fill="#0f0f1e" stroke="#c0392b" strokeWidth="1.5"/>
-                <path d="M20 8 C 14 16, 12 22, 14 26 C 15.5 29, 18 30.5, 20 30.5 C 22 30.5, 24.5 29, 26 26 C 28 22, 26 16, 20 8 Z" fill="#c0392b"/>
-                <path d="M20 16 C 17 21, 16.5 24, 18 26.5 C 18.8 28, 19.5 28.5, 20 28.5 C 20.5 28.5, 21.2 28, 22 26.5 C 23.5 24, 23 21, 20 16 Z" fill="#e74c3c"/>
-              </svg>
+              <img src="/insignia.jpg" alt="Insignia" className="w-16 h-16 rounded-full object-cover" />
             </div>
             <h1 className="text-3xl font-bold text-white tracking-tight">Fire Intranet</h1>
             <p className="text-sm text-white/50 mt-2">{ORGANIZACION.compania}</p>
