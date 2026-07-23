@@ -182,11 +182,31 @@ export default function AppLayout() {
           <div className="w-9" /> {/* spacer */}
         </div>
 
-        <div className="p-4 sm:p-6 lg:p-8 max-w-[1400px] mx-auto">
+        <div className="p-4 sm:p-6 lg:p-8 pb-20 lg:pb-8 max-w-[1400px] mx-auto">
           <Header />
           <Outlet />
         </div>
       </main>
+
+      {/* Barra de navegacion inferior (solo movil) */}
+      <nav
+        className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-cbvp-dark-light border-t border-white/[0.04] flex items-center justify-around px-1 py-1.5"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom, 0.375rem)' }}
+      >
+        {visibleNavItems.slice(0, 5).map(item => {
+          const isActive = location.pathname === item.path;
+          return (
+            <NavLink
+              key={item.path}
+              to={item.path}
+              className={`flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-lg min-w-[56px] transition-colors ${isActive ? 'text-cbvp-red' : 'text-white/40'}`}
+            >
+              <item.icon className="w-5 h-5" />
+              <span className="text-[9px] font-medium leading-none truncate max-w-[64px]">{item.label}</span>
+            </NavLink>
+          );
+        })}
+      </nav>
     </div>
   );
 }
