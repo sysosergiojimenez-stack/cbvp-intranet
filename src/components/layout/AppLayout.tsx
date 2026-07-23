@@ -28,7 +28,6 @@ const NAV_ITEMS: NavItem[] = [
   { path: '/personal', label: 'Personal', icon: Users, checkAccess: (p, u) => p.puedeVerPersonal && u?.cargo?.trim().toUpperCase() !== 'VOLUNTARIO(A)' },
   { path: '/agregar-bombero', label: 'Agregar Bombero', icon: UserPlus, checkAccess: (p, u) => p.puedeVerPersonal && u?.cargo?.trim().toUpperCase() !== 'VOLUNTARIO(A)' },
   { path: '/configuracion', label: 'Configuracion', icon: Settings, checkAccess: p => p.puedeConfiguracion },
-  { path: '/configurar-acceso', label: 'Configurar Acceso', icon: Lock, checkAccess: () => true },
 ];
 
 function AppLogo({ className = "" }: { className?: string }) {
