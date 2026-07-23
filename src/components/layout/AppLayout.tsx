@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { usePermiso } from '@/hooks/usePermiso';
@@ -8,7 +8,7 @@ import {
   LayoutDashboard, ClipboardList,
   Users, Settings, LogOut, Shield, Menu, X,
   ChevronLeft, ChevronRight, Flame, Crown,
-  UserCircle, UserPlus, Lock, BookOpen, Truck
+  UserCircle, UserPlus, Lock, BookOpen, Truck, WifiOff
 } from 'lucide-react';
 
 interface NavItem {
@@ -49,8 +49,25 @@ export default function AppLayout() {
     return item.checkAccess(permisos, usuario);
   });
 
+  const [online, setOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
+  useEffect(() => {
+    const handleOnline = () => setOnline(true);
+    const handleOffline = () => setOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
   return (
     <div className="flex min-h-screen bg-cbvp-dark">
+      {!online && (
+        <div className="fixed top-0 left-0 right-0 z-[100] bg-cbvp-red text-white text-xs font-medium py-2 px-4 flex items-center justify-center gap-2 shadow-lg">
+          <WifiOff className="w-3.5 h-3.5 shrink-0" />
+          <span>Sin conexion a internet - los cambios no se guardaran hasta reconectar</span>
+        </div>
+      )}
       {/* Mobile overlay */}
       {mobileOpen && (
         <div
