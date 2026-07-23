@@ -362,7 +362,7 @@ export default function PracticasCitaciones() {
                   <p className="text-white text-sm truncate">{f.file.name}</p>
                   <p className="text-white/30 text-xs">({(f.file.size / 1024 / 1024).toFixed(2)} MB)</p>
                 </div>
-                <button onClick={() => removeFile(idx)} className="p-1.5 rounded-lg hover:bg-white/5 text-white/40 hover:text-white transition-colors shrink-0">
+                <button onClick={() => removeFile(idx)} className="p-2.5 sm:p-1.5 rounded-lg hover:bg-white/5 text-white/40 hover:text-white transition-colors shrink-0">
                   <X className="w-4 h-4" />
                 </button>
               </div>
@@ -529,7 +529,7 @@ export default function PracticasCitaciones() {
                           <td className="px-3 py-2.5 block sm:table-cell">
                             <div className="flex items-center justify-center gap-1 pt-1.5 sm:pt-0 mt-1 sm:mt-0 border-t border-white/5 sm:border-0">
                               {p.urlImagenes && p.urlImagenes.length === 1 && (
-                                <a href={p.urlImagenes[0]} target="_blank" rel="noopener noreferrer" className="p-1.5 rounded-lg bg-white/5 hover:bg-cbvp-green/20 text-white/40 hover:text-cbvp-green transition-colors" title="Ver archivo">
+                                <a href={p.urlImagenes[0]} target="_blank" rel="noopener noreferrer" className="p-2.5 sm:p-1.5 rounded-lg bg-white/5 hover:bg-cbvp-green/20 text-white/40 hover:text-cbvp-green transition-colors" title="Ver archivo">
                                   <ExternalLink className="w-3.5 h-3.5" />
                                 </a>
                               )}
@@ -537,7 +537,7 @@ export default function PracticasCitaciones() {
                                 <div className="relative">
                                   <button
                                     onClick={() => setMostrarImagenes(mostrarImagenes === p.idPlanilla ? null : p.idPlanilla)}
-                                    className="p-1.5 rounded-lg bg-white/5 hover:bg-cbvp-green/20 text-white/40 hover:text-cbvp-green transition-colors"
+                                    className="p-2.5 sm:p-1.5 rounded-lg bg-white/5 hover:bg-cbvp-green/20 text-white/40 hover:text-cbvp-green transition-colors"
                                     title={`Ver archivos (${p.urlImagenes.length})`}
                                   >
                                     <ExternalLink className="w-3.5 h-3.5" />
@@ -556,7 +556,7 @@ export default function PracticasCitaciones() {
                               {!esVoluntario && (
                                 <button
                                   onClick={() => openEdit(p)}
-                                  className="p-1.5 rounded-lg bg-white/5 hover:bg-cbvp-yellow/20 text-white/40 hover:text-cbvp-yellow transition-colors"
+                                  className="p-2.5 sm:p-1.5 rounded-lg bg-white/5 hover:bg-cbvp-yellow/20 text-white/40 hover:text-cbvp-yellow transition-colors"
                                   title="Editar"
                                 >
                                   <Edit3 className="w-3.5 h-3.5" />
@@ -564,7 +564,7 @@ export default function PracticasCitaciones() {
                               )}
                               <button
                                 onClick={() => setSelectedPlanilla(selectedPlanilla === p.idPlanilla ? null : p.idPlanilla)}
-                                className="p-1.5 rounded-lg bg-white/5 hover:bg-cbvp-blue/20 text-white/40 hover:text-cbvp-blue transition-colors"
+                                className="p-2.5 sm:p-1.5 rounded-lg bg-white/5 hover:bg-cbvp-blue/20 text-white/40 hover:text-cbvp-blue transition-colors"
                                 title="Ver detalle"
                               >
                                 <Eye className="w-3.5 h-3.5" />
@@ -572,7 +572,7 @@ export default function PracticasCitaciones() {
                               {!esVoluntario && (
                                 <button
                                   onClick={() => setDeletingId(p.idPlanilla)}
-                                  className="p-1.5 rounded-lg bg-white/5 hover:bg-cbvp-red/20 text-white/40 hover:text-cbvp-red transition-colors"
+                                  className="p-2.5 sm:p-1.5 rounded-lg bg-white/5 hover:bg-cbvp-red/20 text-white/40 hover:text-cbvp-red transition-colors"
                                   title="Eliminar"
                                 >
                                   <Trash2 className="w-3.5 h-3.5" />

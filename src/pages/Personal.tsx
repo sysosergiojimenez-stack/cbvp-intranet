@@ -252,7 +252,7 @@ export default function PersonalPage() {
                         <td className="px-3 py-3">
                           <button
                             onClick={(e) => { e.stopPropagation(); navigate(`/editar-bombero/${bombero.codigo}`); }}
-                            className="p-1.5 rounded-lg bg-white/5 hover:bg-cbvp-blue/20 text-white/40 hover:text-cbvp-blue transition-colors"
+                            className="p-2.5 sm:p-1.5 rounded-lg bg-white/5 hover:bg-cbvp-blue/20 text-white/40 hover:text-cbvp-blue transition-colors"
                             title="Editar bombero"
                           >
                             <Pencil className="w-3.5 h-3.5" />

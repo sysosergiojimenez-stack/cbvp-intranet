@@ -246,7 +246,7 @@ export default function SalidaMovil() {
                   <p className="text-white text-sm truncate">{f.file.name}</p>
                   <p className="text-white/30 text-xs">({(f.file.size / 1024 / 1024).toFixed(2)} MB)</p>
                 </div>
-                <button onClick={() => removeFile(idx)} className="p-1.5 rounded-lg hover:bg-white/5 text-white/40 hover:text-white transition-colors shrink-0">
+                <button onClick={() => removeFile(idx)} className="p-2.5 sm:p-1.5 rounded-lg hover:bg-white/5 text-white/40 hover:text-white transition-colors shrink-0">
                   <X className="w-4 h-4" />
                 </button>
               </div>
@@ -288,7 +288,7 @@ export default function SalidaMovil() {
                 <div key={idx} className="bg-white/[0.03] border border-white/10 rounded-xl p-4 space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-semibold text-white/40 uppercase">Registro {idx + 1}</span>
-                    <button onClick={() => eliminarRegistro(idx)} className="p-1.5 rounded-lg hover:bg-cbvp-red/20 text-white/40 hover:text-cbvp-red transition-colors"><Trash2 className="w-4 h-4" /></button>
+                    <button onClick={() => eliminarRegistro(idx)} className="p-2.5 sm:p-1.5 rounded-lg hover:bg-cbvp-red/20 text-white/40 hover:text-cbvp-red transition-colors"><Trash2 className="w-4 h-4" /></button>
                   </div>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                     <div><label className="text-xs text-white/40 mb-1 block">Movil</label><input type="text" value={r.movil} onChange={e => actualizarRegistro(idx, 'movil', e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
@@ -384,10 +384,10 @@ export default function SalidaMovil() {
                       <td className="px-3 py-2 text-white/70 block sm:table-cell"><span className="text-white/30 sm:hidden">Km llegada: </span>{r.kilometrajeLlegada || '-'}</td>
                       <td className="px-3 py-2 block sm:table-cell">
                         <div className="flex items-center gap-2 pt-1.5 sm:pt-0 mt-1 sm:mt-0 border-t border-white/5 sm:border-0">
-                          <button onClick={() => iniciarEdicion(r)} className="p-1.5 rounded-lg hover:bg-white/10 text-white/40 hover:text-white transition-colors" title="Editar"><Edit3 className="w-3.5 h-3.5" /></button>
-                          <button onClick={() => eliminarFila(r.rowIndex)} className="p-1.5 rounded-lg hover:bg-cbvp-red/20 text-white/40 hover:text-cbvp-red transition-colors" title="Eliminar"><Trash2 className="w-3.5 h-3.5" /></button>
+                          <button onClick={() => iniciarEdicion(r)} className="p-2.5 sm:p-1.5 rounded-lg hover:bg-white/10 text-white/40 hover:text-white transition-colors" title="Editar"><Edit3 className="w-3.5 h-3.5" /></button>
+                          <button onClick={() => eliminarFila(r.rowIndex)} className="p-2.5 sm:p-1.5 rounded-lg hover:bg-cbvp-red/20 text-white/40 hover:text-cbvp-red transition-colors" title="Eliminar"><Trash2 className="w-3.5 h-3.5" /></button>
                           {r.imageUrls.length > 0 && (
-                            <a href={r.imageUrls[0]} target="_blank" rel="noopener noreferrer" className="p-1.5 rounded-lg hover:bg-white/10 text-white/40 hover:text-cbvp-blue transition-colors" title="Ver imagen"><ExternalLink className="w-3.5 h-3.5" /></a>
+                            <a href={r.imageUrls[0]} target="_blank" rel="noopener noreferrer" className="p-2.5 sm:p-1.5 rounded-lg hover:bg-white/10 text-white/40 hover:text-cbvp-blue transition-colors" title="Ver imagen"><ExternalLink className="w-3.5 h-3.5" /></a>
                           )}
                         </div>
                       </td>

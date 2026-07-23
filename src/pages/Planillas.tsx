@@ -285,7 +285,7 @@ export default function Planillas() {
                 <span className="text-white text-sm">{file.name}</span>
                 <span className="text-white/30 text-xs">({(file.size / 1024 / 1024).toFixed(2)} MB)</span>
               </div>
-              <button onClick={() => { setFile(null); setFilePreview(null); setResult(null); setError(""); }} className="p-1.5 rounded-lg hover:bg-white/5 text-white/40 hover:text-white transition-colors"><X className="w-4 h-4" /></button>
+              <button onClick={() => { setFile(null); setFilePreview(null); setResult(null); setError(""); }} className="p-2.5 sm:p-1.5 rounded-lg hover:bg-white/5 text-white/40 hover:text-white transition-colors"><X className="w-4 h-4" /></button>
             </div>
             {filePreview && <img src={filePreview} alt="Preview" className="max-h-48 rounded-lg mb-3 border border-white/10" />}
             <button onClick={procesarPlanilla} disabled={isProcessing}
@@ -420,14 +420,14 @@ export default function Planillas() {
                           <td className="px-3 py-2.5 block sm:table-cell">
                             <div className="flex items-center justify-center gap-1 pt-1.5 sm:pt-0 mt-1 sm:mt-0 border-t border-white/5 sm:border-0">
                               {p.urlImagen && (
-                                <a href={p.urlImagen} target="_blank" rel="noopener noreferrer" className="p-1.5 rounded-lg bg-white/5 hover:bg-cbvp-green/20 text-white/40 hover:text-cbvp-green transition-colors" title="Ver archivo"><ExternalLink className="w-3.5 h-3.5" /></a>
+                                <a href={p.urlImagen} target="_blank" rel="noopener noreferrer" className="p-2.5 sm:p-1.5 rounded-lg bg-white/5 hover:bg-cbvp-green/20 text-white/40 hover:text-cbvp-green transition-colors" title="Ver archivo"><ExternalLink className="w-3.5 h-3.5" /></a>
                               )}
                               {!esVoluntario && (
-                                <button onClick={() => openEdit(p)} className="p-1.5 rounded-lg bg-white/5 hover:bg-cbvp-yellow/20 text-white/40 hover:text-cbvp-yellow transition-colors" title="Editar"><Edit3 className="w-3.5 h-3.5" /></button>
+                                <button onClick={() => openEdit(p)} className="p-2.5 sm:p-1.5 rounded-lg bg-white/5 hover:bg-cbvp-yellow/20 text-white/40 hover:text-cbvp-yellow transition-colors" title="Editar"><Edit3 className="w-3.5 h-3.5" /></button>
                               )}
-                              <button onClick={() => setSelectedPlanilla(selectedPlanilla === p.idPlanilla ? null : p.idPlanilla)} className="p-1.5 rounded-lg bg-white/5 hover:bg-cbvp-blue/20 text-white/40 hover:text-cbvp-blue transition-colors" title="Ver detalle"><Eye className="w-3.5 h-3.5" /></button>
+                              <button onClick={() => setSelectedPlanilla(selectedPlanilla === p.idPlanilla ? null : p.idPlanilla)} className="p-2.5 sm:p-1.5 rounded-lg bg-white/5 hover:bg-cbvp-blue/20 text-white/40 hover:text-cbvp-blue transition-colors" title="Ver detalle"><Eye className="w-3.5 h-3.5" /></button>
                               {!esVoluntario && (
-                                <button onClick={() => setDeletingId(p.idPlanilla)} className="p-1.5 rounded-lg bg-white/5 hover:bg-cbvp-red/20 text-white/40 hover:text-cbvp-red transition-colors" title="Eliminar"><Trash2 className="w-3.5 h-3.5" /></button>
+                                <button onClick={() => setDeletingId(p.idPlanilla)} className="p-2.5 sm:p-1.5 rounded-lg bg-white/5 hover:bg-cbvp-red/20 text-white/40 hover:text-cbvp-red transition-colors" title="Eliminar"><Trash2 className="w-3.5 h-3.5" /></button>
                               )}
                             </div>
                           </td>
