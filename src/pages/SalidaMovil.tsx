@@ -1,5 +1,6 @@
 import { useState, Fragment } from 'react';
 import { trpc } from '@/providers/trpc';
+import { compressImage } from '@/lib/imageCompress';
 import { Truck, Upload, X, FileText, Clock, Zap, AlertTriangle, CheckCircle, ExternalLink, Edit3, RotateCcw, Save, Trash2, Plus, Camera, Image as ImageIcon } from 'lucide-react';
 
 function arrayBufferToBase64(buffer: ArrayBuffer): string {
@@ -86,9 +87,10 @@ export default function SalidaMovil() {
   const [result, setResult] = useState<{ idPlanilla: string; totalRegistros: number; imageUrls: string[] } | null>(null);
   const [extraccion, setExtraccion] = useState<{ imageUrls: string[]; uploadError?: string; registros: RegistroMovil[] } | null>(null);
 
-  const handleFiles = (fileList: FileList | File[]) => {
+  const handleFiles = async (fileList: FileList | File[]) => {
     setError(''); setResult(null);
-    const nuevos = Array.from(fileList);
+    const originales = Array.from(fileList);
+    const nuevos = await Promise.all(originales.map(f => compressImage(f)));
     const muyGrande = nuevos.find(f => f.size > MAX_SIZE);
     if (muyGrande) {
       setError(`Maximo ${MAX_SIZE / 1024 / 1024}MB permitido (archivo: ${muyGrande.name}).`);

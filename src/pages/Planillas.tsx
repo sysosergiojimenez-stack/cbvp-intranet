@@ -1,5 +1,6 @@
 import { useState, useCallback, Fragment } from "react";
 import { usePermiso } from "@/hooks/usePermiso";
+import { compressImage } from "@/lib/imageCompress";
 import { useAuth } from "@/context/AuthContext";
 import { trpc } from "@/providers/trpc";
 import type { GuardiaPersonal, PlanillaEncabezado } from "@/types";
@@ -77,17 +78,18 @@ export default function Planillas() {
   const isMobile = typeof window !== "undefined" && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
   const MAX_SIZE = isMobile ? 5 * 1024 * 1024 : 10 * 1024 * 1024;
 
-  const handleFile = (selectedFile: File) => {
+  const handleFile = async (selectedFile: File) => {
     setError(""); setResult(null);
-    if (selectedFile.size > MAX_SIZE) {
+    const comprimido = await compressImage(selectedFile);
+    if (comprimido.size > MAX_SIZE) {
       setError(`Maximo ${MAX_SIZE / 1024 / 1024}MB permitido${isMobile ? " en movil" : ""}.`);
       return;
     }
-    setFile(selectedFile);
-    if (selectedFile.type.startsWith("image/")) {
+    setFile(comprimido);
+    if (comprimido.type.startsWith("image/")) {
       const reader = new FileReader();
       reader.onload = e => setFilePreview(e.target?.result as string);
-      reader.readAsDataURL(selectedFile);
+      reader.readAsDataURL(comprimido);
     } else {
       setFilePreview(null);
     }
