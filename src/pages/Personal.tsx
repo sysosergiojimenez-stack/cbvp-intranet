@@ -169,7 +169,48 @@ export default function PersonalPage() {
               </div>
             </div>
 
-            <div className="overflow-x-auto">
+            {/* Vista tarjetas (movil) */}
+            <div className="sm:hidden space-y-2">
+              {filtered.length === 0 ? (
+                <div className="text-center text-white/40 py-12">
+                  <Users className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                  No hay bomberos registrados.
+                </div>
+              ) : (
+                filtered.map((bombero: Personal) => (
+                  <div
+                    key={bombero.identificador}
+                    onClick={() => handleVerFicha(bombero)}
+                    className="bg-white/[0.03] border border-white/5 rounded-xl p-3 active:bg-cbvp-red/5 transition-colors"
+                  >
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <div className="min-w-0">
+                        <p className="text-white font-medium truncate">{bombero.nombreCompleto}</p>
+                        <p className="text-xs text-white/40">{bombero.categoria}</p>
+                      </div>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); navigate(`/editar-bombero/${bombero.codigo}`); }}
+                        className="p-2 rounded-lg bg-white/5 hover:bg-cbvp-blue/20 text-white/40 hover:text-cbvp-blue transition-colors shrink-0"
+                        title="Editar bombero"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap text-xs">
+                      <span className="bg-white/5 px-2 py-0.5 rounded flex items-center gap-1">
+                        <Award className="w-3 h-3 text-cbvp-red/60" />
+                        {bombero.rango}
+                      </span>
+                      <code className="bg-white/5 px-1.5 py-0.5 rounded text-white/70">{bombero.codigo}</code>
+                      <span className="text-white/40">Ano {bombero.anioJuramento}</span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Vista tabla (desktop) */}
+            <div className="hidden sm:block overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-cbvp-red/10 text-white/60 text-xs uppercase">

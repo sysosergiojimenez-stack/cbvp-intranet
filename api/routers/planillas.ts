@@ -408,7 +408,7 @@ export const planillasRouter = createRouter({
       z.object({
         idPlanilla: z.string(),
         codigo: z.string(),
-        nuevaAsistencia: z.enum(["PRESENTE", "ACACR", "ACASR", "ASASR"]),
+        nuevaAsistencia: z.enum(["PRESENTE", "AUSENTE", "AUSENTE CON REEMPLAZO"]),
       })
     )
     .mutation(async ({ input }) => {

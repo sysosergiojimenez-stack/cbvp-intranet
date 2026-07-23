@@ -499,8 +499,8 @@ export default function PracticasCitaciones() {
               <div className="space-y-3">
                 {/* Table */}
                 <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
+                  <table className="w-full text-sm block sm:table">
+                    <thead className="hidden sm:table-header-group">
                       <tr className="bg-cbvp-red/10 text-white/60 text-xs uppercase">
                         <th className="px-3 py-2 text-left rounded-tl-lg">Fecha</th>
                         <th className="px-3 py-2 text-left">Tipo</th>
@@ -508,24 +508,24 @@ export default function PracticasCitaciones() {
                         <th className="px-3 py-2 text-center rounded-tr-lg">Acciones</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-white/5">
+                    <tbody className="divide-y divide-white/5 block sm:table-row-group">
                       {historialData.planillas.map((p: AsistenciaEncabezado) => (
                         <Fragment key={p.idPlanilla}>
-                        <tr className="hover:bg-cbvp-red/5 transition-colors group">
-                          <td className="px-3 py-2.5">
+                        <tr className="hover:bg-cbvp-red/5 transition-colors group block sm:table-row mb-2 sm:mb-0 bg-white/[0.02] sm:bg-transparent rounded-lg sm:rounded-none border border-white/5 sm:border-0">
+                          <td className="px-3 py-2.5 block sm:table-cell">
                             <div className="flex items-center gap-1.5">
                               <Calendar className="w-3 h-3 text-white/30" />
                               <span className="text-white/80 text-xs">{p.fechaActividad}</span>
                             </div>
                           </td>
-                          <td className="px-3 py-2.5">
+                          <td className="px-3 py-2.5 block sm:table-cell">
                             <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${getTipoBadge(p.tipoActividad)}`}>
                               {p.tipoActividad}
                             </span>
                           </td>
-                          <td className="px-3 py-2.5 text-white/60 text-xs">{p.acargoActividad || '-'}</td>
-                          <td className="px-3 py-2.5">
-                            <div className="flex items-center justify-center gap-1">
+                          <td className="px-3 py-2.5 text-white/60 text-xs block sm:table-cell"><span className="text-white/30 sm:hidden">A cargo: </span>{p.acargoActividad || '-'}</td>
+                          <td className="px-3 py-2.5 block sm:table-cell">
+                            <div className="flex items-center justify-center gap-1 pt-1.5 sm:pt-0 mt-1 sm:mt-0 border-t border-white/5 sm:border-0">
                               {p.urlImagenes && p.urlImagenes.length === 1 && (
                                 <a href={p.urlImagenes[0]} target="_blank" rel="noopener noreferrer" className="p-1.5 rounded-lg bg-white/5 hover:bg-cbvp-green/20 text-white/40 hover:text-cbvp-green transition-colors" title="Ver archivo">
                                   <ExternalLink className="w-3.5 h-3.5" />

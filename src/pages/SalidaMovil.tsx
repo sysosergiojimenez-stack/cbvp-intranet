@@ -356,8 +356,8 @@ export default function SalidaMovil() {
           <div className="p-4 text-sm text-white/40">No hay registros todavia</div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
+            <table className="w-full text-sm block sm:table">
+              <thead className="hidden sm:table-header-group">
                 <tr className="bg-white/5 border-b border-white/10">
                   <th className="text-left px-3 py-2 font-medium text-white/50 whitespace-nowrap">Fecha y Hora Salida</th>
                   <th className="text-left px-3 py-2 font-medium text-white/50">Movil</th>
@@ -369,19 +369,19 @@ export default function SalidaMovil() {
                   <th className="text-left px-3 py-2 font-medium text-white/50">Acciones</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="block sm:table-row-group">
                 {listadoData.registros.map(r => (
                   <Fragment key={r.id}>
-                    <tr className="border-b border-white/5 hover:bg-white/[0.02] transition-colors">
-                      <td className="px-3 py-2 text-white/70 whitespace-nowrap">{r.fechaSalida} {r.horaSalida}</td>
-                      <td className="px-3 py-2 text-white">{r.movil || '-'}</td>
-                      <td className="px-3 py-2 text-white/70">{r.tipoServicio || '-'}</td>
-                      <td className="px-3 py-2 text-white/70">{r.direccion || '-'}</td>
-                      <td className="px-3 py-2 text-white/70">{r.conductor || '-'}</td>
-                      <td className="px-3 py-2 text-white/70">{r.oficialACargo || '-'}</td>
-                      <td className="px-3 py-2 text-white/70">{r.kilometrajeLlegada || '-'}</td>
-                      <td className="px-3 py-2">
-                        <div className="flex items-center gap-2">
+                    <tr className="border-b border-white/5 hover:bg-white/[0.02] transition-colors block sm:table-row mb-2 sm:mb-0 bg-white/[0.02] sm:bg-transparent rounded-lg sm:rounded-none p-2 sm:p-0">
+                      <td className="px-3 py-2 text-white/70 whitespace-nowrap block sm:table-cell font-medium text-white">{r.fechaSalida} {r.horaSalida}</td>
+                      <td className="px-3 py-2 text-white block sm:table-cell"><span className="text-white/30 sm:hidden">Movil: </span>{r.movil || '-'}</td>
+                      <td className="px-3 py-2 text-white/70 block sm:table-cell"><span className="text-white/30 sm:hidden">Servicio: </span>{r.tipoServicio || '-'}</td>
+                      <td className="px-3 py-2 text-white/70 block sm:table-cell"><span className="text-white/30 sm:hidden">Direccion: </span>{r.direccion || '-'}</td>
+                      <td className="px-3 py-2 text-white/70 block sm:table-cell"><span className="text-white/30 sm:hidden">Conductor: </span>{r.conductor || '-'}</td>
+                      <td className="px-3 py-2 text-white/70 block sm:table-cell"><span className="text-white/30 sm:hidden">A cargo: </span>{r.oficialACargo || '-'}</td>
+                      <td className="px-3 py-2 text-white/70 block sm:table-cell"><span className="text-white/30 sm:hidden">Km llegada: </span>{r.kilometrajeLlegada || '-'}</td>
+                      <td className="px-3 py-2 block sm:table-cell">
+                        <div className="flex items-center gap-2 pt-1.5 sm:pt-0 mt-1 sm:mt-0 border-t border-white/5 sm:border-0">
                           <button onClick={() => iniciarEdicion(r)} className="p-1.5 rounded-lg hover:bg-white/10 text-white/40 hover:text-white transition-colors" title="Editar"><Edit3 className="w-3.5 h-3.5" /></button>
                           <button onClick={() => eliminarFila(r.rowIndex)} className="p-1.5 rounded-lg hover:bg-cbvp-red/20 text-white/40 hover:text-cbvp-red transition-colors" title="Eliminar"><Trash2 className="w-3.5 h-3.5" /></button>
                           {r.imageUrls.length > 0 && (
