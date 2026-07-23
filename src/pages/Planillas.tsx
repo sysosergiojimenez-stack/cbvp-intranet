@@ -7,7 +7,8 @@ import {
   Upload, FileText, Zap, CheckCircle, AlertTriangle,
   X, Clock, Calendar, User, Users, Shield,
   ChevronDown, ChevronUp, Eye, BookOpen,
-  Edit3, Trash2, ExternalLink, Save, RotateCcw, Check
+  Edit3, Trash2, ExternalLink, Save, RotateCcw, Check,
+  Camera, Image as ImageIcon
 } from "lucide-react";
 
 export default function Planillas() {
@@ -260,12 +261,19 @@ export default function Planillas() {
         </h2>
         {!file ? (
           <div onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}
-            className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors cursor-pointer ${dragOver ? "border-cbvp-red bg-cbvp-red/5" : "border-white/10 hover:border-white/20"}`}
-            onClick={() => document.getElementById("file-input-guardia")?.click()}>
+            className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors ${dragOver ? "border-cbvp-red bg-cbvp-red/5" : "border-white/10"}`}>
             <Upload className="w-10 h-10 text-white/20 mx-auto mb-3" />
-            <p className="text-white/40 text-sm mb-1">Arrastra una imagen o PDF aqui</p>
-            <p className="text-white/20 text-xs">O haz clic para seleccionar</p>
-            <input id="file-input-guardia" type="file" accept="image/*" onChange={handleFileInput} className="hidden" />
+            <p className="text-white/40 text-sm mb-3">Subi una imagen de la planilla</p>
+            <div className="flex gap-2 justify-center flex-wrap">
+              <button type="button" onClick={() => document.getElementById("file-input-guardia-camara")?.click()} className="px-4 py-2 bg-cbvp-red/10 hover:bg-cbvp-red/20 text-cbvp-red rounded-lg text-sm flex items-center gap-2 transition-colors">
+                <Camera className="w-4 h-4" /> Tomar Foto
+              </button>
+              <button type="button" onClick={() => document.getElementById("file-input-guardia-galeria")?.click()} className="px-4 py-2 bg-white/5 hover:bg-white/10 text-white/60 rounded-lg text-sm flex items-center gap-2 transition-colors">
+                <ImageIcon className="w-4 h-4" /> Galeria
+              </button>
+            </div>
+            <input id="file-input-guardia-camara" type="file" accept="image/*" capture="environment" onChange={handleFileInput} className="hidden" />
+            <input id="file-input-guardia-galeria" type="file" accept="image/*" onChange={handleFileInput} className="hidden" />
           </div>
         ) : (
           <div className="bg-white/5 rounded-xl p-4 border border-white/10">

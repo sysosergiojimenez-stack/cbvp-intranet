@@ -7,7 +7,8 @@ import {
   Upload, FileText, CheckCircle, AlertTriangle, X,
   Clock, Calendar, Users, MapPin, UserCheck,
   ChevronDown, ChevronUp, Eye, BookOpen, Zap,
-  Edit3, Trash2, ExternalLink, Save, RotateCcw, Check
+  Edit3, Trash2, ExternalLink, Save, RotateCcw, Check,
+  Camera, Image as ImageIcon
 } from 'lucide-react';
 
 export default function PracticasCitaciones() {
@@ -314,16 +315,30 @@ export default function PracticasCitaciones() {
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
-          className={`border-2 border-dashed rounded-xl p-6 text-center transition-colors cursor-pointer ${
-            dragOver ? 'border-cbvp-red bg-cbvp-red/5' : 'border-white/10 hover:border-white/20'
+          className={`border-2 border-dashed rounded-xl p-6 text-center transition-colors ${
+            dragOver ? 'border-cbvp-red bg-cbvp-red/5' : 'border-white/10'
           }`}
-          onClick={() => document.getElementById('file-input-asistencia')?.click()}
         >
           <Upload className="w-8 h-8 text-white/20 mx-auto mb-2" />
-          <p className="text-white/40 text-sm mb-1">Arrastra una o varias imagenes aqui</p>
-          <p className="text-white/20 text-xs">O haz clic para seleccionar (podes agregar mas de una)</p>
+          <p className="text-white/40 text-sm mb-3">Subi una o varias imagenes de la planilla</p>
+          <div className="flex gap-2 justify-center flex-wrap">
+            <button type="button" onClick={() => document.getElementById('file-input-asistencia-camara')?.click()} className="px-4 py-2 bg-cbvp-red/10 hover:bg-cbvp-red/20 text-cbvp-red rounded-lg text-sm flex items-center gap-2 transition-colors">
+              <Camera className="w-4 h-4" /> Tomar Foto
+            </button>
+            <button type="button" onClick={() => document.getElementById('file-input-asistencia-galeria')?.click()} className="px-4 py-2 bg-white/5 hover:bg-white/10 text-white/60 rounded-lg text-sm flex items-center gap-2 transition-colors">
+              <ImageIcon className="w-4 h-4" /> Galeria
+            </button>
+          </div>
           <input
-            id="file-input-asistencia"
+            id="file-input-asistencia-camara"
+            type="file"
+            accept="image/*"
+            capture="environment"
+            onChange={handleFileInput}
+            className="hidden"
+          />
+          <input
+            id="file-input-asistencia-galeria"
             type="file"
             accept="image/*"
             multiple
