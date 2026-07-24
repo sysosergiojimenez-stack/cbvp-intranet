@@ -195,8 +195,12 @@ export default function Planillas() {
     setExtraccion({ ...extraccion, [lista]: nuevaLista });
   };
 
-  const openEdit = (p: PlanillaEncabezado) => {
-    setEditingPlanilla(p);
+  const toggleRow = (p: PlanillaEncabezado) => {
+    if (selectedPlanilla === p.idPlanilla) {
+      setSelectedPlanilla(null);
+      return;
+    }
+    setSelectedPlanilla(p.idPlanilla);
     setEditForm({
       fechaGuardia: p.fechaGuardia, grupo: p.grupo, inicioGuardia: p.inicioGuardia,
       finalizaGuardia: p.finalizaGuardia, directorSem: p.directorSem,
@@ -204,8 +208,8 @@ export default function Planillas() {
     });
   };
   const saveEdit = async () => {
-    if (!editingPlanilla) return;
-    await editarMutation.mutateAsync({ idPlanilla: editingPlanilla.idPlanilla, ...editForm });
+    if (!selectedPlanilla) return;
+    await editarMutation.mutateAsync({ idPlanilla: selectedPlanilla, ...editForm });
   };
   const confirmDelete = async () => {
     if (!deletingId) return;
@@ -412,20 +416,16 @@ export default function Planillas() {
                     <tbody className="divide-y divide-white/5 block sm:table-row-group">
                       {historialData.planillas.map((p: PlanillaEncabezado) => (
                         <Fragment key={p.idPlanilla}>
-                        <tr className="hover:bg-cbvp-red/5 transition-colors group block sm:table-row mb-2 sm:mb-0 bg-white/[0.02] sm:bg-transparent rounded-lg sm:rounded-none border border-white/5 sm:border-0">
+                        <tr onClick={() => toggleRow(p)} className="hover:bg-cbvp-red/5 transition-colors group block sm:table-row mb-2 sm:mb-0 bg-white/[0.02] sm:bg-transparent rounded-lg sm:rounded-none border border-white/5 sm:border-0 cursor-pointer">
                           <td className="px-3 py-2.5 block sm:table-cell"><div className="flex items-center gap-1.5"><Calendar className="w-3 h-3 text-white/30" /><span className="text-white/80 text-xs">{p.fechaGuardia}</span></div></td>
                           <td className="px-3 py-2.5 text-white/60 text-xs block sm:table-cell"><span className="text-white/30 sm:hidden">Carga: </span>{p.fechaCarga}</td>
                           <td className="px-3 py-2.5 text-white/60 text-xs block sm:table-cell"><span className="text-white/30 sm:hidden">Grupo: </span>{p.grupo || "-"}</td>
                           <td className="px-3 py-2.5 text-white/60 text-xs block sm:table-cell"><span className="text-white/30 sm:hidden">Horario: </span>{p.inicioGuardia || "-"} - {p.finalizaGuardia || "-"}</td>
-                          <td className="px-3 py-2.5 block sm:table-cell">
+                          <td className="px-3 py-2.5 block sm:table-cell" onClick={(e) => e.stopPropagation()}>
                             <div className="flex items-center justify-center gap-1 pt-1.5 sm:pt-0 mt-1 sm:mt-0 border-t border-white/5 sm:border-0">
                               {p.urlImagen && (
                                 <a href={p.urlImagen} target="_blank" rel="noopener noreferrer" className="p-2.5 sm:p-1.5 rounded-lg bg-white/5 hover:bg-cbvp-green/20 text-white/40 hover:text-cbvp-green transition-colors" title="Ver archivo"><ExternalLink className="w-3.5 h-3.5" /></a>
                               )}
-                              {!esVoluntario && (
-                                <button onClick={() => openEdit(p)} className="p-2.5 sm:p-1.5 rounded-lg bg-white/5 hover:bg-cbvp-yellow/20 text-white/40 hover:text-cbvp-yellow transition-colors" title="Editar"><Edit3 className="w-3.5 h-3.5" /></button>
-                              )}
-                              <button onClick={() => setSelectedPlanilla(selectedPlanilla === p.idPlanilla ? null : p.idPlanilla)} className="p-2.5 sm:p-1.5 rounded-lg bg-white/5 hover:bg-cbvp-blue/20 text-white/40 hover:text-cbvp-blue transition-colors" title="Ver detalle"><Eye className="w-3.5 h-3.5" /></button>
                               {!esVoluntario && (
                                 <button onClick={() => setDeletingId(p.idPlanilla)} className="p-2.5 sm:p-1.5 rounded-lg bg-white/5 hover:bg-cbvp-red/20 text-white/40 hover:text-cbvp-red transition-colors" title="Eliminar"><Trash2 className="w-3.5 h-3.5" /></button>
                               )}
@@ -437,9 +437,40 @@ export default function Planillas() {
                             <td colSpan={5} className="px-3 pb-3 pt-1 bg-white/[0.02]">
                               <div className="bg-white/5 rounded-lg p-4 border border-white/10">
                                 <div className="flex items-center justify-between mb-3">
-                                  <h3 className="text-sm font-semibold text-white flex items-center gap-2"><Users className="w-4 h-4 text-cbvp-red" /> Personal</h3>
+                                  <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+                                    {!esVoluntario ? <Edit3 className="w-4 h-4 text-cbvp-yellow" /> : <Eye className="w-4 h-4 text-cbvp-blue" />}
+                                    Detalle de la Planilla
+                                  </h3>
                                   <button onClick={() => setSelectedPlanilla(null)} className="p-1 rounded hover:bg-white/5 text-white/40 hover:text-white"><X className="w-4 h-4" /></button>
                                 </div>
+
+                                {!esVoluntario ? (
+                                  <div className="mb-4 pb-4 border-b border-white/10">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                      <div><label className="text-xs text-white/40 mb-1 block">Fecha de Guardia</label><input type="text" value={editForm.fechaGuardia} onChange={e => setEditForm({ ...editForm, fechaGuardia: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
+                                      <div><label className="text-xs text-white/40 mb-1 block">Grupo</label><input type="text" value={editForm.grupo} onChange={e => setEditForm({ ...editForm, grupo: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
+                                      <div><label className="text-xs text-white/40 mb-1 block">Hora Inicio</label><input type="text" value={editForm.inicioGuardia} onChange={e => setEditForm({ ...editForm, inicioGuardia: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
+                                      <div><label className="text-xs text-white/40 mb-1 block">Hora Finaliza</label><input type="text" value={editForm.finalizaGuardia} onChange={e => setEditForm({ ...editForm, finalizaGuardia: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
+                                      <div><label className="text-xs text-white/40 mb-1 block">Director de Semana</label><input type="text" value={editForm.directorSem} onChange={e => setEditForm({ ...editForm, directorSem: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
+                                      <div><label className="text-xs text-white/40 mb-1 block">Comandante de Semana</label><input type="text" value={editForm.comandanteSemana} onChange={e => setEditForm({ ...editForm, comandanteSemana: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
+                                      <div><label className="text-xs text-white/40 mb-1 block">Oficial K20</label><input type="text" value={editForm.oficialK20} onChange={e => setEditForm({ ...editForm, oficialK20: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
+                                      <div className="sm:col-span-2"><label className="text-xs text-white/40 mb-1 block">Novedades</label><textarea value={editForm.novedades} onChange={e => setEditForm({ ...editForm, novedades: e.target.value })} rows={2} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none resize-none" /></div>
+                                    </div>
+                                    <button onClick={saveEdit} disabled={editarMutation.isPending} className="mt-3 w-full sm:w-auto px-5 py-2.5 bg-cbvp-yellow hover:bg-cbvp-yellow/80 disabled:opacity-50 text-black font-semibold rounded-lg transition-all text-sm flex items-center justify-center gap-2">{editarMutation.isPending ? <><Clock className="w-4 h-4 animate-spin" /> Guardando...</> : <><Save className="w-4 h-4" /> Guardar Cambios</>}</button>
+                                  </div>
+                                ) : (
+                                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4 pb-4 border-b border-white/10 text-xs">
+                                    <div><span className="text-white/30">Fecha</span><p className="text-white mt-0.5">{p.fechaGuardia}</p></div>
+                                    <div><span className="text-white/30">Grupo</span><p className="text-white mt-0.5">{p.grupo || "-"}</p></div>
+                                    <div><span className="text-white/30">Horario</span><p className="text-white mt-0.5">{p.inicioGuardia || "-"} - {p.finalizaGuardia || "-"}</p></div>
+                                    <div><span className="text-white/30">Director</span><p className="text-white mt-0.5">{p.directorSem || "-"}</p></div>
+                                    <div><span className="text-white/30">Comandante</span><p className="text-white mt-0.5">{p.comandanteSemana || "-"}</p></div>
+                                    <div><span className="text-white/30">Oficial K20</span><p className="text-white mt-0.5">{p.oficialK20 || "-"}</p></div>
+                                    {p.novedades && <div className="col-span-2 sm:col-span-4"><span className="text-white/30">Novedades</span><p className="text-white mt-0.5">{p.novedades}</p></div>}
+                                  </div>
+                                )}
+
+                                <h3 className="text-sm font-semibold text-white flex items-center gap-2 mb-3"><Users className="w-4 h-4 text-cbvp-red" /> Personal</h3>
                                 {(() => {
                                   const groups = groupByTipo(detalleData.personal);
                                   return Object.entries(groups).map(([tipo, personas]) => (
@@ -493,35 +524,7 @@ export default function Planillas() {
                             </td>
                           </tr>
                         )}
-                        {editingPlanilla?.idPlanilla === p.idPlanilla && (
-                          <tr>
-                            <td colSpan={5} className="px-3 pb-3 pt-1 bg-white/[0.02]">
-                              <div className="bg-white/5 rounded-lg p-4 border border-white/10">
-                                <div className="flex items-center justify-between mb-3">
-                                  <h3 className="text-sm font-semibold text-white flex items-center gap-2"><Edit3 className="w-4 h-4 text-cbvp-yellow" /> Editar Planilla</h3>
-                                  <button onClick={() => setEditingPlanilla(null)} className="p-1 rounded hover:bg-white/5 text-white/40 hover:text-white"><X className="w-4 h-4" /></button>
-                                </div>
-                                <div className="space-y-3">
-                                  <div><label className="text-xs text-white/40 mb-1 block">Fecha de Guardia</label><input type="text" value={editForm.fechaGuardia} onChange={e => setEditForm({ ...editForm, fechaGuardia: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
-                                  <div><label className="text-xs text-white/40 mb-1 block">Grupo</label><input type="text" value={editForm.grupo} onChange={e => setEditForm({ ...editForm, grupo: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
-                                  <div className="grid grid-cols-2 gap-3">
-                                    <div><label className="text-xs text-white/40 mb-1 block">Hora Inicio</label><input type="text" value={editForm.inicioGuardia} onChange={e => setEditForm({ ...editForm, inicioGuardia: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
-                                    <div><label className="text-xs text-white/40 mb-1 block">Hora Finaliza</label><input type="text" value={editForm.finalizaGuardia} onChange={e => setEditForm({ ...editForm, finalizaGuardia: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
-                                  </div>
-                                  <div><label className="text-xs text-white/40 mb-1 block">Director de Semana</label><input type="text" value={editForm.directorSem} onChange={e => setEditForm({ ...editForm, directorSem: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
-                                  <div><label className="text-xs text-white/40 mb-1 block">Comandante de Semana</label><input type="text" value={editForm.comandanteSemana} onChange={e => setEditForm({ ...editForm, comandanteSemana: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
-                                  <div><label className="text-xs text-white/40 mb-1 block">Oficial K20</label><input type="text" value={editForm.oficialK20} onChange={e => setEditForm({ ...editForm, oficialK20: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
-                                  <div><label className="text-xs text-white/40 mb-1 block">Novedades</label><textarea value={editForm.novedades} onChange={e => setEditForm({ ...editForm, novedades: e.target.value })} rows={3} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none resize-none" /></div>
-                                </div>
-                                <div className="flex gap-3 mt-4">
-                                  <button onClick={() => setEditingPlanilla(null)} className="flex-1 py-2.5 bg-white/5 hover:bg-white/10 text-white/60 rounded-lg transition-colors text-sm flex items-center justify-center gap-2"><RotateCcw className="w-4 h-4" /> Cancelar</button>
-                                  <button onClick={saveEdit} disabled={editarMutation.isPending} className="flex-1 py-2.5 bg-cbvp-yellow hover:bg-cbvp-yellow/80 disabled:opacity-50 text-black font-semibold rounded-lg transition-all text-sm flex items-center justify-center gap-2">{editarMutation.isPending ? <><Clock className="w-4 h-4 animate-spin" /> Guardando...</> : <><Save className="w-4 h-4" /> Guardar Cambios</>}</button>
-                                </div>
-                              </div>
-                            </td>
-                          </tr>
-                        )}
-                        </Fragment>
+</Fragment>
                       ))}
                     </tbody>
                   </table>
