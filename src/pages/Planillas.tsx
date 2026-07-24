@@ -78,18 +78,17 @@ export default function Planillas() {
   const isMobile = typeof window !== "undefined" && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
   const MAX_SIZE = isMobile ? 5 * 1024 * 1024 : 10 * 1024 * 1024;
 
-  const handleFile = async (selectedFile: File) => {
+  const handleFile = (selectedFile: File) => {
     setError(""); setResult(null);
-    const comprimido = await compressImage(selectedFile);
-    if (comprimido.size > MAX_SIZE) {
+    if (selectedFile.size > MAX_SIZE) {
       setError(`Maximo ${MAX_SIZE / 1024 / 1024}MB permitido${isMobile ? " en movil" : ""}.`);
       return;
     }
-    setFile(comprimido);
-    if (comprimido.type.startsWith("image/")) {
+    setFile(selectedFile);
+    if (selectedFile.type.startsWith("image/")) {
       const reader = new FileReader();
       reader.onload = e => setFilePreview(e.target?.result as string);
-      reader.readAsDataURL(comprimido);
+      reader.readAsDataURL(selectedFile);
     } else {
       setFilePreview(null);
     }

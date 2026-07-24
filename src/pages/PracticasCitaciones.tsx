@@ -111,11 +111,10 @@ export default function PracticasCitaciones() {
   const isMobile = typeof window !== 'undefined' && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
   const MAX_SIZE = isMobile ? 5 * 1024 * 1024 : 10 * 1024 * 1024;
 
-  const handleFiles = async (fileList: FileList | File[]) => {
+  const handleFiles = (fileList: FileList | File[]) => {
     setError('');
     setResult(null);
-    const originales = Array.from(fileList);
-    const nuevos = await Promise.all(originales.map(f => compressImage(f)));
+    const nuevos = Array.from(fileList);
     const muyGrande = nuevos.find(f => f.size > MAX_SIZE);
     if (muyGrande) {
       setError(`Maximo ${MAX_SIZE / 1024 / 1024}MB permitido${isMobile ? ' en movil' : ''} (archivo: ${muyGrande.name}).`);
