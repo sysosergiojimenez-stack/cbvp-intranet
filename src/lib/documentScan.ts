@@ -1,9 +1,20 @@
-// Escaneo tipo "CamScanner": detecta el documento en la foto y corrige la
-// perspectiva (endereza el documento). Carga OpenCV.js y jscanify desde CDN
-// como scripts globales (NO como paquete de npm: la version de npm de
-// jscanify empaqueta una copia completa de OpenCV pensada para Node.js de
-// ~14MB, que rompe el build del cliente).
-// Si no se detecta un documento con confianza, devuelve la foto original sin tocar.
+// Escaneo tipo "CamScanner": detecta el documento en la foto, permite ajustar
+// las esquinas a mano, y corrige la perspectiva (endereza el documento).
+// Carga OpenCV.js y jscanify desde CDN como scripts globales (NO como paquete
+// de npm: la version de npm de jscanify empaqueta una copia completa de
+// OpenCV pensada para Node.js de ~14MB, que rompe el build del cliente).
+
+export interface Punto {
+  x: number;
+  y: number;
+}
+
+export interface EsquinasDocumento {
+  topLeftCorner: Punto;
+  topRightCorner: Punto;
+  bottomLeftCorner: Punto;
+  bottomRightCorner: Punto;
+}
 
 let librariesLoadPromise: Promise<void> | null = null;
 
@@ -32,7 +43,7 @@ function cargarScript(id: string, src: string): Promise<void> {
   });
 }
 
-function cargarLibrerias(): Promise<void> {
+export function cargarLibrerias(): Promise<void> {
   if (typeof window === 'undefined') return Promise.resolve();
   if ((window as any).jscanify && (window as any).cv && (window as any).cv.Mat) {
     return Promise.resolve();
@@ -64,14 +75,14 @@ function cargarLibrerias(): Promise<void> {
   return librariesLoadPromise;
 }
 
-function cargarImagen(file: File): Promise<HTMLImageElement> {
+// IMPORTANTE: no revoca la URL automaticamente porque la imagen puede
+// necesitar mostrarse de nuevo en un <img> (ej. el modal de ajuste de
+// esquinas). Llamar a liberarImagen() cuando ya no se necesite mas.
+export function cargarImagen(file: File): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
     const url = URL.createObjectURL(file);
-    img.onload = () => {
-      URL.revokeObjectURL(url);
-      resolve(img);
-    };
+    img.onload = () => resolve(img);
     img.onerror = () => {
       URL.revokeObjectURL(url);
       reject(new Error('No se pudo leer la imagen'));
@@ -80,7 +91,13 @@ function cargarImagen(file: File): Promise<HTMLImageElement> {
   });
 }
 
-function distancia(a: { x: number; y: number }, b: { x: number; y: number }): number {
+export function liberarImagen(img: HTMLImageElement): void {
+  if (img.src.startsWith('blob:')) {
+    URL.revokeObjectURL(img.src);
+  }
+}
+
+function distancia(a: Punto, b: Punto): number {
   return Math.sqrt(Math.pow(b.x - a.x, 2) + Math.pow(b.y - a.y, 2));
 }
 
@@ -97,8 +114,19 @@ function canvasAFile(canvas: HTMLCanvasElement, nombreOriginal: string): Promise
   });
 }
 
-export async function escanearDocumento(file: File): Promise<File> {
-  if (!file.type.startsWith('image/')) return file;
+// Detecta las esquinas del documento automaticamente. Si no logra detectar
+// nada (o el area es sospechosamente chica), devuelve un cuadrado por defecto
+// con margen del 8% desde cada borde de la foto, para que el usuario ajuste
+// las esquinas a mano desde ahi.
+export async function detectarEsquinas(img: HTMLImageElement): Promise<EsquinasDocumento> {
+  const w = img.naturalWidth;
+  const h = img.naturalHeight;
+  const margenDefecto: EsquinasDocumento = {
+    topLeftCorner: { x: w * 0.08, y: h * 0.08 },
+    topRightCorner: { x: w * 0.92, y: h * 0.08 },
+    bottomLeftCorner: { x: w * 0.08, y: h * 0.92 },
+    bottomRightCorner: { x: w * 0.92, y: h * 0.92 },
+  };
 
   try {
     await cargarLibrerias();
@@ -106,46 +134,49 @@ export async function escanearDocumento(file: File): Promise<File> {
     const JScanify = (window as any).jscanify;
     const scanner = new JScanify();
 
-    const img = await cargarImagen(file);
     const mat = cv.imread(img);
     const contour = scanner.findPaperContour(mat);
-
     if (!contour) {
       mat.delete();
-      return file;
+      return margenDefecto;
     }
-
-    const corners = scanner.getCornerPoints(contour);
+    const corners: EsquinasDocumento = scanner.getCornerPoints(contour);
     mat.delete();
 
     if (!corners || !corners.topLeftCorner || !corners.topRightCorner || !corners.bottomLeftCorner || !corners.bottomRightCorner) {
-      return file;
+      return margenDefecto;
     }
 
     const anchoArriba = distancia(corners.topLeftCorner, corners.topRightCorner);
-    const anchoAbajo = distancia(corners.bottomLeftCorner, corners.bottomRightCorner);
     const altoIzq = distancia(corners.topLeftCorner, corners.bottomLeftCorner);
-    const altoDer = distancia(corners.topRightCorner, corners.bottomRightCorner);
-
-    const resultWidth = Math.round(Math.max(anchoArriba, anchoAbajo));
-    const resultHeight = Math.round(Math.max(altoIzq, altoDer));
-
-    if (resultWidth < 50 || resultHeight < 50) return file;
-
-    // Salvaguarda: si el area detectada es mucho mas chica que la foto completa,
-    // probablemente detecto un contorno interno (texto, tabla, sombra) en vez
-    // del borde real de la hoja. En ese caso, mejor no tocar la foto original.
-    const areaDetectada = resultWidth * resultHeight;
-    const areaImagenCompleta = img.naturalWidth * img.naturalHeight;
-    const proporcion = areaDetectada / areaImagenCompleta;
-    if (proporcion < 0.55) {
-      return file;
+    const areaDetectada = anchoArriba * altoIzq;
+    const areaImagenCompleta = w * h;
+    if (areaDetectada / areaImagenCompleta < 0.2) {
+      return margenDefecto;
     }
 
-    const resultCanvas: HTMLCanvasElement = scanner.extractPaper(img, resultWidth, resultHeight);
-    return await canvasAFile(resultCanvas, file.name);
+    return corners;
   } catch (err) {
-    console.warn('Escaneo de documento fallo, se usa la foto original:', err);
-    return file;
+    console.warn('Deteccion automatica fallo, se usan esquinas por defecto:', err);
+    return margenDefecto;
   }
+}
+
+// Aplica la correccion de perspectiva usando las esquinas dadas (ya sea
+// detectadas automaticamente o ajustadas a mano por el usuario).
+export async function extraerConEsquinas(img: HTMLImageElement, corners: EsquinasDocumento, nombreOriginal: string): Promise<File> {
+  await cargarLibrerias();
+  const JScanify = (window as any).jscanify;
+  const scanner = new JScanify();
+
+  const anchoArriba = distancia(corners.topLeftCorner, corners.topRightCorner);
+  const anchoAbajo = distancia(corners.bottomLeftCorner, corners.bottomRightCorner);
+  const altoIzq = distancia(corners.topLeftCorner, corners.bottomLeftCorner);
+  const altoDer = distancia(corners.topRightCorner, corners.bottomRightCorner);
+
+  const resultWidth = Math.max(50, Math.round(Math.max(anchoArriba, anchoAbajo)));
+  const resultHeight = Math.max(50, Math.round(Math.max(altoIzq, altoDer)));
+
+  const resultCanvas: HTMLCanvasElement = scanner.extractPaper(img, resultWidth, resultHeight, corners);
+  return await canvasAFile(resultCanvas, nombreOriginal);
 }
