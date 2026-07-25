@@ -7,7 +7,7 @@ WORKDIR /app
 
 # Instalar dependencias
 COPY package.json ./
-RUN npm install --no-audit --no-fund
+RUN npm install --no-audit --no-fund --legacy-peer-deps
 
 # Copiar codigo fuente
 COPY . .
