@@ -213,6 +213,31 @@ export default function Planillas() {
     nuevaLista[idx] = { ...nuevaLista[idx], [campo]: valor };
     setExtraccion({ ...extraccion, [lista]: nuevaLista });
   };
+  const agregarFilaLista = (lista: "personal" | "guardiasEspeciales" | "refuerzos") => {
+    if (!extraccion) return;
+    const filaVacia = lista === "personal"
+      ? { codigo: "", nombre: "", asignacion: "", asistencia: "PRESENTE" }
+      : { codigo: "", nombre: "", asignacion: "" };
+    setExtraccion({ ...extraccion, [lista]: [...(extraccion[lista] as Array<Record<string, string>>), filaVacia] });
+  };
+  const quitarFilaLista = (lista: "personal" | "guardiasEspeciales" | "refuerzos", idx: number) => {
+    if (!extraccion) return;
+    const nuevaLista = (extraccion[lista] as Array<Record<string, string>>).filter((_, i) => i !== idx);
+    setExtraccion({ ...extraccion, [lista]: nuevaLista });
+  };
+  const puedeAgregarManual = (() => {
+    const cargo = (usuario?.cargo || '').trim().toUpperCase();
+    return cargo === 'SEGUNDO OFICIAL' || cargo === 'DESARROLLADOR';
+  })();
+  const iniciarGuardiaManual = () => {
+    setError(""); setResult(null); setFile(null); setFilePreview(null);
+    setExtraccion({
+      urlImagen: "",
+      fechaGuardia: "", grupo: "", inicioGuardia: "", finalizaGuardia: "",
+      directorSem: "", comandanteSemana: "", oficialK20: "", novedades: "",
+      personal: [], guardiasEspeciales: [], refuerzos: [],
+    });
+  };
 
   const toggleRow = (p: PlanillaEncabezado) => {
     if (selectedPlanilla === p.idPlanilla) {
@@ -281,9 +306,16 @@ export default function Planillas() {
   return (
     <div className="animate-fade-in space-y-6">
       <div className="bg-white/[0.03] border border-white/5 rounded-xl p-5">
-        <h2 className="text-sm font-semibold text-white/60 uppercase tracking-wider mb-4 flex items-center gap-2">
-          <Upload className="w-4 h-4 text-cbvp-red" /> Cargar Planilla de Guardia
-        </h2>
+        <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+          <h2 className="text-sm font-semibold text-white/60 uppercase tracking-wider flex items-center gap-2">
+            <Upload className="w-4 h-4 text-cbvp-red" /> Cargar Planilla de Guardia
+          </h2>
+          {puedeAgregarManual && !extraccion && (
+            <button onClick={iniciarGuardiaManual} className="px-3 py-2 bg-cbvp-blue/10 hover:bg-cbvp-blue/20 text-cbvp-blue rounded-lg text-xs flex items-center gap-2 transition-colors">
+              <Plus className="w-3.5 h-3.5" /> Agregar Guardia Manualmente
+            </button>
+          )}
+        </div>
         {!file ? (
           <div onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}
             className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors ${dragOver ? "border-cbvp-red bg-cbvp-red/5" : "border-white/10"}`}>
@@ -338,52 +370,60 @@ export default function Planillas() {
             <div><label className="text-xs text-white/40 mb-1 block">Novedades</label><textarea value={extraccion.novedades} onChange={e => setExtraccion({ ...extraccion, novedades: e.target.value })} rows={2} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none resize-none" /></div>
 
             <div>
-              <h4 className="text-xs font-semibold text-white/60 uppercase mb-2">Guardia Normal ({extraccion.personal.length})</h4>
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-xs font-semibold text-white/60 uppercase">Guardia Normal ({extraccion.personal.length})</h4>
+                <button onClick={() => agregarFilaLista("personal")} className="text-xs text-cbvp-green hover:underline flex items-center gap-1"><Plus className="w-3 h-3" /> Agregar</button>
+              </div>
               <div className="space-y-2">
                 {extraccion.personal.map((p, idx) => (
                   <div key={idx} className="grid grid-cols-12 gap-2 items-center bg-white/[0.03] rounded-lg p-2">
                     <input type="text" value={p.codigo} onChange={e => updateListField("personal", idx, "codigo", e.target.value)} placeholder="Codigo" className="col-span-2 bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-white focus:border-cbvp-red/50 focus:outline-none" />
-                    <input type="text" value={p.nombre} onChange={e => updateListField("personal", idx, "nombre", e.target.value)} placeholder="Nombre" className="col-span-4 bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-white focus:border-cbvp-red/50 focus:outline-none" />
+                    <input type="text" value={p.nombre} onChange={e => updateListField("personal", idx, "nombre", e.target.value)} placeholder="Nombre" className="col-span-3 bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-white focus:border-cbvp-red/50 focus:outline-none" />
                     <input type="text" value={p.asignacion} onChange={e => updateListField("personal", idx, "asignacion", e.target.value)} placeholder="Asignacion" className="col-span-3 bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-white focus:border-cbvp-red/50 focus:outline-none" />
                     <select value={p.asistencia} onChange={e => updateListField("personal", idx, "asistencia", e.target.value)} className="col-span-3 bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-white focus:border-cbvp-red/50 focus:outline-none">
                       <option value="PRESENTE">Presente</option>
                       <option value="AUSENTE">Ausente</option>
                       <option value="AUSENTE CON REEMPLAZO">Ausente c/reemplazo</option>
                     </select>
+                    <button onClick={() => quitarFilaLista("personal", idx)} className="col-span-1 flex justify-center text-white/30 hover:text-cbvp-red transition-colors"><X className="w-3.5 h-3.5" /></button>
                   </div>
                 ))}
               </div>
             </div>
 
-            {extraccion.guardiasEspeciales.length > 0 && (
-              <div>
-                <h4 className="text-xs font-semibold text-white/60 uppercase mb-2">Guardias Especiales ({extraccion.guardiasEspeciales.length})</h4>
-                <div className="space-y-2">
-                  {extraccion.guardiasEspeciales.map((p, idx) => (
-                    <div key={idx} className="grid grid-cols-12 gap-2 items-center bg-white/[0.03] rounded-lg p-2">
-                      <input type="text" value={p.codigo} onChange={e => updateListField("guardiasEspeciales", idx, "codigo", e.target.value)} placeholder="Codigo" className="col-span-3 bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-white focus:border-cbvp-red/50 focus:outline-none" />
-                      <input type="text" value={p.nombre} onChange={e => updateListField("guardiasEspeciales", idx, "nombre", e.target.value)} placeholder="Nombre" className="col-span-5 bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-white focus:border-cbvp-red/50 focus:outline-none" />
-                      <input type="text" value={p.asignacion} onChange={e => updateListField("guardiasEspeciales", idx, "asignacion", e.target.value)} placeholder="Asignacion" className="col-span-4 bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-white focus:border-cbvp-red/50 focus:outline-none" />
-                    </div>
-                  ))}
-                </div>
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-xs font-semibold text-white/60 uppercase">Guardias Especiales ({extraccion.guardiasEspeciales.length})</h4>
+                <button onClick={() => agregarFilaLista("guardiasEspeciales")} className="text-xs text-cbvp-green hover:underline flex items-center gap-1"><Plus className="w-3 h-3" /> Agregar</button>
               </div>
-            )}
+              <div className="space-y-2">
+                {extraccion.guardiasEspeciales.map((p, idx) => (
+                  <div key={idx} className="grid grid-cols-12 gap-2 items-center bg-white/[0.03] rounded-lg p-2">
+                    <input type="text" value={p.codigo} onChange={e => updateListField("guardiasEspeciales", idx, "codigo", e.target.value)} placeholder="Codigo" className="col-span-3 bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-white focus:border-cbvp-red/50 focus:outline-none" />
+                    <input type="text" value={p.nombre} onChange={e => updateListField("guardiasEspeciales", idx, "nombre", e.target.value)} placeholder="Nombre" className="col-span-4 bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-white focus:border-cbvp-red/50 focus:outline-none" />
+                    <input type="text" value={p.asignacion} onChange={e => updateListField("guardiasEspeciales", idx, "asignacion", e.target.value)} placeholder="Asignacion" className="col-span-4 bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-white focus:border-cbvp-red/50 focus:outline-none" />
+                    <button onClick={() => quitarFilaLista("guardiasEspeciales", idx)} className="col-span-1 flex justify-center text-white/30 hover:text-cbvp-red transition-colors"><X className="w-3.5 h-3.5" /></button>
+                  </div>
+                ))}
+              </div>
+            </div>
 
-            {extraccion.refuerzos.length > 0 && (
-              <div>
-                <h4 className="text-xs font-semibold text-white/60 uppercase mb-2">Refuerzos ({extraccion.refuerzos.length})</h4>
-                <div className="space-y-2">
-                  {extraccion.refuerzos.map((p, idx) => (
-                    <div key={idx} className="grid grid-cols-12 gap-2 items-center bg-white/[0.03] rounded-lg p-2">
-                      <input type="text" value={p.codigo} onChange={e => updateListField("refuerzos", idx, "codigo", e.target.value)} placeholder="Codigo" className="col-span-3 bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-white focus:border-cbvp-red/50 focus:outline-none" />
-                      <input type="text" value={p.nombre} onChange={e => updateListField("refuerzos", idx, "nombre", e.target.value)} placeholder="Nombre" className="col-span-5 bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-white focus:border-cbvp-red/50 focus:outline-none" />
-                      <input type="text" value={p.asignacion} onChange={e => updateListField("refuerzos", idx, "asignacion", e.target.value)} placeholder="Asignacion" className="col-span-4 bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-white focus:border-cbvp-red/50 focus:outline-none" />
-                    </div>
-                  ))}
-                </div>
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-xs font-semibold text-white/60 uppercase">Refuerzos ({extraccion.refuerzos.length})</h4>
+                <button onClick={() => agregarFilaLista("refuerzos")} className="text-xs text-cbvp-green hover:underline flex items-center gap-1"><Plus className="w-3 h-3" /> Agregar</button>
               </div>
-            )}
+              <div className="space-y-2">
+                {extraccion.refuerzos.map((p, idx) => (
+                  <div key={idx} className="grid grid-cols-12 gap-2 items-center bg-white/[0.03] rounded-lg p-2">
+                    <input type="text" value={p.codigo} onChange={e => updateListField("refuerzos", idx, "codigo", e.target.value)} placeholder="Codigo" className="col-span-3 bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-white focus:border-cbvp-red/50 focus:outline-none" />
+                    <input type="text" value={p.nombre} onChange={e => updateListField("refuerzos", idx, "nombre", e.target.value)} placeholder="Nombre" className="col-span-4 bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-white focus:border-cbvp-red/50 focus:outline-none" />
+                    <input type="text" value={p.asignacion} onChange={e => updateListField("refuerzos", idx, "asignacion", e.target.value)} placeholder="Asignacion" className="col-span-4 bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-white focus:border-cbvp-red/50 focus:outline-none" />
+                    <button onClick={() => quitarFilaLista("refuerzos", idx)} className="col-span-1 flex justify-center text-white/30 hover:text-cbvp-red transition-colors"><X className="w-3.5 h-3.5" /></button>
+                  </div>
+                ))}
+              </div>
+            </div>
 
             <div className="flex gap-3 pt-2">
               <button onClick={() => setExtraccion(null)} className="flex-1 py-2.5 bg-white/5 hover:bg-white/10 text-white/60 rounded-lg transition-colors text-sm flex items-center justify-center gap-2"><RotateCcw className="w-4 h-4" /> Cancelar</button>
