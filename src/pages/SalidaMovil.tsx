@@ -373,7 +373,7 @@ export default function SalidaMovil() {
               <tbody className="block sm:table-row-group">
                 {listadoData.registros.map(r => (
                   <Fragment key={r.id}>
-                    <tr className="border-b border-white/5 hover:bg-white/[0.02] transition-colors block sm:table-row mb-2 sm:mb-0 bg-white/[0.02] sm:bg-transparent rounded-lg sm:rounded-none p-2 sm:p-0">
+                    <tr onClick={() => iniciarEdicion(r)} className="border-b border-white/5 hover:bg-white/[0.02] transition-colors cursor-pointer block sm:table-row mb-2 sm:mb-0 bg-white/[0.02] sm:bg-transparent rounded-lg sm:rounded-none p-2 sm:p-0">
                       <td className="px-3 py-2 text-white/70 whitespace-nowrap block sm:table-cell font-medium text-white">{r.fechaSalida} {r.horaSalida}</td>
                       <td className="px-3 py-2 text-white block sm:table-cell"><span className="text-white/30 sm:hidden">Movil: </span>{r.movil || '-'}</td>
                       <td className="px-3 py-2 text-white/70 block sm:table-cell"><span className="text-white/30 sm:hidden">Servicio: </span>{r.tipoServicio || '-'}</td>
@@ -381,9 +381,8 @@ export default function SalidaMovil() {
                       <td className="px-3 py-2 text-white/70 block sm:table-cell"><span className="text-white/30 sm:hidden">Conductor: </span>{r.conductor || '-'}</td>
                       <td className="px-3 py-2 text-white/70 block sm:table-cell"><span className="text-white/30 sm:hidden">A cargo: </span>{r.oficialACargo || '-'}</td>
                       <td className="px-3 py-2 text-white/70 block sm:table-cell"><span className="text-white/30 sm:hidden">Km llegada: </span>{r.kilometrajeLlegada || '-'}</td>
-                      <td className="px-3 py-2 block sm:table-cell">
+                      <td className="px-3 py-2 block sm:table-cell" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center gap-2 pt-1.5 sm:pt-0 mt-1 sm:mt-0 border-t border-white/5 sm:border-0">
-                          <button onClick={() => iniciarEdicion(r)} className="p-2.5 sm:p-1.5 rounded-lg hover:bg-white/10 text-white/40 hover:text-white transition-colors" title="Editar"><Edit3 className="w-3.5 h-3.5" /></button>
                           <button onClick={() => eliminarFila(r.rowIndex)} className="p-2.5 sm:p-1.5 rounded-lg hover:bg-cbvp-red/20 text-white/40 hover:text-cbvp-red transition-colors" title="Eliminar"><Trash2 className="w-3.5 h-3.5" /></button>
                           {r.imageUrls.length > 0 && (
                             <a href={r.imageUrls[0]} target="_blank" rel="noopener noreferrer" className="p-2.5 sm:p-1.5 rounded-lg hover:bg-white/10 text-white/40 hover:text-cbvp-blue transition-colors" title="Ver imagen"><ExternalLink className="w-3.5 h-3.5" /></a>
