@@ -10,7 +10,7 @@ import {
   X, Clock, Calendar, User, Users, Shield,
   ChevronDown, ChevronUp, Eye, BookOpen,
   Edit3, Trash2, ExternalLink, Save, RotateCcw, Check,
-  Camera, Image as ImageIcon
+  Camera, Image as ImageIcon, Plus
 } from "lucide-react";
 
 export default function Planillas() {
