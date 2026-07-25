@@ -132,6 +132,16 @@ export async function escanearDocumento(file: File): Promise<File> {
 
     if (resultWidth < 50 || resultHeight < 50) return file;
 
+    // Salvaguarda: si el area detectada es mucho mas chica que la foto completa,
+    // probablemente detecto un contorno interno (texto, tabla, sombra) en vez
+    // del borde real de la hoja. En ese caso, mejor no tocar la foto original.
+    const areaDetectada = resultWidth * resultHeight;
+    const areaImagenCompleta = img.naturalWidth * img.naturalHeight;
+    const proporcion = areaDetectada / areaImagenCompleta;
+    if (proporcion < 0.55) {
+      return file;
+    }
+
     const resultCanvas: HTMLCanvasElement = scanner.extractPaper(img, resultWidth, resultHeight);
     return await canvasAFile(resultCanvas, file.name);
   } catch (err) {
