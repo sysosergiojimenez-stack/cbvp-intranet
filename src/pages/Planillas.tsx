@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 
 export default function Planillas() {
-  const { puedeCargarPlanillas, esVoluntario } = usePermiso();
+  const { puedeCargarPlanillas, esVoluntario, codigo } = usePermiso();
   const { usuario } = useAuth();
   const [file, setFile] = useState<File | null>(null);
   const [filePreview, setFilePreview] = useState<string | null>(null);
@@ -51,7 +51,7 @@ export default function Planillas() {
   const extraerMutation = trpc.planillas.extraer.useMutation();
   const guardarMutation = trpc.planillas.guardar.useMutation();
   const { data: historialData, isLoading: historialLoading } = trpc.planillas.historial.useQuery(
-    {}, { enabled: showHistory }
+    esVoluntario && codigo ? { codigo } : {}, { enabled: showHistory }
   );
   const { data: detalleData } = trpc.planillas.detalle.useQuery(
     { idPlanilla: selectedPlanilla || "" },
