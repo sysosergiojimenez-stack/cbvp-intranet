@@ -1,5 +1,6 @@
 import { useState, useCallback, Fragment } from "react";
 import { usePermiso } from "@/hooks/usePermiso";
+import { escanearDocumento } from "@/lib/documentScan";
 import { compressImage } from "@/lib/imageCompress";
 import { useAuth } from "@/context/AuthContext";
 import { trpc } from "@/providers/trpc";
@@ -77,18 +78,22 @@ export default function Planillas() {
 
   const isMobile = typeof window !== "undefined" && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
   const MAX_SIZE = isMobile ? 5 * 1024 * 1024 : 10 * 1024 * 1024;
+  const [escaneando, setEscaneando] = useState(false);
 
-  const handleFile = (selectedFile: File) => {
+  const handleFile = async (selectedFile: File) => {
     setError(""); setResult(null);
-    if (selectedFile.size > MAX_SIZE) {
+    setEscaneando(true);
+    const escaneado = await escanearDocumento(selectedFile);
+    setEscaneando(false);
+    if (escaneado.size > MAX_SIZE) {
       setError(`Maximo ${MAX_SIZE / 1024 / 1024}MB permitido${isMobile ? " en movil" : ""}.`);
       return;
     }
-    setFile(selectedFile);
-    if (selectedFile.type.startsWith("image/")) {
+    setFile(escaneado);
+    if (escaneado.type.startsWith("image/")) {
       const reader = new FileReader();
       reader.onload = e => setFilePreview(e.target?.result as string);
-      reader.readAsDataURL(selectedFile);
+      reader.readAsDataURL(escaneado);
     } else {
       setFilePreview(null);
     }
@@ -269,6 +274,11 @@ export default function Planillas() {
             className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors ${dragOver ? "border-cbvp-red bg-cbvp-red/5" : "border-white/10"}`}>
             <Upload className="w-10 h-10 text-white/20 mx-auto mb-3" />
             <p className="text-white/40 text-sm mb-3">Subi una imagen de la planilla</p>
+            {escaneando && (
+              <p className="text-primary text-xs mb-3 flex items-center justify-center gap-1.5">
+                <Clock size={12} className="animate-spin" /> Escaneando y corrigiendo perspectiva...
+              </p>
+            )}
             <div className="flex gap-2 justify-center flex-wrap">
               <button type="button" onClick={() => document.getElementById("file-input-guardia-camara")?.click()} className="px-4 py-2 bg-cbvp-red/10 hover:bg-cbvp-red/20 text-cbvp-red rounded-lg text-sm flex items-center gap-2 transition-colors">
                 <Camera className="w-4 h-4" /> Tomar Foto
