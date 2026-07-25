@@ -23,10 +23,12 @@ export default function Historial() {
   const [editError, setEditError] = useState('');
   const itemsPerPage = 5;
 
+  console.log('DEBUG Historial: esVoluntario=', esVoluntario, 'codigo=', codigo);
   const { data: rpcData, isLoading: rpcLoading, error: rpcError, refetch } = trpc.planillas.historial.useQuery(
     esVoluntario && codigo ? { codigo } : undefined,
     { retry: 1, refetchOnWindowFocus: false }
   );
+  console.log('DEBUG Historial: rpcData?.planillas.length=', rpcData?.planillas?.length);
 
   const deleteMutation = trpc.planillas.eliminar.useMutation({
     onSuccess: () => { refetch(); setDeleteConfirm(null); },
