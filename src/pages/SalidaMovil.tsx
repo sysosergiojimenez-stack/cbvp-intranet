@@ -1,6 +1,6 @@
 import { useState, Fragment } from 'react';
 import { trpc } from '@/providers/trpc';
-import { compressImage } from '@/lib/imageCompress';
+import DocumentScanModal from '@/components/DocumentScanModal';
 import { Truck, Upload, X, FileText, Clock, Zap, AlertTriangle, CheckCircle, ExternalLink, Edit3, RotateCcw, Save, Trash2, Plus, Camera, Image as ImageIcon } from 'lucide-react';
 
 function arrayBufferToBase64(buffer: ArrayBuffer): string {
@@ -87,6 +87,37 @@ export default function SalidaMovil() {
   const [result, setResult] = useState<{ idPlanilla: string; totalRegistros: number; imageUrls: string[] } | null>(null);
   const [extraccion, setExtraccion] = useState<{ imageUrls: string[]; uploadError?: string; registros: RegistroMovil[] } | null>(null);
 
+  const [colaEscaneo, setColaEscaneo] = useState<File[]>([]);
+  const [escaneandoActual, setEscaneandoActual] = useState<File | null>(null);
+  const agregarArchivo = (f: File) => {
+    if (f.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = e => setFiles(prev => [...prev, { file: f, preview: e.target?.result as string }]);
+      reader.readAsDataURL(f);
+    } else {
+      setFiles(prev => [...prev, { file: f, preview: null }]);
+    }
+  };
+  const avanzarCola = (cola: File[]) => {
+    if (cola.length === 0) {
+      setEscaneandoActual(null);
+      return;
+    }
+    const [siguiente, ...resto] = cola;
+    setColaEscaneo(resto);
+    setEscaneandoActual(siguiente);
+  };
+  const handleScanConfirm = (resultFile: File) => {
+    agregarArchivo(resultFile);
+    avanzarCola(colaEscaneo);
+  };
+  const handleScanUsarOriginal = () => {
+    if (escaneandoActual) agregarArchivo(escaneandoActual);
+    avanzarCola(colaEscaneo);
+  };
+  const handleScanCancel = () => {
+    avanzarCola(colaEscaneo);
+  };
   const handleFiles = (fileList: FileList | File[]) => {
     setError(''); setResult(null);
     const nuevos = Array.from(fileList);
@@ -95,15 +126,16 @@ export default function SalidaMovil() {
       setError(`Maximo ${MAX_SIZE / 1024 / 1024}MB permitido (archivo: ${muyGrande.name}).`);
       return;
     }
-    nuevos.forEach(f => {
-      if (f.type.startsWith('image/')) {
-        const reader = new FileReader();
-        reader.onload = e => setFiles(prev => [...prev, { file: f, preview: e.target?.result as string }]);
-        reader.readAsDataURL(f);
+    const imagenes = nuevos.filter(f => f.type.startsWith('image/'));
+    const otros = nuevos.filter(f => !f.type.startsWith('image/'));
+    otros.forEach(agregarArchivo);
+    if (imagenes.length > 0) {
+      if (escaneandoActual) {
+        setColaEscaneo(prev => [...prev, ...imagenes]);
       } else {
-        setFiles(prev => [...prev, { file: f, preview: null }]);
+        avanzarCola(imagenes);
       }
-    });
+    }
   };
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -197,6 +229,14 @@ export default function SalidaMovil() {
 
   return (
     <div className="animate-fade-in space-y-6">
+      {escaneandoActual && (
+        <DocumentScanModal
+          file={escaneandoActual}
+          onConfirm={handleScanConfirm}
+          onUsarOriginal={handleScanUsarOriginal}
+          onCancel={handleScanCancel}
+        />
+      )}
       <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-6">
         <div
           onDragOver={handleDragOver}

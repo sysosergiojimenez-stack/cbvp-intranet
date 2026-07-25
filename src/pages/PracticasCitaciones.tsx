@@ -1,7 +1,7 @@
 import { useState, useCallback, Fragment } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { usePermiso } from '@/hooks/usePermiso';
-import { compressImage } from '@/lib/imageCompress';
+import DocumentScanModal from '@/components/DocumentScanModal';
 import { trpc } from '@/providers/trpc';
 import type { AsistenciaEncabezado, AsistenciaPersonal } from '@/types';
 import {
@@ -111,6 +111,37 @@ export default function PracticasCitaciones() {
   const isMobile = typeof window !== 'undefined' && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
   const MAX_SIZE = isMobile ? 5 * 1024 * 1024 : 10 * 1024 * 1024;
 
+  const [colaEscaneo, setColaEscaneo] = useState<File[]>([]);
+  const [escaneandoActual, setEscaneandoActual] = useState<File | null>(null);
+  const agregarArchivo = (f: File) => {
+    if (f.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = e => setFiles(prev => [...prev, { file: f, preview: e.target?.result as string }]);
+      reader.readAsDataURL(f);
+    } else {
+      setFiles(prev => [...prev, { file: f, preview: null }]);
+    }
+  };
+  const avanzarCola = (cola: File[]) => {
+    if (cola.length === 0) {
+      setEscaneandoActual(null);
+      return;
+    }
+    const [siguiente, ...resto] = cola;
+    setColaEscaneo(resto);
+    setEscaneandoActual(siguiente);
+  };
+  const handleScanConfirm = (resultFile: File) => {
+    agregarArchivo(resultFile);
+    avanzarCola(colaEscaneo);
+  };
+  const handleScanUsarOriginal = () => {
+    if (escaneandoActual) agregarArchivo(escaneandoActual);
+    avanzarCola(colaEscaneo);
+  };
+  const handleScanCancel = () => {
+    avanzarCola(colaEscaneo);
+  };
   const handleFiles = (fileList: FileList | File[]) => {
     setError('');
     setResult(null);
@@ -120,15 +151,16 @@ export default function PracticasCitaciones() {
       setError(`Maximo ${MAX_SIZE / 1024 / 1024}MB permitido${isMobile ? ' en movil' : ''} (archivo: ${muyGrande.name}).`);
       return;
     }
-    nuevos.forEach(f => {
-      if (f.type.startsWith('image/')) {
-        const reader = new FileReader();
-        reader.onload = e => setFiles(prev => [...prev, { file: f, preview: e.target?.result as string }]);
-        reader.readAsDataURL(f);
+    const imagenes = nuevos.filter(f => f.type.startsWith('image/'));
+    const otros = nuevos.filter(f => !f.type.startsWith('image/'));
+    otros.forEach(agregarArchivo);
+    if (imagenes.length > 0) {
+      if (escaneandoActual) {
+        setColaEscaneo(prev => [...prev, ...imagenes]);
       } else {
-        setFiles(prev => [...prev, { file: f, preview: null }]);
+        avanzarCola(imagenes);
       }
-    });
+    }
   };
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -712,6 +744,15 @@ export default function PracticasCitaciones() {
       </div>
 
       {/* Delete Confirmation Modal */}
+      {escaneandoActual && (
+        <DocumentScanModal
+          file={escaneandoActual}
+          onConfirm={handleScanConfirm}
+          onUsarOriginal={handleScanUsarOriginal}
+          onCancel={handleScanCancel}
+        />
+      )}
+
       {deletingId && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-[#1a1a24] border border-white/10 rounded-xl w-full max-w-sm p-5">
