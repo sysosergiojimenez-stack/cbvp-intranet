@@ -50,7 +50,7 @@ function TablaAsistencia({ titulo, filas, diasDelMes }: { titulo: string; filas:
   );
 }
 
-export default function InformeAsistencia() {
+export default function InformesAsistencia() {
   const hoy = new Date();
   const [mes, setMes] = useState(hoy.getMonth() + 1);
   const [anio, setAnio] = useState(hoy.getFullYear());
@@ -62,7 +62,7 @@ export default function InformeAsistencia() {
     <div className="animate-fade-in space-y-6">
       <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-6">
         <h2 className="text-sm font-semibold text-white/60 uppercase tracking-wider mb-4 flex items-center gap-2">
-          <ClipboardList className="w-4 h-4 text-cbvp-red" /> Informe de Asistencia a Guardias
+          <ClipboardList className="w-4 h-4 text-cbvp-red" /> Informes de Asistencia
         </h2>
         <div className="flex flex-wrap gap-2 mb-4">
           <select value={mes} onChange={e => setMes(Number(e.target.value))} className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none">
@@ -85,6 +85,8 @@ export default function InformeAsistencia() {
           <div className="text-center py-6 text-white/40 text-sm">Cargando...</div>
         ) : !data?.normales || data.normales.length === 0 ? (
           <div className="text-center py-6 text-white/40 text-sm">No hay personal en esta categoria.</div>
+        ) : categoria === 'ACTIVO' ? (
+          <TablaAsistencia titulo="Asistencia Activos" filas={data.normales} diasDelMes={data.diasDelMes} />
         ) : (
           <>
             <TablaAsistencia titulo="Guardias Normales" filas={data.normales} diasDelMes={data.diasDelMes} />

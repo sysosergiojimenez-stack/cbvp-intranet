@@ -25,7 +25,7 @@ const NAV_ITEMS: NavItem[] = [
   { path: '/planillas', label: 'Planillas de Guardia', icon: ClipboardList, checkAccess: p => p.puedeCargarPlanillas },
   { path: '/practicas-citaciones', label: 'Practicas y Citaciones', icon: BookOpen, checkAccess: p => p.puedeCargarPlanillas },
   { path: '/salida-movil', label: 'Salidas de Movil', icon: Truck, checkAccess: p => p.puedeCargarPlanillas },
-  { path: '/informe-asistencia', label: 'Informe de Asistencia', icon: ClipboardCheck, checkAccess: (p, u) => { const c = (u?.cargo || '').trim().toUpperCase(); return c === 'SEGUNDO OFICIAL' || c === 'DESARROLLADOR'; } },
+  { path: '/informe-asistencia', label: 'Informes de Asistencia', icon: ClipboardCheck, checkAccess: (p, u) => { const c = (u?.cargo || '').trim().toUpperCase(); return c === 'SEGUNDO OFICIAL' || c === 'DESARROLLADOR'; } },
   { path: '/personal', label: 'Personal', icon: Users, checkAccess: (p, u) => p.puedeVerPersonal && u?.cargo?.trim().toUpperCase() !== 'VOLUNTARIO(A)' },
   { path: '/agregar-bombero', label: 'Agregar Bombero', icon: UserPlus, checkAccess: (p, u) => p.puedeVerPersonal && u?.cargo?.trim().toUpperCase() !== 'VOLUNTARIO(A)' },
   { path: '/configuracion', label: 'Configuracion', icon: Settings, checkAccess: p => p.puedeConfiguracion },

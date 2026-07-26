@@ -689,8 +689,16 @@ export const planillasRouter = createRouter({
         };
       }
 
-      const normales = personasBase.map((p) => calcular(p, "GUARDIA NORMAL"));
-      const especiales = personasBase.map((p) => calcular(p, "GUARDIA ESPECIAL"));
+      if (input.categoria.toUpperCase() === "ACTIVO") {
+        const asistencia = personasBase.map((p) => calcular(p, "GUARDIA NORMAL"));
+        return { exito: true as const, diasDelMes, normales: asistencia, especiales: [] as ReturnType<typeof calcular>[] };
+      }
+
+      const personasGE = personasBase.filter((p) => p.situ === "GE");
+      const personasNormales = personasBase.filter((p) => p.situ !== "GE");
+
+      const normales = personasNormales.map((p) => calcular(p, "GUARDIA NORMAL"));
+      const especiales = personasGE.map((p) => calcular(p, "GUARDIA ESPECIAL"));
 
       return { exito: true as const, diasDelMes, normales, especiales };
     }),
