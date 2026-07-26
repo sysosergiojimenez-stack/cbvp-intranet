@@ -617,4 +617,75 @@ export const planillasRouter = createRouter({
         matches,
       };
     }),
+
+  asistenciaMensualDetallada: publicQuery
+    .input(z.object({ mes: z.number().min(1).max(12), anio: z.number(), categoria: z.string() }))
+    .query(async ({ input }) => {
+      const usuariosData = await readSheet(env.SHEET_USUARIOS_ID, "USUARIOS!A1:S");
+      const personasBase: Array<{ codigo: string; numero: string; nombre: string; situ: string }> = [];
+      for (let i = 1; i < usuariosData.length; i++) {
+        const fila = usuariosData[i];
+        const codigo = fila[1] ? String(fila[1]).trim() : "";
+        const primerNombre = fila[7] ? String(fila[7]).trim() : "";
+        const categoria = String(fila[3] || "").trim().toUpperCase();
+        if (!codigo || !primerNombre) continue;
+        if (categoria !== input.categoria.toUpperCase()) continue;
+        const primerApellido = fila[9] ? String(fila[9]).trim() : "";
+        const nombre = primerNombre + (primerApellido ? " " + primerApellido : "");
+        const situ = String(fila[17] || "RN").trim() || "RN";
+        const numero = (codigo.match(/\d+/) || [""])[0];
+        personasBase.push({ codigo, numero, nombre, situ });
+      }
+
+      const guardiasData = await readSheet(env.SHEET_GUARDIAS_ID, "Guardias_Personal!A1:L");
+      const diasDelMes = new Date(input.anio, input.mes, 0).getDate();
+
+      const personas = personasBase.map((p) => {
+        const dias = new Array(diasDelMes).fill(0);
+        let totalGuardias = 0;
+        let presentes = 0;
+        for (let i = 1; i < guardiasData.length; i++) {
+          const fila = guardiasData[i];
+          const codigoFila = String(fila[6] || "").trim();
+          const numeroFila = (codigoFila.match(/\d+/) || [""])[0];
+          if (!numeroFila || numeroFila !== p.numero) continue;
+          const fechaGuardia = String(fila[3] || "").trim();
+          const partes = fechaGuardia.split("/");
+          if (partes.length !== 3) continue;
+          const dia = parseInt(partes[0], 10);
+          const mesFila = parseInt(partes[1], 10);
+          const anioFila = parseInt(partes[2], 10);
+          if (mesFila !== input.mes || anioFila !== input.anio) continue;
+          if (!dia || dia < 1 || dia > diasDelMes) continue;
+          const asistencia = String(fila[9] || "").trim().toUpperCase();
+          totalGuardias++;
+          if (asistencia === "PRESENTE") {
+            presentes++;
+            dias[dia - 1] = 1;
+          }
+        }
+
+        const realPercent = totalGuardias > 0 ? (presentes / totalGuardias) * 100 : 0;
+        let porcentaje = realPercent;
+        if (p.situ === "B10A") {
+          porcentaje = Math.min(100, (realPercent / 50) * 100);
+        } else if (p.situ === "B15A") {
+          porcentaje = Math.min(100, (realPercent / 25) * 100);
+        } else if (p.situ === "B20A") {
+          porcentaje = presentes >= 1 ? 100 : 0;
+        }
+
+        return {
+          codigo: p.codigo,
+          nombre: p.nombre,
+          situ: p.situ,
+          dias,
+          totalGuardias,
+          presentes,
+          porcentaje: Math.round(porcentaje),
+        };
+      });
+
+      return { exito: true as const, diasDelMes, personas };
+    }),
 });

@@ -13,6 +13,7 @@ import EditarBombero from '@/pages/EditarBombero';
 import ConfigurarAcceso from '@/pages/ConfigurarAcceso';
 import PracticasCitaciones from '@/pages/PracticasCitaciones';
 import SalidaMovil from '@/pages/SalidaMovil';
+import InformeAsistencia from '@/pages/InformeAsistencia';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { usuario } = useAuth();
@@ -64,6 +65,11 @@ function AppRoutes() {
         <Route path="/salida-movil" element={
           <ProtectedRoute>
             {permisos.puedeCargarPlanillas ? <SalidaMovil /> : <Navigate to="/" replace />}
+          </ProtectedRoute>
+        } />
+        <Route path="/informe-asistencia" element={
+          <ProtectedRoute>
+            {(usuario?.cargo?.trim().toUpperCase() === 'SEGUNDO OFICIAL' || usuario?.cargo?.trim().toUpperCase() === 'DESARROLLADOR') ? <InformeAsistencia /> : <Navigate to="/" replace />}
           </ProtectedRoute>
         } />
         <Route path="/personal" element={
