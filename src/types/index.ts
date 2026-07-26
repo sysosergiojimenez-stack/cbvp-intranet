@@ -36,6 +36,8 @@ export interface Personal {
   fechaNacimiento: string;
   correo: string;
   nombreCompleto: string;
+  situ: string;
+  cuota: string;
 }
 
 export interface GuardiaPersonal {

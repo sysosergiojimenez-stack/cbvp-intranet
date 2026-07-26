@@ -10,7 +10,7 @@ function extractNumber(code: string): string {
 
 export const personalRouter = createRouter({
   list: publicQuery.query(async () => {
-    const data = await readSheet(env.SHEET_USUARIOS_ID, "USUARIOS!A1:O");
+    const data = await readSheet(env.SHEET_USUARIOS_ID, "USUARIOS!A1:S");
     const personal: Array<{
       identificador: string;
       codigo: string;
@@ -20,6 +20,8 @@ export const personalRouter = createRouter({
       rango: string;
       codigoRadial: string;
       nombreCompleto: string;
+      situ: string;
+      cuota: string;
     }> = [];
 
     for (let i = 1; i < data.length; i++) {
@@ -40,6 +42,8 @@ export const personalRouter = createRouter({
         rango: String(fila[5] || ""),
         codigoRadial: String(fila[6] || ""),
         nombreCompleto,
+        situ: String(fila[17] || ""),
+        cuota: String(fila[18] || ""),
       });
     }
 
@@ -127,6 +131,8 @@ export const personalRouter = createRouter({
         contrasena: z.string().optional().or(z.literal('')),
         nivelPermiso: z.string().optional().or(z.literal('')),
         descripcionPermiso: z.string().optional().or(z.literal('')),
+        situ: z.string().optional().or(z.literal('')),
+        cuota: z.string().optional().or(z.literal('')),
       })
     )
     .mutation(async ({ input }) => {
@@ -148,6 +154,8 @@ export const personalRouter = createRouter({
         input.contrasena,
         input.nivelPermiso,
         input.descripcionPermiso,
+        input.situ || "",
+        input.cuota || "",
       ]);
       return { exito: true as const, mensaje: "Bombero registrado correctamente" };
     }),
@@ -155,7 +163,7 @@ export const personalRouter = createRouter({
   obtenerPorCodigo: publicQuery
     .input(z.object({ codigo: z.string() }))
     .query(async ({ input }) => {
-      const data = await readSheet(env.SHEET_USUARIOS_ID, "USUARIOS!A1:Q");
+      const data = await readSheet(env.SHEET_USUARIOS_ID, "USUARIOS!A1:S");
       const searchNum = extractNumber(input.codigo);
       for (let i = 1; i < data.length; i++) {
         const codigoFila = String(data[i][1] || "").trim();
@@ -180,6 +188,8 @@ export const personalRouter = createRouter({
               correo: String(data[i][13] || ""),
               nivelPermiso: String(data[i][15] || "1"),
               descripcionPermiso: String(data[i][16] || ""),
+              situ: String(data[i][17] || ""),
+              cuota: String(data[i][18] || ""),
             },
           };
         }
@@ -202,10 +212,12 @@ export const personalRouter = createRouter({
         segundoApellido: z.string(),
         nroDocId: z.string().optional(),
         fechaNacimiento: z.string().optional(),
+        situ: z.string().optional().or(z.literal('')),
+        cuota: z.string().optional().or(z.literal('')),
       })
     )
     .mutation(async ({ input }) => {
-      const data = await readSheet(env.SHEET_USUARIOS_ID, "USUARIOS!A1:Q");
+      const data = await readSheet(env.SHEET_USUARIOS_ID, "USUARIOS!A1:S");
       const searchNum = extractNumber(input.codigoOriginal);
       let rowIndex = -1;
       let existingRow: string[] = [];
@@ -221,7 +233,7 @@ export const personalRouter = createRouter({
       if (rowIndex === -1) {
         return { exito: false as const, error: "Bombero no encontrado" };
       }
-      await updateRange(env.SHEET_USUARIOS_ID, `USUARIOS!A${rowIndex}:Q${rowIndex}`, [[
+      await updateRange(env.SHEET_USUARIOS_ID, `USUARIOS!A${rowIndex}:S${rowIndex}`, [[
         "", // A: IDENTIFICADOR
         input.codigo,
         input.anioJuramento,
@@ -239,6 +251,8 @@ export const personalRouter = createRouter({
         existingRow[14] || "", // O: contrasena (preserve existing)
         existingRow[15] || "", // P: nivelPermiso (preserve existing)
         existingRow[16] || "", // Q: descripcionPermiso (preserve existing)
+        input.situ || "",
+        input.cuota || "",
       ]]);
       return { exito: true as const, mensaje: "Bombero actualizado correctamente" };
     }),
