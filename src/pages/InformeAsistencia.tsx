@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { trpc } from '@/providers/trpc';
-import { ClipboardList } from 'lucide-react';
+import { ClipboardList, Download } from 'lucide-react';
+import { exportarInformePdf } from '@/lib/exportarInformePdf';
 
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
@@ -149,6 +150,41 @@ export default function InformesAsistencia() {
   const { data, isLoading } = trpc.planillas.asistenciaMensualDetallada.useQuery({ mes, anio, categoria });
   const { data: dataPC, isLoading: isLoadingPC } = trpc.asistencia.mensualDetallada.useQuery({ mes, anio, categoria });
   const { data: dataTotal, isLoading: isLoadingTotal } = trpc.planillas.totalAcumulado.useQuery({ mes, anio, categoria });
+  const { data: dataResumen } = trpc.personal.resumenCuadroServicio.useQuery();
+  const [exportando, setExportando] = useState(false);
+
+  const handleExportar = async () => {
+    if (!data?.normales || !dataPC || !dataTotal) return;
+    setExportando(true);
+    try {
+      await exportarInformePdf({
+        mes, anio, categoria,
+        resumen: dataResumen ? {
+          regimenNormal: dataResumen.regimenNormal,
+          regimenEspecial: dataResumen.regimenEspecial,
+          b10a: dataResumen.b10a,
+          b15a: dataResumen.b15a,
+          b20a: dataResumen.b20a,
+          comisionados: dataResumen.comisionados,
+          enCuadro: dataResumen.enCuadro,
+          licencia: dataResumen.licencia,
+          fueraDeCuadro: dataResumen.fueraDeCuadro,
+          total: dataResumen.total,
+        } : null,
+        guardiasNormales: data.normales,
+        guardiasEspeciales: data.especiales,
+        diasDelMes: data.diasDelMes,
+        practicas: dataPC.practicas,
+        sabados: dataPC.sabados,
+        citaciones: dataPC.citaciones,
+        fechasCitacion: dataPC.fechasCitacion,
+        sinCitaciones: dataPC.sinCitaciones,
+        totalAcumulado: dataTotal.filas,
+      });
+    } finally {
+      setExportando(false);
+    }
+  };
 
   return (
     <div className="animate-fade-in space-y-6">
@@ -174,6 +210,9 @@ export default function InformesAsistencia() {
             <button onClick={() => setCategoria('COMBATIENTE')} className={`px-4 py-2 text-sm transition-colors ${categoria === 'COMBATIENTE' ? 'bg-cbvp-red text-white' : 'text-white/60 hover:text-white'}`}>Combatientes</button>
             <button onClick={() => setCategoria('ACTIVO')} className={`px-4 py-2 text-sm transition-colors ${categoria === 'ACTIVO' ? 'bg-cbvp-red text-white' : 'text-white/60 hover:text-white'}`}>Activos</button>
           </div>
+          <button onClick={handleExportar} disabled={exportando || !data?.normales || !dataPC || !dataTotal} className="ml-auto px-4 py-2 bg-cbvp-green/10 hover:bg-cbvp-green/20 disabled:opacity-50 text-cbvp-green rounded-lg text-sm flex items-center gap-2 transition-colors">
+            <Download className="w-4 h-4" /> {exportando ? 'Generando PDF...' : 'Exportar PDF'}
+          </button>
         </div>
 
         {isLoading ? (
