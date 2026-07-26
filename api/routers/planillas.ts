@@ -649,6 +649,8 @@ export const planillasRouter = createRouter({
           const codigoFila = String(fila[6] || "").trim();
           const numeroFila = (codigoFila.match(/\d+/) || [""])[0];
           if (!numeroFila || numeroFila !== p.numero) continue;
+          const tipoFila = String(fila[5] || "").trim().toUpperCase();
+          if (tipoFila === "REFUERZO") continue; // los refuerzos no cuentan para este informe
           const fechaGuardia = String(fila[3] || "").trim();
           const partes = fechaGuardia.split("/");
           if (partes.length !== 3) continue;
