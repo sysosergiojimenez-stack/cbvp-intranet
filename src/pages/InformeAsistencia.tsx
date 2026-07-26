@@ -60,7 +60,7 @@ export default function InformeAsistencia() {
                     <td className="px-2 py-1.5 text-white/80 whitespace-nowrap sticky left-[70px] bg-[#14141c]">{p.nombre}</td>
                     <td className="px-2 py-1.5 text-center text-white/50">{p.situ}</td>
                     {p.dias.map((d, i) => (
-                      <td key={i} className={`text-center px-1.5 py-1.5 ${d === 1 ? 'bg-cbvp-green/20 text-cbvp-green font-semibold' : 'text-white/20'}`}>{d}</td>
+                      <td key={i} className={`text-center px-1.5 py-1.5 ${d === 'P' ? 'bg-cbvp-green/20 text-cbvp-green font-semibold' : d === 'A' ? 'bg-cbvp-red/20 text-cbvp-red font-semibold' : ''}`}>{d}</td>
                     ))}
                     <td className="px-2 py-1.5 text-center font-semibold text-white">{p.porcentaje}%</td>
                   </tr>

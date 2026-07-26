@@ -641,7 +641,7 @@ export const planillasRouter = createRouter({
       const diasDelMes = new Date(input.anio, input.mes, 0).getDate();
 
       const personas = personasBase.map((p) => {
-        const dias = new Array(diasDelMes).fill(0);
+        const dias: string[] = new Array(diasDelMes).fill("");
         let totalGuardias = 0;
         let presentes = 0;
         for (let i = 1; i < guardiasData.length; i++) {
@@ -659,9 +659,12 @@ export const planillasRouter = createRouter({
           if (!dia || dia < 1 || dia > diasDelMes) continue;
           const asistencia = String(fila[9] || "").trim().toUpperCase();
           totalGuardias++;
-          if (asistencia === "PRESENTE") {
+          // "AUSENTE CON REEMPLAZO" cuenta como presente (el bombero consiguio quien lo reemplace)
+          if (asistencia === "PRESENTE" || asistencia === "AUSENTE CON REEMPLAZO") {
             presentes++;
-            dias[dia - 1] = 1;
+            dias[dia - 1] = "P";
+          } else {
+            dias[dia - 1] = "A";
           }
         }
 
