@@ -87,6 +87,10 @@ export default function SalidaMovil() {
   const [result, setResult] = useState<{ idPlanilla: string; totalRegistros: number; imageUrls: string[] } | null>(null);
   const [extraccion, setExtraccion] = useState<{ imageUrls: string[]; uploadError?: string; registros: RegistroMovil[] } | null>(null);
 
+  const hoy = new Date();
+  const [mesEstadisticas, setMesEstadisticas] = useState(hoy.getMonth() + 1);
+  const [anioEstadisticas, setAnioEstadisticas] = useState(hoy.getFullYear());
+  const { data: estadisticasData, isLoading: estadisticasLoading } = trpc.salidaMovil.estadisticasServicios.useQuery({ mes: mesEstadisticas, anio: anioEstadisticas });
   const [colaEscaneo, setColaEscaneo] = useState<File[]>([]);
   const [escaneandoActual, setEscaneandoActual] = useState<File | null>(null);
   const agregarArchivo = (f: File) => {
