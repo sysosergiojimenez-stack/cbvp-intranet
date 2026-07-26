@@ -105,6 +105,39 @@ interface FilaTotal {
   acumulado: number | string;
 }
 
+function tablaTotalAcumulado(doc: jsPDF, filas: FilaTotal[], startY: number, esActivo: boolean): number {
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Total Acumulado', 10, startY);
+
+  autoTable(doc, {
+    startY: startY + 3,
+    head: [[
+      'Cod.', 'Nombre', 'SITU',
+      esActivo ? 'Asistencia' : 'Guardias',
+      ...(esActivo ? [] : ['Practicas']),
+      'Citaciones', 'Acumulado', 'Cuota',
+    ]],
+    body: filas.map((f) => [
+      f.codigo,
+      f.nombre,
+      f.situ,
+      `${f.guardiasPercent}%`,
+      ...(esActivo ? [] : [f.practicasPercent === null ? '-' : `${f.practicasPercent}%`]),
+      f.citacionesPercent === null ? '-' : `${f.citacionesPercent}%`,
+      typeof f.acumulado === 'string' ? f.acumulado : `${f.acumulado}%`,
+      f.cuota || '-',
+    ]),
+    theme: 'grid',
+    styles: { fontSize: 7, cellPadding: 1.5 },
+    headStyles: { fillColor: [180, 30, 30], textColor: 255, fontSize: 7 },
+    margin: { left: 10, right: 10 },
+  });
+
+  // @ts-expect-error lastAutoTable
+  return doc.lastAutoTable.finalY + 8;
+}
+
 interface ResumenCuadro {
   regimenNormal: number;
   regimenEspecial: number;
@@ -118,11 +151,7 @@ interface ResumenCuadro {
   total: number;
 }
 
-export async function exportarInformePdf(params: {
-  mes: number;
-  anio: number;
-  categoria: 'COMBATIENTE' | 'ACTIVO';
-  resumen: ResumenCuadro | null;
+interface DatosCategoria {
   guardiasNormales: FilaDias[];
   guardiasEspeciales: FilaDias[];
   diasDelMes: number;
@@ -132,16 +161,32 @@ export async function exportarInformePdf(params: {
   fechasCitacion: number[];
   sinCitaciones: boolean;
   totalAcumulado: FilaTotal[];
+}
+
+interface EstadisticaServicio {
+  tipo: string;
+  cantidad: number;
+}
+
+export async function exportarInformeCombinado(params: {
+  mes: number;
+  anio: number;
+  resumen: ResumenCuadro | null;
+  combatiente: DatosCategoria;
+  activo: DatosCategoria;
+  estadisticasServicios: EstadisticaServicio[];
+  totalServicios: number;
 }) {
   const logo = await cargarLogoBase64();
   const nombreMes = MESES[params.mes - 1];
-  const subtitulo = `Informe de Asistencia - ${params.categoria === 'COMBATIENTE' ? 'Bomberos Voluntarios Combatientes' : 'Bomberos Voluntarios Activos'} - ${nombreMes} ${params.anio}`;
+  const subBase = `Informe Mensual - ${nombreMes} ${params.anio}`;
 
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   let cursorY = 0;
 
+  // ---- 1. Portada: resumen de cuadro de servicio ----
   if (params.resumen) {
-    encabezado(doc, logo, subtitulo);
+    encabezado(doc, logo, subBase);
     cursorY = 42;
     doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
@@ -190,69 +235,89 @@ export async function exportarInformePdf(params: {
     doc.setTextColor(0, 0, 0);
   }
 
+  const subCombatiente = `${subBase} - Bomberos Voluntarios Combatientes`;
+  const subActivo = `${subBase} - Bomberos Voluntarios Activos`;
+
+  // ---- 2. Guardias Combatientes (Normales + Especiales) ----
   doc.addPage('a4', 'landscape');
-  encabezado(doc, logo, subtitulo);
+  encabezado(doc, logo, subCombatiente);
   cursorY = 42;
+  const diasArr = Array.from({ length: params.combatiente.diasDelMes }, (_, i) => i + 1);
+  tablaDias(doc, 'Guardias Normales', params.combatiente.guardiasNormales, diasArr, cursorY, true);
 
-  if (params.categoria === 'ACTIVO') {
-    tablaDias(doc, 'Asistencia Activos', params.guardiasNormales, Array.from({ length: params.diasDelMes }, (_, i) => i + 1), cursorY, true);
-  } else {
-    tablaDias(doc, 'Guardias Normales', params.guardiasNormales, Array.from({ length: params.diasDelMes }, (_, i) => i + 1), cursorY, true);
-
-    if (params.guardiasEspeciales.length > 0) {
-      doc.addPage('a4', 'landscape');
-      encabezado(doc, logo, subtitulo);
-      cursorY = 42;
-      tablaDias(doc, 'Guardias Especiales', params.guardiasEspeciales, Array.from({ length: params.diasDelMes }, (_, i) => i + 1), cursorY, true);
-    }
-  }
-
-  if (params.categoria === 'COMBATIENTE') {
-    doc.addPage('a4', 'portrait');
-    encabezado(doc, logo, subtitulo);
+  if (params.combatiente.guardiasEspeciales.length > 0) {
+    doc.addPage('a4', 'landscape');
+    encabezado(doc, logo, subCombatiente);
     cursorY = 42;
-    tablaDias(doc, 'Practicas (sabados del mes)', params.practicas, params.sabados, cursorY, false);
+    tablaDias(doc, 'Guardias Especiales', params.combatiente.guardiasEspeciales, diasArr, cursorY, true);
   }
 
+  // ---- 3. Practicas Combatientes ----
   doc.addPage('a4', 'portrait');
-  encabezado(doc, logo, subtitulo);
+  encabezado(doc, logo, subCombatiente);
   cursorY = 42;
-  const tituloCitaciones = `Citaciones${params.sinCitaciones ? ' (NO HUBO)' : ''}`;
-  tablaDias(doc, tituloCitaciones, params.citaciones, params.fechasCitacion, cursorY, false);
+  tablaDias(doc, 'Practicas (sabados del mes)', params.combatiente.practicas, params.combatiente.sabados, cursorY, false);
 
+  // ---- 4. Citaciones Combatientes ----
   doc.addPage('a4', 'portrait');
-  encabezado(doc, logo, subtitulo);
+  encabezado(doc, logo, subCombatiente);
   cursorY = 42;
+  const tituloCitCombatiente = `Citaciones${params.combatiente.sinCitaciones ? ' (NO HUBO)' : ''}`;
+  tablaDias(doc, tituloCitCombatiente, params.combatiente.citaciones, params.combatiente.fechasCitacion, cursorY, false);
 
+  // ---- 5. Total Acumulado Combatientes ----
+  doc.addPage('a4', 'portrait');
+  encabezado(doc, logo, subCombatiente);
+  cursorY = 42;
+  tablaTotalAcumulado(doc, params.combatiente.totalAcumulado, cursorY, false);
+
+  // ---- 6. Asistencia Activos ----
+  doc.addPage('a4', 'landscape');
+  encabezado(doc, logo, subActivo);
+  cursorY = 42;
+  const diasArrActivo = Array.from({ length: params.activo.diasDelMes }, (_, i) => i + 1);
+  tablaDias(doc, 'Asistencia Activos', params.activo.guardiasNormales, diasArrActivo, cursorY, true);
+
+  // ---- 7. Citaciones Activos ----
+  doc.addPage('a4', 'portrait');
+  encabezado(doc, logo, subActivo);
+  cursorY = 42;
+  const tituloCitActivo = `Citaciones${params.activo.sinCitaciones ? ' (NO HUBO)' : ''}`;
+  tablaDias(doc, tituloCitActivo, params.activo.citaciones, params.activo.fechasCitacion, cursorY, false);
+
+  // ---- 8. Total Acumulado (resumen general) Activos ----
+  doc.addPage('a4', 'portrait');
+  encabezado(doc, logo, subActivo);
+  cursorY = 42;
+  tablaTotalAcumulado(doc, params.activo.totalAcumulado, cursorY, true);
+
+  // ---- 9. Estadisticas de Servicios ----
+  doc.addPage('a4', 'portrait');
+  encabezado(doc, logo, subBase);
+  cursorY = 42;
   doc.setFontSize(10);
   doc.setFont('helvetica', 'bold');
-  doc.text('Total Acumulado', 10, cursorY);
+  doc.text('Estadisticas de Servicios', 10, cursorY);
+  cursorY += 5;
 
-  const esActivoAcumulado = params.categoria === 'ACTIVO';
   autoTable(doc, {
-    startY: cursorY + 3,
-    head: [[
-      'Cod.', 'Nombre', 'SITU',
-      esActivoAcumulado ? 'Asistencia' : 'Guardias',
-      ...(esActivoAcumulado ? [] : ['Practicas']),
-      'Citaciones', 'Acumulado', 'Cuota',
-    ]],
-    body: params.totalAcumulado.map((f) => [
-      f.codigo,
-      f.nombre,
-      f.situ,
-      `${f.guardiasPercent}%`,
-      ...(esActivoAcumulado ? [] : [f.practicasPercent === null ? '-' : `${f.practicasPercent}%`]),
-      f.citacionesPercent === null ? '-' : `${f.citacionesPercent}%`,
-      typeof f.acumulado === 'string' ? f.acumulado : `${f.acumulado}%`,
-      f.cuota || '-',
-    ]),
+    startY: cursorY,
+    head: [['Tipo de Servicio', 'Cantidad']],
+    body: [
+      ...params.estadisticasServicios.map((e) => [e.tipo, String(e.cantidad)]),
+      ['Total', String(params.totalServicios)],
+    ],
     theme: 'grid',
-    styles: { fontSize: 7, cellPadding: 1.5 },
-    headStyles: { fillColor: [180, 30, 30], textColor: 255, fontSize: 7 },
-    margin: { left: 10, right: 10 },
+    styles: { fontSize: 9, cellPadding: 2 },
+    headStyles: { fillColor: [180, 30, 30], textColor: 255 },
+    margin: { left: 10, right: 60 },
+    didParseCell: (data) => {
+      if (data.section === 'body' && data.row.index === params.estadisticasServicios.length) {
+        data.cell.styles.fontStyle = 'bold';
+      }
+    },
   });
 
-  const nombreArchivo = `Informe_Asistencia_${params.categoria}_${nombreMes}_${params.anio}.pdf`;
+  const nombreArchivo = `Informe_Mensual_${nombreMes}_${params.anio}.pdf`;
   doc.save(nombreArchivo);
 }
