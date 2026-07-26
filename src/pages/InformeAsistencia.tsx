@@ -103,6 +103,43 @@ function TablaTotalAcumulado({ filas }: { filas: FilaTotal[] }) {
   );
 }
 
+function ResumenCuadroServicio() {
+  const { data, isLoading } = trpc.personal.resumenCuadroServicio.useQuery();
+  if (isLoading || !data) return null;
+  const fila = (etiqueta: string, valor: number) => (
+    <div className="flex items-center justify-between px-3 py-2 border-b border-white/5 last:border-0">
+      <span className="text-white/70">{etiqueta}</span>
+      <span className="text-white font-semibold">{valor}</span>
+    </div>
+  );
+  return (
+    <div className="mb-6 space-y-3">
+      <div className="bg-white/[0.02] border border-white/10 rounded-lg overflow-hidden">
+        {fila('Voluntarios en Cuadro de Servicio Regimen Normal', data.regimenNormal)}
+        {fila('Voluntarios en Cuadro de Servicio Regimen Especial', data.regimenEspecial)}
+        {fila('Con Beneficios - 10 años', data.b10a)}
+        {fila('Con Beneficios - 15 años', data.b15a)}
+        {fila('Con Beneficios - 20 años', data.b20a)}
+        {fila('Comisionados', data.comisionados)}
+        <div className="flex items-center justify-between px-3 py-2 bg-white/5 font-semibold">
+          <span className="text-white/80">Total en Cuadro de Servicio</span>
+          <span className="text-cbvp-green">{data.enCuadro}</span>
+        </div>
+      </div>
+      <div className="bg-white/[0.02] border border-white/10 rounded-lg overflow-hidden">
+        {fila('Voluntarios con Licencia', data.licencia)}
+      </div>
+      <div className="bg-white/[0.02] border border-white/10 rounded-lg overflow-hidden">
+        {fila('Voluntarios fuera del Cuadro de Servicio', data.fueraDeCuadro)}
+      </div>
+      <div className="flex items-center gap-3 px-4 py-3 bg-cbvp-red/10 border border-cbvp-red/20 rounded-lg">
+        <span className="text-xl font-bold text-cbvp-red">{data.total}</span>
+        <span className="text-white/80 text-sm">Voluntarios en Nomina del Cuartel</span>
+      </div>
+    </div>
+  );
+}
+
 export default function InformesAsistencia() {
   const hoy = new Date();
   const [mes, setMes] = useState(hoy.getMonth() + 1);
@@ -119,6 +156,9 @@ export default function InformesAsistencia() {
         <h2 className="text-sm font-semibold text-white/60 uppercase tracking-wider mb-4 flex items-center gap-2">
           <ClipboardList className="w-4 h-4 text-cbvp-red" /> Informes de Asistencia
         </h2>
+
+        <ResumenCuadroServicio />
+
         <div className="flex flex-wrap gap-2 mb-4">
           <select value={mes} onChange={e => setMes(Number(e.target.value))} className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none">
             {MESES.map((nombre, idx) => (

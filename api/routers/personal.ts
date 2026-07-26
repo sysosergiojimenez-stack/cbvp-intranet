@@ -289,4 +289,50 @@ export const personalRouter = createRouter({
       ]]);
       return { exito: true as const, mensaje: "Datos de acceso actualizados correctamente" };
     }),
+
+  resumenCuadroServicio: publicQuery.query(async () => {
+    const data = await readSheet(env.SHEET_USUARIOS_ID, "USUARIOS!A1:S");
+    let regimenNormal = 0;
+    let regimenEspecial = 0;
+    let b10a = 0;
+    let b15a = 0;
+    let b20a = 0;
+    let comisionados = 0;
+    let licencia = 0;
+    let total = 0;
+
+    for (let i = 1; i < data.length; i++) {
+      const fila = data[i];
+      const codigo = fila[1] ? String(fila[1]).trim() : "";
+      const primerNombre = fila[7] ? String(fila[7]).trim() : "";
+      if (!codigo || !primerNombre) continue;
+      total++;
+
+      const situ = String(fila[17] || "RN").trim().toUpperCase() || "RN";
+      if (situ === "RN") regimenNormal++;
+      else if (situ === "GE") regimenEspecial++;
+      else if (situ === "B10A") b10a++;
+      else if (situ === "B15A") b15a++;
+      else if (situ === "B20A") b20a++;
+      else if (situ === "CM") comisionados++;
+      else if (situ === "LC") licencia++;
+    }
+
+    const enCuadro = regimenNormal + regimenEspecial + b10a + b15a + b20a + comisionados;
+    const fueraDeCuadro = total - enCuadro - licencia;
+
+    return {
+      exito: true as const,
+      regimenNormal,
+      regimenEspecial,
+      b10a,
+      b15a,
+      b20a,
+      comisionados,
+      enCuadro,
+      licencia,
+      fueraDeCuadro,
+      total,
+    };
+  }),
 });
