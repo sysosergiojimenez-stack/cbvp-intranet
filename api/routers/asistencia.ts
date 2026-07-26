@@ -458,7 +458,7 @@ export const asistenciaRouter = createRouter({
     .input(z.object({ mes: z.number().min(1).max(12), anio: z.number(), categoria: z.string() }))
     .query(async ({ input }) => {
       const usuariosData = await readSheet(env.SHEET_USUARIOS_ID, "USUARIOS!A1:S");
-      const personasBase: Array<{ codigo: string; numero: string; nombre: string }> = [];
+      const personasBase: Array<{ codigo: string; numero: string; nombre: string; situ: string }> = [];
       for (let i = 1; i < usuariosData.length; i++) {
         const fila = usuariosData[i];
         const codigo = fila[1] ? String(fila[1]).trim() : "";
@@ -468,8 +468,9 @@ export const asistenciaRouter = createRouter({
         if (categoria !== input.categoria.toUpperCase()) continue;
         const primerApellido = fila[9] ? String(fila[9]).trim() : "";
         const nombre = primerNombre + (primerApellido ? " " + primerApellido : "");
+        const situ = String(fila[17] || "RN").trim() || "RN";
         const numero = (codigo.match(/\d+/) || [""])[0];
-        personasBase.push({ codigo, numero, nombre });
+        personasBase.push({ codigo, numero, nombre, situ });
       }
       personasBase.sort((a, b) => (parseInt(a.numero) || 0) - (parseInt(b.numero) || 0));
 
@@ -496,7 +497,7 @@ export const asistenciaRouter = createRouter({
         const idPlanilla = String(fila[1] || "").trim();
         const tipo = tipoPorPlanilla.get(idPlanilla) || "";
         if (!tipo.includes("CITACION")) continue;
-        const fechaActividad = String(fila[3] || "").trim();
+        const fechaActividad = String(fila[3] | "").trim();
         const partes = fechaActividad.split("/");
         if (partes.length !== 3) continue;
         const dia = parseInt(partes[0], 10);
@@ -507,19 +508,19 @@ export const asistenciaRouter = createRouter({
       }
       const fechasCitacion = Array.from(fechasCitacionSet).sort((a, b) => a - b);
 
-      function calcularParaFechas(p: { codigo: string; numero: string; nombre: string }, fechasColumnas: number[], tipoBuscado: string) {
+      function calcularParaFechas(p: { codigo: string; numero: string; nombre: string; situ: string }, fechasColumnas: number[], tipoBuscado: string) {
         const dias: string[] = new Array(fechasColumnas.length).fill("");
         let total = 0;
         let presentes = 0;
         for (let i = 1; i < persData.length; i++) {
           const fila = persData[i];
           const codigoFila = String(fila[6] || "").trim();
-          const numeroFila = (codigoFila.match(/\d+/) || [""])[0];
+          const numeroFila = (codigoFila.match(/\d+/) | [""])[0];
           if (!numeroFila || numeroFila !== p.numero) continue;
-          const idPlanilla = String(fila[1] || "").trim();
+          const idPlanilla = String(fila[1] | "").trim();
           const tipo = tipoPorPlanilla.get(idPlanilla) || "";
           if (!tipo.includes(tipoBuscado)) continue;
-          const fechaActividad = String(fila[3] || "").trim();
+          const fechaActividad = String(fila[3] | "").trim();
           const partes = fechaActividad.split("/");
           if (partes.length !== 3) continue;
           const dia = parseInt(partes[0], 10);
@@ -528,7 +529,7 @@ export const asistenciaRouter = createRouter({
           if (mesFila !== input.mes || anioFila !== input.anio) continue;
           const idxCol = fechasColumnas.indexOf(dia);
           if (idxCol === -1) continue;
-          const asistencia = String(fila[8] || "").trim().toUpperCase();
+          const asistencia = String(fila[8] | "").trim().toUpperCase();
           total++;
           if (asistencia === "PRESENTE") {
             presentes++;
@@ -537,11 +538,21 @@ export const asistenciaRouter = createRouter({
             dias[idxCol] = "A";
           }
         }
-        const porcentaje = total > 0 ? Math.round((presentes / total) * 100) : 0;
-        return { codigo: p.codigo, nombre: p.nombre, dias, total, presentes, porcentaje };
+        const realPercent = total > 0 ? (presentes / total) * 100 : 0;
+        let porcentaje = realPercent;
+        if (p.situ === "B10A") {
+          porcentaje = Math.min(100, (realPercent / 50) * 100);
+        } else if (p.situ === "B15A") {
+          porcentaje = Math.min(100, (realPercent / 25) * 100);
+        } else if (p.situ === "B20A") {
+          porcentaje = presentes >= 1 ? 100 : 0;
+        }
+        return { codigo: p.codigo, nombre: p.nombre, dias, total, presentes, porcentaje: Math.round(porcentaje) };
       }
 
-      const practicas = personasBase.map((p) => calcularParaFechas(p, sabados, "PRACTICA"));
+      const esActivo = input.categoria.toUpperCase() === "ACTIVO";
+
+      const practicas = esActivo ? [] : personasBase.map((p) => calcularParaFechas(p, sabados, "PRACTICA"));
       const citaciones = fechasCitacion.length > 0
         ? personasBase.map((p) => calcularParaFechas(p, fechasCitacion, "CITACION"))
         : [];
