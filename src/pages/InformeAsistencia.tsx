@@ -63,7 +63,8 @@ type FilaTotal = {
   acumulado: number | string;
 };
 
-function TablaTotalAcumulado({ filas }: { filas: FilaTotal[] }) {
+function TablaTotalAcumulado({ filas, categoria }: { filas: FilaTotal[]; categoria: 'COMBATIENTE' | 'ACTIVO' }) {
+  const esActivo = categoria === 'ACTIVO';
   return (
     <div className="mb-6">
       <h3 className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-2">Total Acumulado</h3>
@@ -74,8 +75,8 @@ function TablaTotalAcumulado({ filas }: { filas: FilaTotal[] }) {
               <th className="text-left px-2 py-2 font-medium text-white/50">Codigo</th>
               <th className="text-left px-2 py-2 font-medium text-white/50 min-w-[160px]">Nombre</th>
               <th className="text-center px-2 py-2 font-medium text-white/50">SITU</th>
-              <th className="text-center px-2 py-2 font-medium text-white/50">Guardias</th>
-              <th className="text-center px-2 py-2 font-medium text-white/50">Practicas</th>
+              <th className="text-center px-2 py-2 font-medium text-white/50">{esActivo ? 'Asistencia' : 'Guardias'}</th>
+              {!esActivo && <th className="text-center px-2 py-2 font-medium text-white/50">Practicas</th>}
               <th className="text-center px-2 py-2 font-medium text-white/50">Citaciones</th>
               <th className="text-center px-2 py-2 font-medium text-white/50">Acumulado</th>
               <th className="text-center px-2 py-2 font-medium text-white/50">Cuota</th>
@@ -90,7 +91,7 @@ function TablaTotalAcumulado({ filas }: { filas: FilaTotal[] }) {
                   <td className="px-2 py-1.5 text-white/80 whitespace-nowrap">{p.nombre}</td>
                   <td className="px-2 py-1.5 text-center text-white/50">{p.situ}</td>
                   <td className="px-2 py-1.5 text-center text-white/70">{p.guardiasPercent}%</td>
-                  <td className="px-2 py-1.5 text-center text-white/70">{p.practicasPercent === null ? '-' : `${p.practicasPercent}%`}</td>
+                  {!esActivo && <td className="px-2 py-1.5 text-center text-white/70">{p.practicasPercent === null ? '-' : `${p.practicasPercent}%`}</td>}
                   <td className="px-2 py-1.5 text-center text-white/70">{p.citacionesPercent === null ? '-' : `${p.citacionesPercent}%`}</td>
                   <td className={`px-2 py-1.5 text-center font-semibold ${esTexto ? 'text-cbvp-orange' : 'text-white'}`}>{esTexto ? p.acumulado : `${p.acumulado}%`}</td>
                   <td className="px-2 py-1.5 text-center text-white/50">{p.cuota || '-'}</td>
@@ -243,7 +244,7 @@ export default function InformesAsistencia() {
         {isLoadingTotal ? (
           <div className="text-center py-6 text-white/40 text-sm">Cargando total acumulado...</div>
         ) : dataTotal?.filas && dataTotal.filas.length > 0 && (
-          <TablaTotalAcumulado filas={dataTotal.filas} />
+          <TablaTotalAcumulado filas={dataTotal.filas} categoria={categoria} />
         )}
       </div>
     </div>

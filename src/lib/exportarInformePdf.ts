@@ -228,15 +228,21 @@ export async function exportarInformePdf(params: {
   doc.setFont('helvetica', 'bold');
   doc.text('Total Acumulado', 10, cursorY);
 
+  const esActivoAcumulado = params.categoria === 'ACTIVO';
   autoTable(doc, {
     startY: cursorY + 3,
-    head: [['Cod.', 'Nombre', 'SITU', 'Guardias', 'Practicas', 'Citaciones', 'Acumulado', 'Cuota']],
+    head: [[
+      'Cod.', 'Nombre', 'SITU',
+      esActivoAcumulado ? 'Asistencia' : 'Guardias',
+      ...(esActivoAcumulado ? [] : ['Practicas']),
+      'Citaciones', 'Acumulado', 'Cuota',
+    ]],
     body: params.totalAcumulado.map((f) => [
       f.codigo,
       f.nombre,
       f.situ,
       `${f.guardiasPercent}%`,
-      f.practicasPercent === null ? '-' : `${f.practicasPercent}%`,
+      ...(esActivoAcumulado ? [] : [f.practicasPercent === null ? '-' : `${f.practicasPercent}%`]),
       f.citacionesPercent === null ? '-' : `${f.citacionesPercent}%`,
       typeof f.acumulado === 'string' ? f.acumulado : `${f.acumulado}%`,
       f.cuota || '-',
