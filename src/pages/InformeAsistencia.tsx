@@ -236,14 +236,7 @@ export default function InformesAsistencia() {
               <TablaAsistencia titulo="Practicas (sabados del mes)" filas={dataPC.practicas} columnas={dataPC.sabados} />
             )}
 
-            {dataPC.sinCitaciones ? (
-              <div className="mb-6">
-                <h3 className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-2">Citaciones</h3>
-                <div className="text-center py-4 text-white/40 text-sm bg-white/[0.02] rounded-lg border border-white/5">NO HUBO</div>
-              </div>
-            ) : (
-              <TablaAsistencia titulo="Citaciones" filas={dataPC.citaciones} columnas={dataPC.fechasCitacion} />
-            )}
+            <TablaAsistencia titulo={`Citaciones${dataPC.sinCitaciones ? ' (NO HUBO)' : ''}`} filas={dataPC.citaciones} columnas={dataPC.fechasCitacion} />
           </>
         )}
 

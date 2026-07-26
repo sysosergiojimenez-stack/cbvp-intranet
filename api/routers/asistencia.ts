@@ -553,9 +553,10 @@ export const asistenciaRouter = createRouter({
       const esActivo = input.categoria.toUpperCase() === "ACTIVO";
 
       const practicas = esActivo ? [] : personasBase.map((p) => calcularParaFechas(p, sabados, "PRACTICA"));
-      const citaciones = fechasCitacion.length > 0
-        ? personasBase.map((p) => calcularParaFechas(p, fechasCitacion, "CITACION"))
-        : [];
+      // Citaciones siempre se devuelve poblado (con todos los nombres), aunque no haya
+      // habido citaciones ese mes (en ese caso fechasCitacion esta vacio y cada persona
+      // queda con dias:[] y 0%, para poder mostrar igual la planilla con los nombres).
+      const citaciones = personasBase.map((p) => calcularParaFechas(p, fechasCitacion, "CITACION"));
 
       return {
         exito: true as const,

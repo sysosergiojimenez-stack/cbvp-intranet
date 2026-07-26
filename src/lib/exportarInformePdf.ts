@@ -195,34 +195,34 @@ export async function exportarInformePdf(params: {
   cursorY = 42;
 
   if (params.categoria === 'ACTIVO') {
-    cursorY = tablaDias(doc, 'Asistencia Activos', params.guardiasNormales, Array.from({ length: params.diasDelMes }, (_, i) => i + 1), cursorY, true);
+    tablaDias(doc, 'Asistencia Activos', params.guardiasNormales, Array.from({ length: params.diasDelMes }, (_, i) => i + 1), cursorY, true);
   } else {
-    cursorY = tablaDias(doc, 'Guardias Normales', params.guardiasNormales, Array.from({ length: params.diasDelMes }, (_, i) => i + 1), cursorY, true);
-    if (cursorY > 160) { doc.addPage('a4', 'landscape'); encabezado(doc, logo, subtitulo); cursorY = 42; }
-    cursorY = tablaDias(doc, 'Guardias Especiales', params.guardiasEspeciales, Array.from({ length: params.diasDelMes }, (_, i) => i + 1), cursorY, true);
+    tablaDias(doc, 'Guardias Normales', params.guardiasNormales, Array.from({ length: params.diasDelMes }, (_, i) => i + 1), cursorY, true);
+
+    if (params.guardiasEspeciales.length > 0) {
+      doc.addPage('a4', 'landscape');
+      encabezado(doc, logo, subtitulo);
+      cursorY = 42;
+      tablaDias(doc, 'Guardias Especiales', params.guardiasEspeciales, Array.from({ length: params.diasDelMes }, (_, i) => i + 1), cursorY, true);
+    }
+  }
+
+  if (params.categoria === 'COMBATIENTE') {
+    doc.addPage('a4', 'portrait');
+    encabezado(doc, logo, subtitulo);
+    cursorY = 42;
+    tablaDias(doc, 'Practicas (sabados del mes)', params.practicas, params.sabados, cursorY, false);
   }
 
   doc.addPage('a4', 'portrait');
   encabezado(doc, logo, subtitulo);
   cursorY = 42;
+  const tituloCitaciones = `Citaciones${params.sinCitaciones ? ' (NO HUBO)' : ''}`;
+  tablaDias(doc, tituloCitaciones, params.citaciones, params.fechasCitacion, cursorY, false);
 
-  if (params.categoria === 'COMBATIENTE') {
-    cursorY = tablaDias(doc, 'Practicas (sabados del mes)', params.practicas, params.sabados, cursorY, false);
-    if (cursorY > 240) { doc.addPage('a4', 'portrait'); encabezado(doc, logo, subtitulo); cursorY = 42; }
-  }
-
-  if (params.sinCitaciones) {
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Citaciones', 10, cursorY);
-    doc.setFont('helvetica', 'normal');
-    doc.text('NO HUBO', 10, cursorY + 6);
-    cursorY += 14;
-  } else {
-    cursorY = tablaDias(doc, 'Citaciones', params.citaciones, params.fechasCitacion, cursorY, false);
-  }
-
-  if (cursorY > 220) { doc.addPage('a4', 'portrait'); encabezado(doc, logo, subtitulo); cursorY = 42; }
+  doc.addPage('a4', 'portrait');
+  encabezado(doc, logo, subtitulo);
+  cursorY = 42;
 
   doc.setFontSize(10);
   doc.setFont('helvetica', 'bold');
