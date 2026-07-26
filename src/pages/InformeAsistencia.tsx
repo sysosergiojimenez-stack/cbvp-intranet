@@ -51,6 +51,58 @@ function TablaAsistencia({ titulo, filas, columnas, mostrarSitu }: { titulo: str
   );
 }
 
+type FilaTotal = {
+  codigo: string;
+  nombre: string;
+  situ: string;
+  cuota: string;
+  guardiasPercent: number;
+  practicasPercent: number | null;
+  citacionesPercent: number | null;
+  acumulado: number | string;
+};
+
+function TablaTotalAcumulado({ filas }: { filas: FilaTotal[] }) {
+  return (
+    <div className="mb-6">
+      <h3 className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-2">Total Acumulado</h3>
+      <div className="overflow-x-auto">
+        <table className="text-xs border-collapse min-w-full">
+          <thead>
+            <tr className="bg-white/5 border-b border-white/10">
+              <th className="text-left px-2 py-2 font-medium text-white/50">Codigo</th>
+              <th className="text-left px-2 py-2 font-medium text-white/50 min-w-[160px]">Nombre</th>
+              <th className="text-center px-2 py-2 font-medium text-white/50">SITU</th>
+              <th className="text-center px-2 py-2 font-medium text-white/50">Guardias</th>
+              <th className="text-center px-2 py-2 font-medium text-white/50">Practicas</th>
+              <th className="text-center px-2 py-2 font-medium text-white/50">Citaciones</th>
+              <th className="text-center px-2 py-2 font-medium text-white/50">Acumulado</th>
+              <th className="text-center px-2 py-2 font-medium text-white/50">Cuota</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filas.map((p, idx) => {
+              const esTexto = typeof p.acumulado === 'string';
+              return (
+                <tr key={idx} className="border-b border-white/5 hover:bg-white/[0.02]">
+                  <td className="px-2 py-1.5 text-white/60 whitespace-nowrap">{p.codigo}</td>
+                  <td className="px-2 py-1.5 text-white/80 whitespace-nowrap">{p.nombre}</td>
+                  <td className="px-2 py-1.5 text-center text-white/50">{p.situ}</td>
+                  <td className="px-2 py-1.5 text-center text-white/70">{p.guardiasPercent}%</td>
+                  <td className="px-2 py-1.5 text-center text-white/70">{p.practicasPercent === null ? '-' : `${p.practicasPercent}%`}</td>
+                  <td className="px-2 py-1.5 text-center text-white/70">{p.citacionesPercent === null ? '-' : `${p.citacionesPercent}%`}</td>
+                  <td className={`px-2 py-1.5 text-center font-semibold ${esTexto ? 'text-cbvp-orange' : 'text-white'}`}>{esTexto ? p.acumulado : `${p.acumulado}%`}</td>
+                  <td className="px-2 py-1.5 text-center text-white/50">{p.cuota || '-'}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 export default function InformesAsistencia() {
   const hoy = new Date();
   const [mes, setMes] = useState(hoy.getMonth() + 1);
@@ -59,6 +111,7 @@ export default function InformesAsistencia() {
 
   const { data, isLoading } = trpc.planillas.asistenciaMensualDetallada.useQuery({ mes, anio, categoria });
   const { data: dataPC, isLoading: isLoadingPC } = trpc.asistencia.mensualDetallada.useQuery({ mes, anio, categoria });
+  const { data: dataTotal, isLoading: isLoadingTotal } = trpc.planillas.totalAcumulado.useQuery({ mes, anio, categoria });
 
   return (
     <div className="animate-fade-in space-y-6">
@@ -100,7 +153,9 @@ export default function InformesAsistencia() {
           <div className="text-center py-6 text-white/40 text-sm">Cargando practicas y citaciones...</div>
         ) : dataPC && (
           <>
-            <TablaAsistencia titulo="Practicas (sabados del mes)" filas={dataPC.practicas} columnas={dataPC.sabados} />
+            {categoria === 'COMBATIENTE' && (
+              <TablaAsistencia titulo="Practicas (sabados del mes)" filas={dataPC.practicas} columnas={dataPC.sabados} />
+            )}
 
             {dataPC.sinCitaciones ? (
               <div className="mb-6">
@@ -111,6 +166,12 @@ export default function InformesAsistencia() {
               <TablaAsistencia titulo="Citaciones" filas={dataPC.citaciones} columnas={dataPC.fechasCitacion} />
             )}
           </>
+        )}
+
+        {isLoadingTotal ? (
+          <div className="text-center py-6 text-white/40 text-sm">Cargando total acumulado...</div>
+        ) : dataTotal?.filas && dataTotal.filas.length > 0 && (
+          <TablaTotalAcumulado filas={dataTotal.filas} />
         )}
       </div>
     </div>

@@ -702,4 +702,160 @@ export const planillasRouter = createRouter({
 
       return { exito: true as const, diasDelMes, normales, especiales };
     }),
+
+  totalAcumulado: publicQuery
+    .input(z.object({ mes: z.number().min(1).max(12), anio: z.number(), categoria: z.string() }))
+    .query(async ({ input }) => {
+      const esActivo = input.categoria.toUpperCase() === "ACTIVO";
+
+      const usuariosData = await readSheet(env.SHEET_USUARIOS_ID, "USUARIOS!A1:S");
+      const personasBase: Array<{ codigo: string; numero: string; nombre: string; situ: string; cuota: string }> = [];
+      for (let i = 1; i < usuariosData.length; i++) {
+        const fila = usuariosData[i];
+        const codigo = fila[1] ? String(fila[1]).trim() : "";
+        const primerNombre = fila[7] ? String(fila[7]).trim() : "";
+        const categoria = String(fila[3] || "").trim().toUpperCase();
+        if (!codigo || !primerNombre) continue;
+        if (categoria !== input.categoria.toUpperCase()) continue;
+        const primerApellido = fila[9] ? String(fila[9]).trim() : "";
+        const nombre = primerNombre + (primerApellido ? " " + primerApellido : "");
+        const situ = String(fila[17] || "RN").trim() || "RN";
+        const cuota = String(fila[18] || "").trim();
+        const numero = (codigo.match(/\d+/) || [""])[0];
+        personasBase.push({ codigo, numero, nombre, situ, cuota });
+      }
+      personasBase.sort((a, b) => (parseInt(a.numero) || 0) - (parseInt(b.numero) || 0));
+
+      const diasDelMes = new Date(input.anio, input.mes, 0).getDate();
+
+      // --- Guardias ---
+      const guardiasData = await readSheet(env.SHEET_GUARDIAS_ID, "Guardias_Personal!A1:L");
+      function porcentajeConSitu(realPercent: number, presentes: number, situ: string): number {
+        if (situ === "B10A") return Math.min(100, Math.round((realPercent / 50) * 100));
+        if (situ === "B15A") return Math.min(100, Math.round((realPercent / 25) * 100));
+        if (situ === "B20A") return presentes >= 1 ? 100 : 0;
+        return Math.round(realPercent);
+      }
+      function calcularGuardias(p: { numero: string; situ: string }, tipoRequerido: string) {
+        let total = 0;
+        let presentes = 0;
+        for (let i = 1; i < guardiasData.length; i++) {
+          const fila = guardiasData[i];
+          const codigoFila = String(fila[6] || "").trim();
+          const numeroFila = (codigoFila.match(/\d+/) || [""])[0];
+          if (!numeroFila || numeroFila !== p.numero) continue;
+          const tipoFila = String(fila[5] || "").trim().toUpperCase();
+          if (tipoFila !== tipoRequerido) continue;
+          const fechaGuardia = String(fila[3] || "").trim();
+          const partes = fechaGuardia.split("/");
+          if (partes.length !== 3) continue;
+          const mesFila = parseInt(partes[1], 10);
+          const anioFila = parseInt(partes[2], 10);
+          if (mesFila !== input.mes || anioFila !== input.anio) continue;
+          const asistencia = String(fila[9] || "").trim().toUpperCase();
+          total++;
+          if (asistencia === "PRESENTE" || asistencia === "AUSENTE CON REEMPLAZO") presentes++;
+        }
+        const realPercent = total > 0 ? (presentes / total) * 100 : 0;
+        return porcentajeConSitu(realPercent, presentes, p.situ);
+      }
+
+      // --- Practicas / Citaciones ---
+      const encData = await readSheet(env.SHEET_GUARDIAS_ID, "Asistencia_Encabezado!A1:I");
+      const tipoPorPlanilla = new Map<string, string>();
+      for (let i = 1; i < encData.length; i++) {
+        const idPlanilla = String(encData[i][0] || "").trim();
+        const tipo = String(encData[i][3] || "").trim().toUpperCase();
+        if (idPlanilla) tipoPorPlanilla.set(idPlanilla, tipo);
+      }
+      const persData = await readSheet(env.SHEET_GUARDIAS_ID, "Asistencia_Personal!A1:K");
+
+      const sabados: number[] = [];
+      for (let d = 1; d <= diasDelMes; d++) {
+        const fecha = new Date(input.anio, input.mes - 1, d);
+        if (fecha.getDay() === 6) sabados.push(d);
+      }
+
+      const fechasCitacionSet = new Set<number>();
+      for (let i = 1; i < persData.length; i++) {
+        const fila = persData[i];
+        const idPlanilla = String(fila[1] || "").trim();
+        const tipo = tipoPorPlanilla.get(idPlanilla) || "";
+        if (!tipo.includes("CITACION")) continue;
+        const fechaActividad = String(fila[3] || "").trim();
+        const partes = fechaActividad.split("/");
+        if (partes.length !== 3) continue;
+        const dia = parseInt(partes[0], 10);
+        const mesFila = parseInt(partes[1], 10);
+        const anioFila = parseInt(partes[2], 10);
+        if (mesFila !== input.mes || anioFila !== input.anio) continue;
+        if (dia >= 1 && dia <= diasDelMes) fechasCitacionSet.add(dia);
+      }
+      const huboCitaciones = fechasCitacionSet.size > 0;
+
+      function calcularPersAsistencia(p: { numero: string; situ: string }, tipoBuscado: string, fechasPermitidas: Set<number> | null) {
+        let total = 0;
+        let presentes = 0;
+        for (let i = 1; i < persData.length; i++) {
+          const fila = persData[i];
+          const codigoFila = String(fila[6] || "").trim();
+          const numeroFila = (codigoFila.match(/\d+/) || [""])[0];
+          if (!numeroFila || numeroFila !== p.numero) continue;
+          const idPlanilla = String(fila[1] || "").trim();
+          const tipo = tipoPorPlanilla.get(idPlanilla) || "";
+          if (!tipo.includes(tipoBuscado)) continue;
+          const fechaActividad = String(fila[3] || "").trim();
+          const partes = fechaActividad.split("/");
+          if (partes.length !== 3) continue;
+          const dia = parseInt(partes[0], 10);
+          const mesFila = parseInt(partes[1], 10);
+          const anioFila = parseInt(partes[2], 10);
+          if (mesFila !== input.mes || anioFila !== input.anio) continue;
+          if (fechasPermitidas && !fechasPermitidas.has(dia)) continue;
+          const asistencia = String(fila[8] || "").trim().toUpperCase();
+          total++;
+          if (asistencia === "PRESENTE") presentes++;
+        }
+        const realPercent = total > 0 ? (presentes / total) * 100 : 0;
+        return porcentajeConSitu(realPercent, presentes, p.situ);
+      }
+
+      const sabadosSet = new Set(sabados);
+
+      const filas = personasBase.map((p) => {
+        const esGE = p.situ === "GE";
+        const guardiasPercent = esActivo
+          ? calcularGuardias(p, "GUARDIA NORMAL")
+          : calcularGuardias(p, esGE ? "GUARDIA ESPECIAL" : "GUARDIA NORMAL");
+
+        const practicasPercent = esActivo ? null : calcularPersAsistencia(p, "PRACTICA", sabadosSet);
+        const citacionesPercent = huboCitaciones ? calcularPersAsistencia(p, "CITACION", fechasCitacionSet) : null;
+
+        let acumulado: number | string;
+        if (p.situ === "SC") {
+          acumulado = "SANCIONADO";
+        } else if (p.situ === "LC") {
+          acumulado = "LICENCIA";
+        } else {
+          const valores: number[] = [guardiasPercent];
+          if (practicasPercent !== null) valores.push(practicasPercent);
+          if (citacionesPercent !== null) valores.push(citacionesPercent);
+          const suma = valores.reduce((acc, v) => acc + v, 0);
+          acumulado = Math.round(suma / valores.length);
+        }
+
+        return {
+          codigo: p.codigo,
+          nombre: p.nombre,
+          situ: p.situ,
+          cuota: p.cuota,
+          guardiasPercent,
+          practicasPercent,
+          citacionesPercent,
+          acumulado,
+        };
+      });
+
+      return { exito: true as const, filas, huboCitaciones };
+    }),
 });
