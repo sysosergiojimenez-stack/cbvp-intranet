@@ -453,14 +453,106 @@ export const asistenciaRouter = createRouter({
 
       return { exito: true as const, mensaje: "Planilla actualizada correctamente" };
     }),
-});
 
-function parseDate(dateStr: string): number {
-  if (!dateStr) return 0;
-  const parts = dateStr.split(/[\/\-]/);
-  if (parts.length < 3) return 0;
-  const day = parseInt(parts[0]) || 1;
-  const month = (parseInt(parts[1]) || 1) - 1;
-  const year = parseInt(parts[2]) || 2000;
-  return new Date(year, month, day).getTime();
-}
+  mensualDetallada: publicQuery
+    .input(z.object({ mes: z.number().min(1).max(12), anio: z.number(), categoria: z.string() }))
+    .query(async ({ input }) => {
+      const usuariosData = await readSheet(env.SHEET_USUARIOS_ID, "USUARIOS!A1:S");
+      const personasBase: Array<{ codigo: string; numero: string; nombre: string }> = [];
+      for (let i = 1; i < usuariosData.length; i++) {
+        const fila = usuariosData[i];
+        const codigo = fila[1] ? String(fila[1]).trim() : "";
+        const primerNombre = fila[7] ? String(fila[7]).trim() : "";
+        const categoria = String(fila[3] || "").trim().toUpperCase();
+        if (!codigo || !primerNombre) continue;
+        if (categoria !== input.categoria.toUpperCase()) continue;
+        const primerApellido = fila[9] ? String(fila[9]).trim() : "";
+        const nombre = primerNombre + (primerApellido ? " " + primerApellido : "");
+        const numero = (codigo.match(/\d+/) || [""])[0];
+        personasBase.push({ codigo, numero, nombre });
+      }
+      personasBase.sort((a, b) => (parseInt(a.numero) || 0) - (parseInt(b.numero) || 0));
+
+      const encData = await readSheet(env.SHEET_GUARDIAS_ID, "Asistencia_Encabezado!A1:I");
+      const tipoPorPlanilla = new Map<string, string>();
+      for (let i = 1; i < encData.length; i++) {
+        const idPlanilla = String(encData[i][0] || "").trim();
+        const tipo = String(encData[i][3] || "").trim().toUpperCase();
+        if (idPlanilla) tipoPorPlanilla.set(idPlanilla, tipo);
+      }
+
+      const persData = await readSheet(env.SHEET_GUARDIAS_ID, "Asistencia_Personal!A1:K");
+      const diasDelMes = new Date(input.anio, input.mes, 0).getDate();
+
+      const sabados: number[] = [];
+      for (let d = 1; d <= diasDelMes; d++) {
+        const fecha = new Date(input.anio, input.mes - 1, d);
+        if (fecha.getDay() === 6) sabados.push(d);
+      }
+
+      const fechasCitacionSet = new Set<number>();
+      for (let i = 1; i < persData.length; i++) {
+        const fila = persData[i];
+        const idPlanilla = String(fila[1] || "").trim();
+        const tipo = tipoPorPlanilla.get(idPlanilla) || "";
+        if (!tipo.includes("CITACION")) continue;
+        const fechaActividad = String(fila[3] || "").trim();
+        const partes = fechaActividad.split("/");
+        if (partes.length !== 3) continue;
+        const dia = parseInt(partes[0], 10);
+        const mesFila = parseInt(partes[1], 10);
+        const anioFila = parseInt(partes[2], 10);
+        if (mesFila !== input.mes || anioFila !== input.anio) continue;
+        if (dia >= 1 && dia <= diasDelMes) fechasCitacionSet.add(dia);
+      }
+      const fechasCitacion = Array.from(fechasCitacionSet).sort((a, b) => a - b);
+
+      function calcularParaFechas(p: { codigo: string; numero: string; nombre: string }, fechasColumnas: number[], tipoBuscado: string) {
+        const dias: string[] = new Array(fechasColumnas.length).fill("");
+        let total = 0;
+        let presentes = 0;
+        for (let i = 1; i < persData.length; i++) {
+          const fila = persData[i];
+          const codigoFila = String(fila[6] || "").trim();
+          const numeroFila = (codigoFila.match(/\d+/) || [""])[0];
+          if (!numeroFila || numeroFila !== p.numero) continue;
+          const idPlanilla = String(fila[1] || "").trim();
+          const tipo = tipoPorPlanilla.get(idPlanilla) || "";
+          if (!tipo.includes(tipoBuscado)) continue;
+          const fechaActividad = String(fila[3] || "").trim();
+          const partes = fechaActividad.split("/");
+          if (partes.length !== 3) continue;
+          const dia = parseInt(partes[0], 10);
+          const mesFila = parseInt(partes[1], 10);
+          const anioFila = parseInt(partes[2], 10);
+          if (mesFila !== input.mes || anioFila !== input.anio) continue;
+          const idxCol = fechasColumnas.indexOf(dia);
+          if (idxCol === -1) continue;
+          const asistencia = String(fila[8] || "").trim().toUpperCase();
+          total++;
+          if (asistencia === "PRESENTE") {
+            presentes++;
+            dias[idxCol] = "P";
+          } else {
+            dias[idxCol] = "A";
+          }
+        }
+        const porcentaje = total > 0 ? Math.round((presentes / total) * 100) : 0;
+        return { codigo: p.codigo, nombre: p.nombre, dias, total, presentes, porcentaje };
+      }
+
+      const practicas = personasBase.map((p) => calcularParaFechas(p, sabados, "PRACTICA"));
+      const citaciones = fechasCitacion.length > 0
+        ? personasBase.map((p) => calcularParaFechas(p, fechasCitacion, "CITACION"))
+        : [];
+
+      return {
+        exito: true as const,
+        sabados,
+        practicas,
+        fechasCitacion,
+        citaciones,
+        sinCitaciones: fechasCitacion.length === 0,
+      };
+    }),
+});

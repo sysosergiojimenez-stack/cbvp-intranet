@@ -7,14 +7,15 @@ const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto'
 type FilaAsistencia = {
   codigo: string;
   nombre: string;
-  situ: string;
+  situ?: string;
   dias: string[];
-  totalGuardias: number;
+  totalGuardias?: number;
+  total?: number;
   presentes: number;
   porcentaje: number;
 };
 
-function TablaAsistencia({ titulo, filas, diasDelMes }: { titulo: string; filas: FilaAsistencia[]; diasDelMes: number }) {
+function TablaAsistencia({ titulo, filas, columnas, mostrarSitu }: { titulo: string; filas: FilaAsistencia[]; columnas: number[]; mostrarSitu?: boolean }) {
   return (
     <div className="mb-6">
       <h3 className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-2">{titulo}</h3>
@@ -24,9 +25,9 @@ function TablaAsistencia({ titulo, filas, diasDelMes }: { titulo: string; filas:
             <tr className="bg-white/5 border-b border-white/10">
               <th className="text-left px-2 py-2 font-medium text-white/50 sticky left-0 bg-[#14141c]">Codigo</th>
               <th className="text-left px-2 py-2 font-medium text-white/50 sticky left-[70px] bg-[#14141c] min-w-[160px]">Nombre</th>
-              <th className="text-center px-2 py-2 font-medium text-white/50">SITU</th>
-              {Array.from({ length: diasDelMes }, (_, i) => (
-                <th key={i} className="text-center px-1.5 py-2 font-medium text-white/50">{i + 1}</th>
+              {mostrarSitu && <th className="text-center px-2 py-2 font-medium text-white/50">SITU</th>}
+              {columnas.map((dia) => (
+                <th key={dia} className="text-center px-1.5 py-2 font-medium text-white/50">{dia}</th>
               ))}
               <th className="text-center px-2 py-2 font-medium text-white/50">%</th>
             </tr>
@@ -36,7 +37,7 @@ function TablaAsistencia({ titulo, filas, diasDelMes }: { titulo: string; filas:
               <tr key={idx} className="border-b border-white/5 hover:bg-white/[0.02]">
                 <td className="px-2 py-1.5 text-white/60 whitespace-nowrap sticky left-0 bg-[#14141c]">{p.codigo}</td>
                 <td className="px-2 py-1.5 text-white/80 whitespace-nowrap sticky left-[70px] bg-[#14141c]">{p.nombre}</td>
-                <td className="px-2 py-1.5 text-center text-white/50">{p.situ}</td>
+                {mostrarSitu && <td className="px-2 py-1.5 text-center text-white/50">{p.situ}</td>}
                 {p.dias.map((d, i) => (
                   <td key={i} className={`text-center px-1.5 py-1.5 ${d === 'P' ? 'bg-cbvp-green/20 text-cbvp-green font-semibold' : d === 'A' ? 'bg-cbvp-red/20 text-cbvp-red font-semibold' : ''}`}>{d}</td>
                 ))}
@@ -57,6 +58,7 @@ export default function InformesAsistencia() {
   const [categoria, setCategoria] = useState<'COMBATIENTE' | 'ACTIVO'>('COMBATIENTE');
 
   const { data, isLoading } = trpc.planillas.asistenciaMensualDetallada.useQuery({ mes, anio, categoria });
+  const { data: dataPC, isLoading: isLoadingPC } = trpc.asistencia.mensualDetallada.useQuery({ mes, anio, categoria });
 
   return (
     <div className="animate-fade-in space-y-6">
@@ -86,11 +88,28 @@ export default function InformesAsistencia() {
         ) : !data?.normales || data.normales.length === 0 ? (
           <div className="text-center py-6 text-white/40 text-sm">No hay personal en esta categoria.</div>
         ) : categoria === 'ACTIVO' ? (
-          <TablaAsistencia titulo="Asistencia Activos" filas={data.normales} diasDelMes={data.diasDelMes} />
+          <TablaAsistencia titulo="Asistencia Activos" filas={data.normales} columnas={Array.from({ length: data.diasDelMes }, (_, i) => i + 1)} mostrarSitu />
         ) : (
           <>
-            <TablaAsistencia titulo="Guardias Normales" filas={data.normales} diasDelMes={data.diasDelMes} />
-            <TablaAsistencia titulo="Guardias Especiales" filas={data.especiales} diasDelMes={data.diasDelMes} />
+            <TablaAsistencia titulo="Guardias Normales" filas={data.normales} columnas={Array.from({ length: data.diasDelMes }, (_, i) => i + 1)} mostrarSitu />
+            <TablaAsistencia titulo="Guardias Especiales" filas={data.especiales} columnas={Array.from({ length: data.diasDelMes }, (_, i) => i + 1)} mostrarSitu />
+          </>
+        )}
+
+        {isLoadingPC ? (
+          <div className="text-center py-6 text-white/40 text-sm">Cargando practicas y citaciones...</div>
+        ) : dataPC && (
+          <>
+            <TablaAsistencia titulo="Practicas (sabados del mes)" filas={dataPC.practicas} columnas={dataPC.sabados} />
+
+            {dataPC.sinCitaciones ? (
+              <div className="mb-6">
+                <h3 className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-2">Citaciones</h3>
+                <div className="text-center py-4 text-white/40 text-sm bg-white/[0.02] rounded-lg border border-white/5">NO HUBO</div>
+              </div>
+            ) : (
+              <TablaAsistencia titulo="Citaciones" filas={dataPC.citaciones} columnas={dataPC.fechasCitacion} />
+            )}
           </>
         )}
       </div>
