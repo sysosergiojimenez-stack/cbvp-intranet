@@ -4,6 +4,52 @@ import { ClipboardList } from 'lucide-react';
 
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
+type FilaAsistencia = {
+  codigo: string;
+  nombre: string;
+  situ: string;
+  dias: string[];
+  totalGuardias: number;
+  presentes: number;
+  porcentaje: number;
+};
+
+function TablaAsistencia({ titulo, filas, diasDelMes }: { titulo: string; filas: FilaAsistencia[]; diasDelMes: number }) {
+  return (
+    <div className="mb-6">
+      <h3 className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-2">{titulo}</h3>
+      <div className="overflow-x-auto">
+        <table className="text-xs border-collapse min-w-full">
+          <thead>
+            <tr className="bg-white/5 border-b border-white/10">
+              <th className="text-left px-2 py-2 font-medium text-white/50 sticky left-0 bg-[#14141c]">Codigo</th>
+              <th className="text-left px-2 py-2 font-medium text-white/50 sticky left-[70px] bg-[#14141c] min-w-[160px]">Nombre</th>
+              <th className="text-center px-2 py-2 font-medium text-white/50">SITU</th>
+              {Array.from({ length: diasDelMes }, (_, i) => (
+                <th key={i} className="text-center px-1.5 py-2 font-medium text-white/50">{i + 1}</th>
+              ))}
+              <th className="text-center px-2 py-2 font-medium text-white/50">%</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filas.map((p, idx) => (
+              <tr key={idx} className="border-b border-white/5 hover:bg-white/[0.02]">
+                <td className="px-2 py-1.5 text-white/60 whitespace-nowrap sticky left-0 bg-[#14141c]">{p.codigo}</td>
+                <td className="px-2 py-1.5 text-white/80 whitespace-nowrap sticky left-[70px] bg-[#14141c]">{p.nombre}</td>
+                <td className="px-2 py-1.5 text-center text-white/50">{p.situ}</td>
+                {p.dias.map((d, i) => (
+                  <td key={i} className={`text-center px-1.5 py-1.5 ${d === 'P' ? 'bg-cbvp-green/20 text-cbvp-green font-semibold' : d === 'A' ? 'bg-cbvp-red/20 text-cbvp-red font-semibold' : ''}`}>{d}</td>
+                ))}
+                <td className="px-2 py-1.5 text-center font-semibold text-white">{p.porcentaje}%</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 export default function InformeAsistencia() {
   const hoy = new Date();
   const [mes, setMes] = useState(hoy.getMonth() + 1);
@@ -37,37 +83,13 @@ export default function InformeAsistencia() {
 
         {isLoading ? (
           <div className="text-center py-6 text-white/40 text-sm">Cargando...</div>
-        ) : !data?.personas || data.personas.length === 0 ? (
+        ) : !data?.normales || data.normales.length === 0 ? (
           <div className="text-center py-6 text-white/40 text-sm">No hay personal en esta categoria.</div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="text-xs border-collapse min-w-full">
-              <thead>
-                <tr className="bg-white/5 border-b border-white/10">
-                  <th className="text-left px-2 py-2 font-medium text-white/50 sticky left-0 bg-[#14141c]">Codigo</th>
-                  <th className="text-left px-2 py-2 font-medium text-white/50 sticky left-[70px] bg-[#14141c] min-w-[160px]">Nombre</th>
-                  <th className="text-center px-2 py-2 font-medium text-white/50">SITU</th>
-                  {Array.from({ length: data.diasDelMes }, (_, i) => (
-                    <th key={i} className="text-center px-1.5 py-2 font-medium text-white/50">{i + 1}</th>
-                  ))}
-                  <th className="text-center px-2 py-2 font-medium text-white/50">%</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.personas.map((p, idx) => (
-                  <tr key={idx} className="border-b border-white/5 hover:bg-white/[0.02]">
-                    <td className="px-2 py-1.5 text-white/60 whitespace-nowrap sticky left-0 bg-[#14141c]">{p.codigo}</td>
-                    <td className="px-2 py-1.5 text-white/80 whitespace-nowrap sticky left-[70px] bg-[#14141c]">{p.nombre}</td>
-                    <td className="px-2 py-1.5 text-center text-white/50">{p.situ}</td>
-                    {p.dias.map((d, i) => (
-                      <td key={i} className={`text-center px-1.5 py-1.5 ${d === 'P' ? 'bg-cbvp-green/20 text-cbvp-green font-semibold' : d === 'A' ? 'bg-cbvp-red/20 text-cbvp-red font-semibold' : ''}`}>{d}</td>
-                    ))}
-                    <td className="px-2 py-1.5 text-center font-semibold text-white">{p.porcentaje}%</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <>
+            <TablaAsistencia titulo="Guardias Normales" filas={data.normales} diasDelMes={data.diasDelMes} />
+            <TablaAsistencia titulo="Guardias Especiales" filas={data.especiales} diasDelMes={data.diasDelMes} />
+          </>
         )}
       </div>
     </div>

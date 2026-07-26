@@ -636,11 +636,12 @@ export const planillasRouter = createRouter({
         const numero = (codigo.match(/\d+/) || [""])[0];
         personasBase.push({ codigo, numero, nombre, situ });
       }
+      personasBase.sort((a, b) => (parseInt(a.numero) || 0) - (parseInt(b.numero) || 0));
 
       const guardiasData = await readSheet(env.SHEET_GUARDIAS_ID, "Guardias_Personal!A1:L");
       const diasDelMes = new Date(input.anio, input.mes, 0).getDate();
 
-      const personas = personasBase.map((p) => {
+      function calcular(p: { codigo: string; numero: string; nombre: string; situ: string }, tipoRequerido: string) {
         const dias: string[] = new Array(diasDelMes).fill("");
         let totalGuardias = 0;
         let presentes = 0;
@@ -650,7 +651,7 @@ export const planillasRouter = createRouter({
           const numeroFila = (codigoFila.match(/\d+/) || [""])[0];
           if (!numeroFila || numeroFila !== p.numero) continue;
           const tipoFila = String(fila[5] || "").trim().toUpperCase();
-          if (tipoFila === "REFUERZO") continue; // los refuerzos no cuentan para este informe
+          if (tipoFila !== tipoRequerido) continue;
           const fechaGuardia = String(fila[3] || "").trim();
           const partes = fechaGuardia.split("/");
           if (partes.length !== 3) continue;
@@ -661,7 +662,6 @@ export const planillasRouter = createRouter({
           if (!dia || dia < 1 || dia > diasDelMes) continue;
           const asistencia = String(fila[9] || "").trim().toUpperCase();
           totalGuardias++;
-          // "AUSENTE CON REEMPLAZO" cuenta como presente (el bombero consiguio quien lo reemplace)
           if (asistencia === "PRESENTE" || asistencia === "AUSENTE CON REEMPLAZO") {
             presentes++;
             dias[dia - 1] = "P";
@@ -669,7 +669,6 @@ export const planillasRouter = createRouter({
             dias[dia - 1] = "A";
           }
         }
-
         const realPercent = totalGuardias > 0 ? (presentes / totalGuardias) * 100 : 0;
         let porcentaje = realPercent;
         if (p.situ === "B10A") {
@@ -679,7 +678,6 @@ export const planillasRouter = createRouter({
         } else if (p.situ === "B20A") {
           porcentaje = presentes >= 1 ? 100 : 0;
         }
-
         return {
           codigo: p.codigo,
           nombre: p.nombre,
@@ -689,8 +687,11 @@ export const planillasRouter = createRouter({
           presentes,
           porcentaje: Math.round(porcentaje),
         };
-      });
+      }
 
-      return { exito: true as const, diasDelMes, personas };
+      const normales = personasBase.map((p) => calcular(p, "GUARDIA NORMAL"));
+      const especiales = personasBase.map((p) => calcular(p, "GUARDIA ESPECIAL"));
+
+      return { exito: true as const, diasDelMes, normales, especiales };
     }),
 });
