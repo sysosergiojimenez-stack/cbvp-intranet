@@ -304,4 +304,30 @@ export const salidaMovilRouter = createRouter({
       }
       return { exito: true as const, registros };
     }),
+
+  estadisticasServicios: publicQuery
+    .input(z.object({ mes: z.number().min(1).max(12), anio: z.number() }))
+    .query(async ({ input }) => {
+      const data = await readSheet(env.SHEET_GUARDIAS_ID, "SALIDAS_MOVIL!A1:P");
+      const conteo = new Map<string, number>();
+      let total = 0;
+      for (let i = 1; i < data.length; i++) {
+        const row = data[i];
+        if (!row[1]) continue;
+        const fechaSalida = String(row[8] || "").trim();
+        const tipoServicio = String(row[7] || "").trim();
+        if (!fechaSalida || !tipoServicio) continue;
+        const partes = fechaSalida.split("/");
+        if (partes.length !== 3) continue;
+        const mesFila = parseInt(partes[1], 10);
+        const anioFila = parseInt(partes[2], 10);
+        if (mesFila !== input.mes || anioFila !== input.anio) continue;
+        conteo.set(tipoServicio, (conteo.get(tipoServicio) || 0) + 1);
+        total++;
+      }
+      const tipos = Array.from(conteo.entries())
+        .map(([tipo, cantidad]) => ({ tipo, cantidad }))
+        .sort((a, b) => b.cantidad - a.cantidad);
+      return { exito: true as const, tipos, total };
+    }),
 });

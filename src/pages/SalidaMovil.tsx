@@ -461,6 +461,52 @@ export default function SalidaMovil() {
           </div>
         )}
       </div>
+
+      <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-6">
+        <h2 className="text-sm font-semibold text-white/60 uppercase tracking-wider mb-4 flex items-center gap-2">
+          <FileText className="w-4 h-4 text-cbvp-red" /> Estadisticas de Servicios
+        </h2>
+        <div className="flex gap-2 mb-4">
+          <select value={mesEstadisticas} onChange={e => setMesEstadisticas(Number(e.target.value))} className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none">
+            {['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'].map((nombre, idx) => (
+              <option key={idx} value={idx + 1}>{nombre}</option>
+            ))}
+          </select>
+          <select value={anioEstadisticas} onChange={e => setAnioEstadisticas(Number(e.target.value))} className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none">
+            {Array.from({ length: 5 }, (_, i) => hoy.getFullYear() - 2 + i).map(anio => (
+              <option key={anio} value={anio}>{anio}</option>
+            ))}
+          </select>
+        </div>
+        {estadisticasLoading ? (
+          <div className="text-center py-6 text-white/40 text-sm">Cargando...</div>
+        ) : !estadisticasData?.tipos || estadisticasData.tipos.length === 0 ? (
+          <div className="text-center py-6 text-white/40 text-sm">No hay salidas registradas ese mes.</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-white/5 border-b border-white/10">
+                  <th className="text-left px-3 py-2 font-medium text-white/50">Tipo de Servicio</th>
+                  <th className="text-right px-3 py-2 font-medium text-white/50">Cantidad</th>
+                </tr>
+              </thead>
+              <tbody>
+                {estadisticasData.tipos.map((t, idx) => (
+                  <tr key={idx} className="border-b border-white/5">
+                    <td className="px-3 py-2 text-white/80">{t.tipo}</td>
+                    <td className="px-3 py-2 text-right text-white font-mono">{t.cantidad}</td>
+                  </tr>
+                ))}
+                <tr className="bg-white/5 font-semibold">
+                  <td className="px-3 py-2 text-white">Total</td>
+                  <td className="px-3 py-2 text-right text-white font-mono">{estadisticasData.total}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
