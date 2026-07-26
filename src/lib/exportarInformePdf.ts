@@ -52,7 +52,6 @@ interface FilaDias {
 }
 
 function tablaDias(doc: jsPDF, titulo: string, filas: FilaDias[], columnas: number[], startY: number, mostrarSitu: boolean): number {
-  const pageWidth = doc.internal.pageSize.getWidth();
   doc.setFontSize(10);
   doc.setFont('helvetica', 'bold');
   doc.text(titulo, 10, startY);
@@ -138,10 +137,9 @@ export async function exportarInformePdf(params: {
   const nombreMes = MESES[params.mes - 1];
   const subtitulo = `Informe de Asistencia - ${params.categoria === 'COMBATIENTE' ? 'Bomberos Voluntarios Combatientes' : 'Bomberos Voluntarios Activos'} - ${nombreMes} ${params.anio}`;
 
-  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   let cursorY = 0;
 
-  // Pagina 1: portada con resumen (si hay datos)
   if (params.resumen) {
     encabezado(doc, logo, subtitulo);
     cursorY = 42;
@@ -165,7 +163,7 @@ export async function exportarInformePdf(params: {
       theme: 'grid',
       styles: { fontSize: 9, cellPadding: 2 },
       headStyles: { fillColor: [180, 30, 30], textColor: 255 },
-      margin: { left: 10, right: 150 },
+      margin: { left: 10, right: 60 },
     });
     // @ts-expect-error lastAutoTable
     cursorY = doc.lastAutoTable.finalY + 5;
@@ -180,7 +178,7 @@ export async function exportarInformePdf(params: {
       theme: 'grid',
       styles: { fontSize: 9, cellPadding: 2 },
       headStyles: { fillColor: [180, 30, 30], textColor: 255 },
-      margin: { left: 10, right: 150 },
+      margin: { left: 10, right: 60 },
     });
     // @ts-expect-error lastAutoTable
     cursorY = doc.lastAutoTable.finalY + 8;
@@ -190,11 +188,9 @@ export async function exportarInformePdf(params: {
     doc.setTextColor(180, 30, 30);
     doc.text(`TOTALIZAN ${params.resumen.total} VOLUNTARIOS EN NOMINA DEL CUARTEL`, 10, cursorY);
     doc.setTextColor(0, 0, 0);
-
-    doc.addPage();
   }
 
-  // Paginas de tablas
+  doc.addPage('a4', 'landscape');
   encabezado(doc, logo, subtitulo);
   cursorY = 42;
 
@@ -202,17 +198,17 @@ export async function exportarInformePdf(params: {
     cursorY = tablaDias(doc, 'Asistencia Activos', params.guardiasNormales, Array.from({ length: params.diasDelMes }, (_, i) => i + 1), cursorY, true);
   } else {
     cursorY = tablaDias(doc, 'Guardias Normales', params.guardiasNormales, Array.from({ length: params.diasDelMes }, (_, i) => i + 1), cursorY, true);
-    if (cursorY > 160) { doc.addPage(); encabezado(doc, logo, subtitulo); cursorY = 42; }
+    if (cursorY > 160) { doc.addPage('a4', 'landscape'); encabezado(doc, logo, subtitulo); cursorY = 42; }
     cursorY = tablaDias(doc, 'Guardias Especiales', params.guardiasEspeciales, Array.from({ length: params.diasDelMes }, (_, i) => i + 1), cursorY, true);
   }
 
-  doc.addPage();
+  doc.addPage('a4', 'portrait');
   encabezado(doc, logo, subtitulo);
   cursorY = 42;
 
   if (params.categoria === 'COMBATIENTE') {
     cursorY = tablaDias(doc, 'Practicas (sabados del mes)', params.practicas, params.sabados, cursorY, false);
-    if (cursorY > 160) { doc.addPage(); encabezado(doc, logo, subtitulo); cursorY = 42; }
+    if (cursorY > 240) { doc.addPage('a4', 'portrait'); encabezado(doc, logo, subtitulo); cursorY = 42; }
   }
 
   if (params.sinCitaciones) {
@@ -226,7 +222,7 @@ export async function exportarInformePdf(params: {
     cursorY = tablaDias(doc, 'Citaciones', params.citaciones, params.fechasCitacion, cursorY, false);
   }
 
-  if (cursorY > 150) { doc.addPage(); encabezado(doc, logo, subtitulo); cursorY = 42; }
+  if (cursorY > 220) { doc.addPage('a4', 'portrait'); encabezado(doc, logo, subtitulo); cursorY = 42; }
 
   doc.setFontSize(10);
   doc.setFont('helvetica', 'bold');
