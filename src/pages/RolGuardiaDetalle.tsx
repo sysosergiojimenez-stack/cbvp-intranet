@@ -136,6 +136,122 @@ function CalendarioGrupo({ idGrupo, anio, mes, diasIniciales }: { idGrupo: strin
   );
 }
 
+function ListaSeccion({ titulo, items, mostrarAsignacion, onAgregar, onQuitar, guardando }: {
+  titulo: string;
+  items: Array<{ id: string; codigo: string; nombre: string; radial: string; asignacion: string; observaciones: string }>;
+  mostrarAsignacion: boolean;
+  onAgregar: (codigo: string, radial: string, asignacion: string, observaciones: string) => void;
+  onQuitar: (id: string) => void;
+  guardando: boolean;
+}) {
+  const [mostrarForm, setMostrarForm] = useState(false);
+  const [busqueda, setBusqueda] = useState('');
+  const [codigoSel, setCodigoSel] = useState('');
+  const [radial, setRadial] = useState('');
+  const [asignacion, setAsignacion] = useState('');
+  const [observaciones, setObservaciones] = useState('');
+  const { data: personalResp } = trpc.personal.list.useQuery();
+  const personalData = personalResp?.personal;
+
+  const resultados = useMemo(() => {
+    if (!personalData || busqueda.trim().length < 2) return [];
+    const b = busqueda.trim().toLowerCase();
+    return personalData.filter(p => p.nombreCompleto.toLowerCase().includes(b) || p.codigo.toLowerCase().includes(b)).slice(0, 8);
+  }, [personalData, busqueda]);
+
+  const handleAgregar = () => {
+    if (!codigoSel) return;
+    onAgregar(codigoSel, radial, asignacion, observaciones);
+    setMostrarForm(false);
+    setCodigoSel('');
+    setBusqueda('');
+    setRadial('');
+    setAsignacion('');
+    setObservaciones('');
+  };
+
+  return (
+    <div className="bg-white/[0.02] border border-white/10 rounded-lg p-4">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-sm font-semibold text-white">{titulo}</h3>
+        <button onClick={() => setMostrarForm(!mostrarForm)} className="px-3 py-1.5 bg-white/5 hover:bg-white/10 text-white/70 rounded-lg text-xs flex items-center gap-1.5 transition-colors">
+          <UserPlus className="w-3.5 h-3.5" /> Agregar
+        </button>
+      </div>
+      {items.length === 0 ? (
+        <div className="text-white/30 text-xs py-2">Sin personal en esta lista.</div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="text-xs w-full">
+            <thead>
+              <tr className="border-b border-white/5 text-white/40">
+                <th className="text-left py-1.5 pr-3 font-medium">Codigo</th>
+                <th className="text-left py-1.5 pr-3 font-medium">Nombre</th>
+                <th className="text-left py-1.5 pr-3 font-medium">Radial</th>
+                {mostrarAsignacion && <th className="text-left py-1.5 pr-3 font-medium">Asignacion</th>}
+                <th className="text-left py-1.5 pr-3 font-medium">Observaciones</th>
+                <th className="w-8"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map(p => (
+                <tr key={p.id} className="border-b border-white/5">
+                  <td className="py-1.5 pr-3 text-white/60">{p.codigo}</td>
+                  <td className="py-1.5 pr-3 text-white/80">{p.nombre}</td>
+                  <td className="py-1.5 pr-3 text-white/50">{p.radial || '-'}</td>
+                  {mostrarAsignacion && <td className="py-1.5 pr-3 text-white/50">{p.asignacion || '-'}</td>}
+                  <td className="py-1.5 pr-3 text-white/50">{p.observaciones || '-'}</td>
+                  <td className="py-1.5 text-right">
+                    <button onClick={() => onQuitar(p.id)} className="p-1 rounded hover:bg-cbvp-red/10 text-white/30 hover:text-cbvp-red transition-colors">
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {mostrarForm && (
+        <div className="mt-2 p-3 bg-white/[0.03] border border-white/10 rounded-lg">
+          {!codigoSel ? (
+            <div>
+              <input type="text" value={busqueda} onChange={e => setBusqueda(e.target.value)} placeholder="Buscar bombero por nombre o codigo..." className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-cbvp-red/50" />
+              {resultados.length > 0 && (
+                <div className="mt-2 border border-white/10 rounded-lg overflow-hidden divide-y divide-white/5">
+                  {resultados.map(p => (
+                    <button key={p.codigo} onClick={() => { setCodigoSel(p.codigo); setBusqueda(''); }} className="w-full text-left px-3 py-2 text-sm text-white/80 hover:bg-white/5 transition-colors">
+                      {p.codigo} - {p.nombreCompleto}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <div className="text-sm text-white/80">
+                Seleccionado: <span className="font-medium">{personalData?.find(p => p.codigo === codigoSel)?.nombreCompleto || codigoSel}</span>
+                <button onClick={() => setCodigoSel('')} className="ml-2 text-xs text-cbvp-red/80 hover:text-cbvp-red">cambiar</button>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <input type="text" value={radial} onChange={e => setRadial(e.target.value)} placeholder="Radial (opcional)" className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-cbvp-red/50 w-32" />
+                {mostrarAsignacion && (
+                  <input type="text" value={asignacion} onChange={e => setAsignacion(e.target.value)} placeholder="Asignacion" className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-cbvp-red/50 flex-1 min-w-[140px]" />
+                )}
+                <input type="text" value={observaciones} onChange={e => setObservaciones(e.target.value)} placeholder="Observaciones" className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-cbvp-red/50 flex-1 min-w-[140px]" />
+                <button onClick={handleAgregar} disabled={guardando} className="px-4 py-2 bg-cbvp-green/10 hover:bg-cbvp-green/20 disabled:opacity-50 text-cbvp-green rounded-lg text-sm transition-colors">
+                  {guardando ? 'Agregando...' : 'Agregar'}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function RolGuardiaDetalle() {
   const { id } = useParams<{ id: string }>();
   const idRol = id || '';
@@ -162,6 +278,25 @@ export default function RolGuardiaDetalle() {
   });
 
   const quitarPersonalMutation = trpc.rolesGuardia.quitarPersonal.useMutation({
+    onSuccess: () => utils.rolesGuardia.obtenerDetalle.invalidate({ idRol }),
+  });
+
+  const agregarEspecialMutation = trpc.rolesGuardia.agregarEspecial.useMutation({
+    onSuccess: () => utils.rolesGuardia.obtenerDetalle.invalidate({ idRol }),
+  });
+  const quitarEspecialMutation = trpc.rolesGuardia.quitarEspecial.useMutation({
+    onSuccess: () => utils.rolesGuardia.obtenerDetalle.invalidate({ idRol }),
+  });
+  const agregarLicenciaMutation = trpc.rolesGuardia.agregarLicencia.useMutation({
+    onSuccess: () => utils.rolesGuardia.obtenerDetalle.invalidate({ idRol }),
+  });
+  const quitarLicenciaMutation = trpc.rolesGuardia.quitarLicencia.useMutation({
+    onSuccess: () => utils.rolesGuardia.obtenerDetalle.invalidate({ idRol }),
+  });
+  const agregarActivoMutation = trpc.rolesGuardia.agregarActivo.useMutation({
+    onSuccess: () => utils.rolesGuardia.obtenerDetalle.invalidate({ idRol }),
+  });
+  const quitarActivoMutation = trpc.rolesGuardia.quitarActivo.useMutation({
     onSuccess: () => utils.rolesGuardia.obtenerDetalle.invalidate({ idRol }),
   });
 
@@ -276,6 +411,33 @@ export default function RolGuardiaDetalle() {
                 ))}
               </div>
             )}
+
+            <div className="space-y-4 mt-6">
+              <ListaSeccion
+                titulo="Guardias Especiales"
+                items={data.especiales || []}
+                mostrarAsignacion={true}
+                onAgregar={(codigo, radial, asignacion, observaciones) => agregarEspecialMutation.mutate({ idRol, codigo, radial, asignacion, observaciones })}
+                onQuitar={(id) => quitarEspecialMutation.mutate({ id })}
+                guardando={agregarEspecialMutation.isPending}
+              />
+              <ListaSeccion
+                titulo="Licencias"
+                items={data.licencias || []}
+                mostrarAsignacion={false}
+                onAgregar={(codigo, radial, _asignacion, observaciones) => agregarLicenciaMutation.mutate({ idRol, codigo, radial, observaciones })}
+                onQuitar={(id) => quitarLicenciaMutation.mutate({ id })}
+                guardando={agregarLicenciaMutation.isPending}
+              />
+              <ListaSeccion
+                titulo="Activos"
+                items={data.activos || []}
+                mostrarAsignacion={true}
+                onAgregar={(codigo, radial, asignacion, observaciones) => agregarActivoMutation.mutate({ idRol, codigo, radial, asignacion, observaciones })}
+                onQuitar={(id) => quitarActivoMutation.mutate({ id })}
+                guardando={agregarActivoMutation.isPending}
+              />
+            </div>
           </>
         )}
       </div>

@@ -175,7 +175,94 @@ export const rolesGuardiaRouter = createRouter({
         };
       });
 
-      return { exito: true as const, cabecera, grupos: gruposConPersonal };
+      function leerLista(rows: unknown[][], conAsignacion: boolean) {
+        const lista: Array<{ id: string; codigo: string; nombre: string; radial: string; asignacion: string; observaciones: string }> = [];
+        for (let i = 1; i < rows.length; i++) {
+          const fila = rows[i];
+          if (String(fila[1] || "").trim() !== input.idRol) continue;
+          const codigo = String(fila[2] || "").trim();
+          if (!codigo) continue;
+          lista.push({
+            id: String(fila[0] || ""),
+            codigo,
+            nombre: nombrePorCodigo.get(codigo) || codigo,
+            radial: String(fila[3] || ""),
+            asignacion: conAsignacion ? String(fila[4] || "") : "",
+            observaciones: conAsignacion ? String(fila[5] || "") : String(fila[4] || ""),
+          });
+        }
+        return lista;
+      }
+
+      const especialesData = await readSheet(env.SHEET_GUARDIAS_ID, "RolesGuardia_Especiales!A1:F");
+      const licenciasData = await readSheet(env.SHEET_GUARDIAS_ID, "RolesGuardia_Licencias!A1:E");
+      const activosData = await readSheet(env.SHEET_GUARDIAS_ID, "RolesGuardia_Activos!A1:F");
+
+      const especiales = leerLista(especialesData, true);
+      const licencias = leerLista(licenciasData, false);
+      const activos = leerLista(activosData, true);
+
+      return { exito: true as const, cabecera, grupos: gruposConPersonal, especiales, licencias, activos };
+    }),
+
+  // Agrega una persona a la lista de Guardias Especiales del Rol.
+  agregarEspecial: publicQuery
+    .input(z.object({ idRol: z.string(), codigo: z.string().min(1), radial: z.string().optional().or(z.literal("")), asignacion: z.string().optional().or(z.literal("")), observaciones: z.string().optional().or(z.literal("")) }))
+    .mutation(async ({ input }) => {
+      const id = generateId();
+      await appendRow(env.SHEET_GUARDIAS_ID, "RolesGuardia_Especiales", [id, input.idRol, input.codigo, input.radial || "", input.asignacion || "", input.observaciones || ""]);
+      return { exito: true as const, id };
+    }),
+
+  // Quita una persona de la lista de Guardias Especiales.
+  quitarEspecial: publicQuery
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ input }) => {
+      const rowIndex = await findRowIndex(env.SHEET_GUARDIAS_ID, "RolesGuardia_Especiales!A1:F", 0, input.id);
+      if (rowIndex === -1) return { exito: false as const, error: "No encontrado" };
+      const sheetId = await getSheetId(env.SHEET_GUARDIAS_ID, "RolesGuardia_Especiales");
+      await deleteRows(env.SHEET_GUARDIAS_ID, sheetId, [rowIndex]);
+      return { exito: true as const };
+    }),
+
+  // Agrega una persona a la lista de Licencias del Rol.
+  agregarLicencia: publicQuery
+    .input(z.object({ idRol: z.string(), codigo: z.string().min(1), radial: z.string().optional().or(z.literal("")), observaciones: z.string().optional().or(z.literal("")) }))
+    .mutation(async ({ input }) => {
+      const id = generateId();
+      await appendRow(env.SHEET_GUARDIAS_ID, "RolesGuardia_Licencias", [id, input.idRol, input.codigo, input.radial || "", input.observaciones || ""]);
+      return { exito: true as const, id };
+    }),
+
+  // Quita una persona de la lista de Licencias.
+  quitarLicencia: publicQuery
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ input }) => {
+      const rowIndex = await findRowIndex(env.SHEET_GUARDIAS_ID, "RolesGuardia_Licencias!A1:E", 0, input.id);
+      if (rowIndex === -1) return { exito: false as const, error: "No encontrado" };
+      const sheetId = await getSheetId(env.SHEET_GUARDIAS_ID, "RolesGuardia_Licencias");
+      await deleteRows(env.SHEET_GUARDIAS_ID, sheetId, [rowIndex]);
+      return { exito: true as const };
+    }),
+
+  // Agrega una persona a la lista de Activos del Rol.
+  agregarActivo: publicQuery
+    .input(z.object({ idRol: z.string(), codigo: z.string().min(1), radial: z.string().optional().or(z.literal("")), asignacion: z.string().optional().or(z.literal("")), observaciones: z.string().optional().or(z.literal("")) }))
+    .mutation(async ({ input }) => {
+      const id = generateId();
+      await appendRow(env.SHEET_GUARDIAS_ID, "RolesGuardia_Activos", [id, input.idRol, input.codigo, input.radial || "", input.asignacion || "", input.observaciones || ""]);
+      return { exito: true as const, id };
+    }),
+
+  // Quita una persona de la lista de Activos.
+  quitarActivo: publicQuery
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ input }) => {
+      const rowIndex = await findRowIndex(env.SHEET_GUARDIAS_ID, "RolesGuardia_Activos!A1:F", 0, input.id);
+      if (rowIndex === -1) return { exito: false as const, error: "No encontrado" };
+      const sheetId = await getSheetId(env.SHEET_GUARDIAS_ID, "RolesGuardia_Activos");
+      await deleteRows(env.SHEET_GUARDIAS_ID, sheetId, [rowIndex]);
+      return { exito: true as const };
     }),
 
   // Guarda (crea o actualiza) los dias marcados de guardia para un grupo, mes y anio.
