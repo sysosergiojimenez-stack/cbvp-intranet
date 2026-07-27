@@ -145,6 +145,20 @@ export default function EditarBombero() {
             <label className="text-[10px] text-white/40 uppercase tracking-wider mb-1 block">Cuota al dia hasta</label>
             <input type="month" value={form.cuota} onChange={e => setForm(f => ({ ...f, cuota: e.target.value }))} className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-cbvp-red/50 [color-scheme:dark]" />
           </div>
+          <div>
+            <label className="text-[10px] text-white/40 uppercase tracking-wider mb-1 block">Grupo de Guardia</label>
+            <select value={form.grupo} onChange={e => setForm(f => ({ ...f, grupo: e.target.value }))} className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-cbvp-red/50">
+              <option value="">Sin grupo</option>
+              <option value="1">Grupo Nº 1</option>
+              <option value="2">Grupo Nº 2</option>
+              <option value="3">Grupo Nº 3</option>
+              <option value="4">Grupo Nº 4</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-[10px] text-white/40 uppercase tracking-wider mb-1 block">Asignacion (Rol de Guardia)</label>
+            <input type="text" value={form.asignacionRol} onChange={e => setForm(f => ({ ...f, asignacionRol: e.target.value }))} placeholder="Ej: Combatiente, Conductor, A cargo / Conductor" className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-cbvp-red/50" />
+          </div>
         </div>
 
         <h2 className="text-sm font-semibold text-white/60 uppercase tracking-wider border-b border-white/5 pb-2 pt-2">Datos Personales</h2>

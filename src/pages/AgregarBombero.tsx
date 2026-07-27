@@ -9,7 +9,7 @@ export default function AgregarBombero() {
     codigo: '', anioJuramento: '', categoria: 'COMBATIENTE',
     rango: 'Voluntario(a)', codigoRadial: '',
     primerNombre: '', segundoNombre: '', primerApellido: '', segundoApellido: '',
-    nroDocId: '', fechaNacimiento: '', situ: 'RN', cuota: '',
+    nroDocId: '', fechaNacimiento: '', situ: 'RN', cuota: '', grupo: '', asignacionRol: '',
   });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -22,7 +22,7 @@ export default function AgregarBombero() {
         codigo: '', anioJuramento: '', categoria: 'COMBATIENTE',
         rango: 'Voluntario(a)', codigoRadial: '',
         primerNombre: '', segundoNombre: '', primerApellido: '', segundoApellido: '',
-        nroDocId: '', fechaNacimiento: '', situ: 'RN', cuota: '',
+        nroDocId: '', fechaNacimiento: '', situ: 'RN', cuota: '', grupo: '', asignacionRol: '',
       });
       setTimeout(() => setSuccess(''), 3000);
     },
@@ -123,6 +123,20 @@ export default function AgregarBombero() {
           <div>
             <label className="text-[10px] text-white/40 uppercase tracking-wider mb-1 block">Cuota al dia hasta</label>
             <input type="month" value={form.cuota} onChange={e => setForm(f => ({ ...f, cuota: e.target.value }))} className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-cbvp-red/50 [color-scheme:dark]" />
+          </div>
+          <div>
+            <label className="text-[10px] text-white/40 uppercase tracking-wider mb-1 block">Grupo de Guardia</label>
+            <select value={form.grupo} onChange={e => setForm(f => ({ ...f, grupo: e.target.value }))} className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-cbvp-red/50">
+              <option value="">Sin grupo</option>
+              <option value="1">Grupo Nº 1</option>
+              <option value="2">Grupo Nº 2</option>
+              <option value="3">Grupo Nº 3</option>
+              <option value="4">Grupo Nº 4</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-[10px] text-white/40 uppercase tracking-wider mb-1 block">Asignacion (Rol de Guardia)</label>
+            <input type="text" value={form.asignacionRol} onChange={e => setForm(f => ({ ...f, asignacionRol: e.target.value }))} placeholder="Ej: Combatiente, Conductor, A cargo / Conductor" className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-cbvp-red/50" />
           </div>
         </div>
 
