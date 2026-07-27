@@ -38,8 +38,6 @@ export interface Personal {
   nombreCompleto: string;
   situ: string;
   cuota: string;
-  grupo: string;
-  asignacionRol: string;
 }
 
 export interface GuardiaPersonal {

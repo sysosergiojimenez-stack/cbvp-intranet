@@ -10,7 +10,7 @@ function extractNumber(code: string): string {
 
 export const personalRouter = createRouter({
   list: publicQuery.query(async () => {
-    const data = await readSheet(env.SHEET_USUARIOS_ID, "USUARIOS!A1:U");
+    const data = await readSheet(env.SHEET_USUARIOS_ID, "USUARIOS!A1:S");
     const personal: Array<{
       identificador: string;
       codigo: string;
@@ -22,8 +22,6 @@ export const personalRouter = createRouter({
       nombreCompleto: string;
       situ: string;
       cuota: string;
-      grupo: string;
-      asignacionRol: string;
     }> = [];
 
     for (let i = 1; i < data.length; i++) {
@@ -46,8 +44,6 @@ export const personalRouter = createRouter({
         nombreCompleto,
         situ: String(fila[17] || ""),
         cuota: String(fila[18] || ""),
-        grupo: String(fila[19] || ""),
-        asignacionRol: String(fila[20] || ""),
       });
     }
 
@@ -137,8 +133,6 @@ export const personalRouter = createRouter({
         descripcionPermiso: z.string().optional().or(z.literal('')),
         situ: z.string().optional().or(z.literal('')),
         cuota: z.string().optional().or(z.literal('')),
-        grupo: z.string().optional().or(z.literal('')),
-        asignacionRol: z.string().optional().or(z.literal('')),
       })
     )
     .mutation(async ({ input }) => {
@@ -162,8 +156,6 @@ export const personalRouter = createRouter({
         input.descripcionPermiso,
         input.situ || "",
         input.cuota || "",
-        input.grupo || "",
-        input.asignacionRol || "",
       ]);
       return { exito: true as const, mensaje: "Bombero registrado correctamente" };
     }),
@@ -171,7 +163,7 @@ export const personalRouter = createRouter({
   obtenerPorCodigo: publicQuery
     .input(z.object({ codigo: z.string() }))
     .query(async ({ input }) => {
-      const data = await readSheet(env.SHEET_USUARIOS_ID, "USUARIOS!A1:U");
+      const data = await readSheet(env.SHEET_USUARIOS_ID, "USUARIOS!A1:S");
       const searchNum = extractNumber(input.codigo);
       for (let i = 1; i < data.length; i++) {
         const codigoFila = String(data[i][1] || "").trim();
@@ -198,8 +190,6 @@ export const personalRouter = createRouter({
               descripcionPermiso: String(data[i][16] || ""),
               situ: String(data[i][17] || ""),
               cuota: String(data[i][18] || ""),
-              grupo: String(data[i][19] || ""),
-              asignacionRol: String(data[i][20] || ""),
             },
           };
         }
@@ -224,12 +214,10 @@ export const personalRouter = createRouter({
         fechaNacimiento: z.string().optional(),
         situ: z.string().optional().or(z.literal('')),
         cuota: z.string().optional().or(z.literal('')),
-        grupo: z.string().optional().or(z.literal('')),
-        asignacionRol: z.string().optional().or(z.literal('')),
       })
     )
     .mutation(async ({ input }) => {
-      const data = await readSheet(env.SHEET_USUARIOS_ID, "USUARIOS!A1:U");
+      const data = await readSheet(env.SHEET_USUARIOS_ID, "USUARIOS!A1:S");
       const searchNum = extractNumber(input.codigoOriginal);
       let rowIndex = -1;
       let existingRow: string[] = [];
@@ -245,7 +233,7 @@ export const personalRouter = createRouter({
       if (rowIndex === -1) {
         return { exito: false as const, error: "Bombero no encontrado" };
       }
-      await updateRange(env.SHEET_USUARIOS_ID, `USUARIOS!A${rowIndex}:U${rowIndex}`, [[
+      await updateRange(env.SHEET_USUARIOS_ID, `USUARIOS!A${rowIndex}:S${rowIndex}`, [[
         "", // A: IDENTIFICADOR
         input.codigo,
         input.anioJuramento,
@@ -265,8 +253,6 @@ export const personalRouter = createRouter({
         existingRow[16] || "", // Q: descripcionPermiso (preserve existing)
         input.situ || "",
         input.cuota || "",
-        input.grupo || "",
-        input.asignacionRol || "",
       ]]);
       return { exito: true as const, mensaje: "Bombero actualizado correctamente" };
     }),
