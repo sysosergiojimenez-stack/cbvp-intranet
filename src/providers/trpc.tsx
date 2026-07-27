@@ -11,7 +11,13 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       retry: false,
-      refetchOnWindowFocus: false,
+      // Actualizacion en "tiempo real": refresca en segundo plano cada 20s
+      // para que los cambios hechos por otros usuarios/dispositivos aparezcan
+      // sin que haya que recargar la pagina manualmente. Tambien refresca al
+      // volver a la pestaña/ventana.
+      refetchInterval: 20000,
+      refetchIntervalInBackground: false,
+      refetchOnWindowFocus: true,
     },
     mutations: {
       retry: false,
