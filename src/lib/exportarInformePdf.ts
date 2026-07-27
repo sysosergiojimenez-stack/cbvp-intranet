@@ -68,10 +68,24 @@ interface FilaDias {
   porcentaje: number;
 }
 
+// Anchos fijos (en mm) compartidos por TODAS las tablas de dias, para que
+// Guardias, Asistencia Activos, Practicas y Citaciones se vean uniformes
+// entre si, sin importar cuantas columnas de fecha tenga cada una.
+const ANCHO_COD = 16;
+const ANCHO_NOMBRE = 45;
+const ANCHO_SITU = 12;
+const ANCHO_PCT = 12;
+const ANCHO_DIA = 6;
+
 function tablaDias(doc: jsPDF, titulo: string, filas: FilaDias[], columnas: number[], startY: number, mostrarSitu: boolean): number {
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const numDias = columnas.length;
+  const anchoTotal = ANCHO_COD + ANCHO_NOMBRE + (mostrarSitu ? ANCHO_SITU : 0) + numDias * ANCHO_DIA + ANCHO_PCT;
+  const margenX = Math.max(5, (pageWidth - anchoTotal) / 2);
+
   doc.setFontSize(10);
   doc.setFont('helvetica', 'bold');
-  doc.text(titulo, 10, startY);
+  doc.text(titulo, margenX, startY);
 
   const head = [['Cod.', 'Nombre', ...(mostrarSitu ? ['SITU'] : []), ...columnas.map(String), '%']];
   const body = filas.map((f) => [
@@ -82,15 +96,31 @@ function tablaDias(doc: jsPDF, titulo: string, filas: FilaDias[], columnas: numb
     `${f.porcentaje}%`,
   ]);
 
+  const columnStyles: Record<number, { halign?: 'left' | 'center' | 'right'; cellWidth: number }> = {
+    0: { cellWidth: ANCHO_COD },
+    1: { halign: 'left', cellWidth: ANCHO_NOMBRE },
+  };
+  let colIdx = 2;
+  if (mostrarSitu) {
+    columnStyles[colIdx] = { cellWidth: ANCHO_SITU };
+    colIdx++;
+  }
+  for (let i = 0; i < numDias; i++) {
+    columnStyles[colIdx] = { cellWidth: ANCHO_DIA };
+    colIdx++;
+  }
+  columnStyles[colIdx] = { cellWidth: ANCHO_PCT };
+
   autoTable(doc, {
     head,
     body,
     startY: startY + 3,
     theme: 'grid',
+    tableWidth: 'wrap',
     styles: { fontSize: 6, cellPadding: 1, halign: 'center', valign: 'middle' },
     headStyles: { fillColor: [180, 30, 30], textColor: 255, fontSize: 6 },
-    columnStyles: { 1: { halign: 'left', cellWidth: 30 } },
-    margin: { left: 10, right: 10 },
+    columnStyles,
+    margin: { left: margenX, right: margenX },
     didParseCell: (data) => {
       if (data.section === 'body') {
         const val = data.cell.raw;
