@@ -13,7 +13,8 @@ function AgregarPersonalForm({ idRol, idGrupo, onCerrar }: { idRol: string; idGr
   const [guardando, setGuardando] = useState(false);
 
   const utils = trpc.useUtils();
-  const { data: personalData } = trpc.personal.list.useQuery();
+  const { data: personalResp } = trpc.personal.list.useQuery();
+  const personalData = personalResp?.personal;
   const agregarMutation = trpc.rolesGuardia.agregarPersonal.useMutation({
     onSuccess: () => {
       utils.rolesGuardia.obtenerDetalle.invalidate({ idRol });
