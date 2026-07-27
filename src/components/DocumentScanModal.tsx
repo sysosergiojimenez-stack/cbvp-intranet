@@ -107,7 +107,7 @@ export default function DocumentScanModal({ file, onConfirm, onUsarOriginal, onC
             Detectando documento...
           </div>
         ) : (
-          <div ref={wrapperRef} className="relative select-none touch-none" style={{ lineHeight: 0 }}>
+          <div ref={wrapperRef} className="relative select-none touch-none self-center inline-block" style={{ lineHeight: 0 }}>
             <img src={img?.src} alt="documento" className="max-w-full max-h-[65vh] rounded-lg block" draggable={false} />
             {corners && (
               <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 w-full h-full pointer-events-none">
