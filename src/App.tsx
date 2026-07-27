@@ -15,6 +15,7 @@ import PracticasCitaciones from '@/pages/PracticasCitaciones';
 import SalidaMovil from '@/pages/SalidaMovil';
 import InformeAsistencia from '@/pages/InformeAsistencia';
 import RolesGuardia from '@/pages/RolesGuardia';
+import RolGuardiaDetalle from '@/pages/RolGuardiaDetalle';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { usuario } = useAuth();
@@ -76,6 +77,11 @@ function AppRoutes() {
         <Route path="/roles-guardia" element={
           <ProtectedRoute>
             {(usuario?.cargo?.trim().toUpperCase() === 'SEGUNDO OFICIAL' || usuario?.cargo?.trim().toUpperCase() === 'DESARROLLADOR') ? <RolesGuardia /> : <Navigate to="/" replace />}
+          </ProtectedRoute>
+        } />
+        <Route path="/roles-guardia/:id" element={
+          <ProtectedRoute>
+            {(usuario?.cargo?.trim().toUpperCase() === 'SEGUNDO OFICIAL' || usuario?.cargo?.trim().toUpperCase() === 'DESARROLLADOR') ? <RolGuardiaDetalle /> : <Navigate to="/" replace />}
           </ProtectedRoute>
         } />
         <Route path="/personal" element={

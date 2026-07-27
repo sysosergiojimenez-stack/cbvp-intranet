@@ -1,10 +1,12 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { trpc } from '@/providers/trpc';
 import { Shield, Plus, X } from 'lucide-react';
 
 const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
 export default function RolesGuardia() {
+  const navigate = useNavigate();
   const hoy = new Date();
   const [mostrarForm, setMostrarForm] = useState(false);
   const [mesInicio, setMesInicio] = useState(hoy.getMonth() + 1);
@@ -79,7 +81,7 @@ export default function RolesGuardia() {
         ) : (
           <div className="space-y-2">
             {data.roles.map((rol) => (
-              <div key={rol.id} className="flex items-center justify-between px-4 py-3 bg-white/[0.02] border border-white/10 rounded-lg hover:bg-white/[0.04] transition-colors cursor-pointer">
+              <div key={rol.id} onClick={() => navigate(`/roles-guardia/${rol.id}`)} className="flex items-center justify-between px-4 py-3 bg-white/[0.02] border border-white/10 rounded-lg hover:bg-white/[0.04] transition-colors cursor-pointer">
                 <div>
                   <div className="text-white font-medium text-sm">{rol.etiqueta}</div>
                   <div className="text-white/40 text-xs">Creado el {rol.fechaCreacion}</div>
