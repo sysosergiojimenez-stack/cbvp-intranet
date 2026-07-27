@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { createRouter, publicQuery } from "../middleware";
-import { readSheet, appendRow, deleteRows, getSheetId, findRowIndex } from "../services/sheets";
+import { readSheet, appendRow, updateRange, deleteRows, getSheetId, findRowIndex } from "../services/sheets";
 import { env } from "../lib/env";
 
 function generateId(): string {
@@ -135,6 +135,21 @@ export const rolesGuardiaRouter = createRouter({
         if (codigo) nombrePorCodigo.set(codigo, primerNombre + (primerApellido ? " " + primerApellido : ""));
       }
 
+      const calData = await readSheet(env.SHEET_GUARDIAS_ID, "RolesGuardia_Calendario!A1:E");
+      function diasGuardados(idGrupo: string, anio: number, mes: number): number[] {
+        for (let i = 1; i < calData.length; i++) {
+          if (
+            String(calData[i][1] || "").trim() === idGrupo &&
+            Number(calData[i][2]) === anio &&
+            Number(calData[i][3]) === mes
+          ) {
+            const str = String(calData[i][4] || "").trim();
+            return str ? str.split(",").map((d) => Number(d.trim())).filter((n) => !isNaN(n)) : [];
+          }
+        }
+        return [];
+      }
+
       const gruposConPersonal = grupos.map((g) => {
         const personalGrupo: Array<{ id: string; codigo: string; nombre: string; radial: string; asignacion: string; orden: number }> = [];
         for (let i = 1; i < personalData.length; i++) {
@@ -152,10 +167,56 @@ export const rolesGuardiaRouter = createRouter({
           });
         }
         personalGrupo.sort((a, b) => a.orden - b.orden);
-        return { ...g, personal: personalGrupo };
+        return {
+          ...g,
+          personal: personalGrupo,
+          diasInicio: diasGuardados(g.id, cabecera!.anioInicio, cabecera!.mesInicio),
+          diasFin: diasGuardados(g.id, cabecera!.anioFin, cabecera!.mesFin),
+        };
       });
 
       return { exito: true as const, cabecera, grupos: gruposConPersonal };
+    }),
+
+  // Guarda (crea o actualiza) los dias marcados de guardia para un grupo, mes y anio.
+  guardarCalendario: publicQuery
+    .input(
+      z.object({
+        idGrupo: z.string(),
+        anio: z.number(),
+        mes: z.number(),
+        dias: z.array(z.number()),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const data = await readSheet(env.SHEET_GUARDIAS_ID, "RolesGuardia_Calendario!A1:E");
+      let rowIndex = -1;
+      let idExistente = "";
+      for (let i = 1; i < data.length; i++) {
+        if (
+          String(data[i][1] || "").trim() === input.idGrupo &&
+          Number(data[i][2]) === input.anio &&
+          Number(data[i][3]) === input.mes
+        ) {
+          rowIndex = i + 1;
+          idExistente = String(data[i][0] || "");
+          break;
+        }
+      }
+      const diasStr = input.dias.slice().sort((a, b) => a - b).join(",");
+      if (rowIndex !== -1) {
+        await updateRange(env.SHEET_GUARDIAS_ID, `RolesGuardia_Calendario!A${rowIndex}:E${rowIndex}`, [[
+          idExistente,
+          input.idGrupo,
+          input.anio,
+          input.mes,
+          diasStr,
+        ]]);
+      } else {
+        const id = generateId();
+        await appendRow(env.SHEET_GUARDIAS_ID, "RolesGuardia_Calendario", [id, input.idGrupo, input.anio, input.mes, diasStr]);
+      }
+      return { exito: true as const };
     }),
 
   // Crea un nuevo grupo dentro de un Rol de Guardia.

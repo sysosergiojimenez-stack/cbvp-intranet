@@ -85,6 +85,57 @@ function AgregarPersonalForm({ idRol, idGrupo, onCerrar }: { idRol: string; idGr
   );
 }
 
+function CalendarioGrupo({ idGrupo, anio, mes, diasIniciales }: { idGrupo: string; anio: number; mes: number; diasIniciales: number[] }) {
+  const [seleccionados, setSeleccionados] = useState<Set<number>>(new Set(diasIniciales));
+  const [guardando, setGuardando] = useState(false);
+  const [guardado, setGuardado] = useState(false);
+  const numDias = new Date(anio, mes, 0).getDate();
+
+  const guardarMutation = trpc.rolesGuardia.guardarCalendario.useMutation({
+    onSuccess: () => {
+      setGuardando(false);
+      setGuardado(true);
+      setTimeout(() => setGuardado(false), 2000);
+    },
+    onError: () => setGuardando(false),
+  });
+
+  const toggleDia = (dia: number) => {
+    setSeleccionados(prev => {
+      const next = new Set(prev);
+      if (next.has(dia)) next.delete(dia); else next.add(dia);
+      return next;
+    });
+  };
+
+  const handleGuardar = () => {
+    setGuardando(true);
+    guardarMutation.mutate({ idGrupo, anio, mes, dias: Array.from(seleccionados) });
+  };
+
+  return (
+    <div className="bg-white/[0.02] border border-white/10 rounded-lg p-3">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-xs font-semibold text-white/70">{MESES[mes - 1]} {anio}</span>
+        <button onClick={handleGuardar} disabled={guardando} className="px-2.5 py-1 bg-cbvp-green/10 hover:bg-cbvp-green/20 disabled:opacity-50 text-cbvp-green rounded text-[11px] transition-colors">
+          {guardando ? 'Guardando...' : guardado ? 'Guardado' : 'Guardar'}
+        </button>
+      </div>
+      <div className="grid grid-cols-7 gap-1">
+        {Array.from({ length: numDias }, (_, i) => i + 1).map(dia => (
+          <button
+            key={dia}
+            onClick={() => toggleDia(dia)}
+            className={`aspect-square rounded text-[11px] font-medium transition-colors ${seleccionados.has(dia) ? 'bg-cbvp-green text-white' : 'bg-white/5 text-white/50 hover:bg-white/10'}`}
+          >
+            {dia}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function RolGuardiaDetalle() {
   const { id } = useParams<{ id: string }>();
   const idRol = id || '';
@@ -209,6 +260,14 @@ export default function RolGuardiaDetalle() {
                         </table>
                       </div>
                     )}
+
+                    <div className="mt-3">
+                      <div className="text-[10px] text-white/40 uppercase tracking-wider mb-2">Calendario de guardia</div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <CalendarioGrupo idGrupo={grupo.id} anio={data.cabecera!.anioInicio} mes={data.cabecera!.mesInicio} diasIniciales={grupo.diasInicio} />
+                        <CalendarioGrupo idGrupo={grupo.id} anio={data.cabecera!.anioFin} mes={data.cabecera!.mesFin} diasIniciales={grupo.diasFin} />
+                      </div>
+                    </div>
 
                     {mostrarAgregar === grupo.id && (
                       <AgregarPersonalForm idRol={idRol} idGrupo={grupo.id} onCerrar={() => setMostrarAgregar(null)} />
