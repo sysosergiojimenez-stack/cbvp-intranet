@@ -3,9 +3,9 @@ import autoTable from 'jspdf-autotable';
 
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
-async function cargarLogoBase64(): Promise<string | null> {
+async function cargarImagenBase64(ruta: string): Promise<string | null> {
   try {
-    const resp = await fetch('/insignia.jpg');
+    const resp = await fetch(ruta);
     const blob = await resp.blob();
     return await new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -18,11 +18,28 @@ async function cargarLogoBase64(): Promise<string | null> {
   }
 }
 
-function encabezado(doc: jsPDF, logo: string | null, subtitulo: string) {
+async function cargarLogoBase64(): Promise<string | null> {
+  return cargarImagenBase64('/insignia.jpg');
+}
+
+async function cargarEscudoBase64(): Promise<string | null> {
+  return cargarImagenBase64('/escudo-cbvp.png');
+}
+
+// escudo (nuevo) va a la izquierda, logo/insignia (el que ya teniamos) va a la derecha
+function encabezado(doc: jsPDF, logo: string | null, subtitulo: string, escudo?: string | null) {
   const pageWidth = doc.internal.pageSize.getWidth();
+  if (escudo) {
+    try {
+      const anchoEscudo = 19.7;
+      doc.addImage(escudo, 'PNG', 10, 8, anchoEscudo, 22);
+    } catch {
+      /* ignore */
+    }
+  }
   if (logo) {
     try {
-      doc.addImage(logo, 'JPEG', 10, 8, 22, 22);
+      doc.addImage(logo, 'JPEG', pageWidth - 10 - 22, 8, 22, 22);
     } catch {
       /* ignore */
     }
@@ -178,6 +195,7 @@ export async function exportarInformeCombinado(params: {
   totalServicios: number;
 }) {
   const logo = await cargarLogoBase64();
+  const escudo = await cargarEscudoBase64();
   const nombreMes = MESES[params.mes - 1];
   const subBase = `Informe Mensual - ${nombreMes} ${params.anio}`;
 
@@ -186,7 +204,7 @@ export async function exportarInformeCombinado(params: {
 
   // ---- 1. Portada: resumen de cuadro de servicio ----
   if (params.resumen) {
-    encabezado(doc, logo, subBase);
+    encabezado(doc, logo, subBase, escudo);
     cursorY = 42;
     doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
@@ -240,60 +258,60 @@ export async function exportarInformeCombinado(params: {
 
   // ---- 2. Guardias Combatientes (Normales + Especiales) ----
   doc.addPage('a4', 'landscape');
-  encabezado(doc, logo, subCombatiente);
+  encabezado(doc, logo, subCombatiente, escudo);
   cursorY = 42;
   const diasArr = Array.from({ length: params.combatiente.diasDelMes }, (_, i) => i + 1);
   tablaDias(doc, 'Guardias Normales', params.combatiente.guardiasNormales, diasArr, cursorY, true);
 
   if (params.combatiente.guardiasEspeciales.length > 0) {
     doc.addPage('a4', 'landscape');
-    encabezado(doc, logo, subCombatiente);
+    encabezado(doc, logo, subCombatiente, escudo);
     cursorY = 42;
     tablaDias(doc, 'Guardias Especiales', params.combatiente.guardiasEspeciales, diasArr, cursorY, true);
   }
 
   // ---- 3. Practicas Combatientes ----
   doc.addPage('a4', 'portrait');
-  encabezado(doc, logo, subCombatiente);
+  encabezado(doc, logo, subCombatiente, escudo);
   cursorY = 42;
   tablaDias(doc, 'Practicas (sabados del mes)', params.combatiente.practicas, params.combatiente.sabados, cursorY, false);
 
   // ---- 4. Citaciones Combatientes ----
   doc.addPage('a4', 'portrait');
-  encabezado(doc, logo, subCombatiente);
+  encabezado(doc, logo, subCombatiente, escudo);
   cursorY = 42;
   const tituloCitCombatiente = `Citaciones${params.combatiente.sinCitaciones ? ' (NO HUBO)' : ''}`;
   tablaDias(doc, tituloCitCombatiente, params.combatiente.citaciones, params.combatiente.fechasCitacion, cursorY, false);
 
   // ---- 5. Total Acumulado Combatientes ----
   doc.addPage('a4', 'portrait');
-  encabezado(doc, logo, subCombatiente);
+  encabezado(doc, logo, subCombatiente, escudo);
   cursorY = 42;
   tablaTotalAcumulado(doc, params.combatiente.totalAcumulado, cursorY, false);
 
   // ---- 6. Asistencia Activos ----
   doc.addPage('a4', 'landscape');
-  encabezado(doc, logo, subActivo);
+  encabezado(doc, logo, subActivo, escudo);
   cursorY = 42;
   const diasArrActivo = Array.from({ length: params.activo.diasDelMes }, (_, i) => i + 1);
   tablaDias(doc, 'Asistencia Activos', params.activo.guardiasNormales, diasArrActivo, cursorY, true);
 
   // ---- 7. Citaciones Activos ----
   doc.addPage('a4', 'portrait');
-  encabezado(doc, logo, subActivo);
+  encabezado(doc, logo, subActivo, escudo);
   cursorY = 42;
   const tituloCitActivo = `Citaciones${params.activo.sinCitaciones ? ' (NO HUBO)' : ''}`;
   tablaDias(doc, tituloCitActivo, params.activo.citaciones, params.activo.fechasCitacion, cursorY, false);
 
   // ---- 8. Total Acumulado (resumen general) Activos ----
   doc.addPage('a4', 'portrait');
-  encabezado(doc, logo, subActivo);
+  encabezado(doc, logo, subActivo, escudo);
   cursorY = 42;
   tablaTotalAcumulado(doc, params.activo.totalAcumulado, cursorY, true);
 
   // ---- 9. Estadisticas de Servicios ----
   doc.addPage('a4', 'portrait');
-  encabezado(doc, logo, subBase);
+  encabezado(doc, logo, subBase, escudo);
   cursorY = 42;
   doc.setFontSize(10);
   doc.setFont('helvetica', 'bold');
