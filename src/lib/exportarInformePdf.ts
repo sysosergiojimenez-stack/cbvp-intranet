@@ -202,15 +202,60 @@ export async function exportarInformeCombinado(params: {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   let cursorY = 0;
 
-  // ---- 1. Portada: resumen de cuadro de servicio ----
+  // ---- 1. Portada: carta + resumen de cuadro de servicio ----
   if (params.resumen) {
+    const MESES_MIN = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+    const hoy = new Date();
+    const fechaHoyTexto = `Asuncion, ${hoy.getDate()} de ${MESES_MIN[hoy.getMonth()]} de ${hoy.getFullYear()}`;
+    const pageWidth = doc.internal.pageSize.getWidth();
+
     encabezado(doc, logo, subBase, escudo);
-    cursorY = 42;
+    cursorY = 40;
+
     doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
-    doc.text('Resumen de Cuadro de Servicio', 10, cursorY);
-    cursorY += 5;
+    doc.text('DESPACHO DEL SEGUNDO OFICIAL', pageWidth / 2, cursorY, { align: 'center' });
+    cursorY += 4;
+    doc.setDrawColor(150, 150, 150);
+    doc.setLineWidth(0.2);
+    doc.line(pageWidth / 2 - 40, cursorY, pageWidth / 2 + 40, cursorY);
+    cursorY += 6;
 
+    doc.setFontSize(13);
+    doc.text('INFORME MENSUAL', pageWidth / 2, cursorY, { align: 'center' });
+    cursorY += 3;
+    doc.line(pageWidth / 2 - 25, cursorY, pageWidth / 2 + 25, cursorY);
+    cursorY += 9;
+
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.text('A:', 10, cursorY);
+    doc.text('Departamento de Personal CBVP', 30, cursorY);
+    cursorY += 5;
+    doc.setFont('helvetica', 'bold');
+    doc.text('REFERENCIA:', 10, cursorY);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Planilla de Asistencias mes de: ${nombreMes.toUpperCase()} ${params.anio}`, 30, cursorY);
+    cursorY += 5;
+    doc.setFont('helvetica', 'bold');
+    doc.text('FECHA:', 10, cursorY);
+    doc.setFont('helvetica', 'normal');
+    doc.text(fechaHoyTexto, 30, cursorY);
+    cursorY += 8;
+
+    const parrafo = `Con el fin de elevar informe de asistencia a guardias, practicas y citaciones, de los Bomberos Voluntarios, Activos y Combatientes de la Vigesima Compania Capital Mercado 4 (K-20). Asi como estadisticas de servicios, adjunto los registros correspondientes al mes de ${nombreMes} ${params.anio}. Tambien presentamos resumen de Voluntarios/as dentro del Cuadro y fuera del Cuadro de Servicio en el siguiente recuadro.`;
+    doc.setFontSize(9);
+    const parrafoLineas = doc.splitTextToSize(parrafo, pageWidth - 20);
+    doc.text(parrafoLineas, 10, cursorY, { align: 'justify', maxWidth: pageWidth - 20 });
+    cursorY += parrafoLineas.length * 4.2 + 6;
+
+    const anchoTabla = 140;
+    const margenTabla = (pageWidth - anchoTabla) / 2;
+
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Resumen de Cuadro de Servicio', pageWidth / 2, cursorY, { align: 'center' });
+    cursorY += 5;
     autoTable(doc, {
       startY: cursorY,
       head: [['Especificaciones', 'Cantidad']],
@@ -226,11 +271,10 @@ export async function exportarInformeCombinado(params: {
       theme: 'grid',
       styles: { fontSize: 9, cellPadding: 2 },
       headStyles: { fillColor: [180, 30, 30], textColor: 255 },
-      margin: { left: 10, right: 60 },
+      margin: { left: margenTabla, right: margenTabla },
     });
     // @ts-expect-error lastAutoTable
     cursorY = doc.lastAutoTable.finalY + 5;
-
     autoTable(doc, {
       startY: cursorY,
       head: [['Especificaciones', 'Cantidad']],
@@ -241,16 +285,36 @@ export async function exportarInformeCombinado(params: {
       theme: 'grid',
       styles: { fontSize: 9, cellPadding: 2 },
       headStyles: { fillColor: [180, 30, 30], textColor: 255 },
-      margin: { left: 10, right: 60 },
+      margin: { left: margenTabla, right: margenTabla },
     });
     // @ts-expect-error lastAutoTable
     cursorY = doc.lastAutoTable.finalY + 8;
-
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(180, 30, 30);
-    doc.text(`TOTALIZAN ${params.resumen.total} VOLUNTARIOS EN NOMINA DEL CUARTEL`, 10, cursorY);
+    doc.text(`TOTALIZAN ${params.resumen.total} VOLUNTARIOS EN NOMINA DEL CUARTEL`, pageWidth / 2, cursorY, { align: 'center' });
     doc.setTextColor(0, 0, 0);
+
+    const yFirma = 255;
+    doc.setDrawColor(0, 0, 0);
+    doc.setLineDashPattern([1, 1], 0);
+    doc.setLineWidth(0.3);
+    doc.line(20, yFirma, 85, yFirma);
+    doc.line(pageWidth - 85, yFirma, pageWidth - 20, yFirma);
+    doc.setLineDashPattern([], 0);
+
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Despacho del Personal', 52.5, yFirma + 4, { align: 'center' });
+    doc.text('Comandante de Compania', pageWidth - 52.5, yFirma + 4, { align: 'center' });
+
+    const yFirma2 = yFirma + 12;
+    doc.setLineDashPattern([1, 1], 0);
+    doc.line(20, yFirma2, 85, yFirma2);
+    doc.line(pageWidth - 85, yFirma2, pageWidth - 20, yFirma2);
+    doc.setLineDashPattern([], 0);
+    doc.text('Aclaracion de Firma', 52.5, yFirma2 + 4, { align: 'center' });
+    doc.text('Aclaracion de Firma', pageWidth - 52.5, yFirma2 + 4, { align: 'center' });
   }
 
   const subCombatiente = `${subBase} - Bomberos Voluntarios Combatientes`;
