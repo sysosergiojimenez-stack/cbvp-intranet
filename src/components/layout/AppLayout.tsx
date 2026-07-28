@@ -7,7 +7,7 @@ import { ORGANIZACION } from '@/config/organizacion';
 import {
   LayoutDashboard, ClipboardList,
   Users, Settings, LogOut, Shield, Menu, X,
-  ChevronLeft, ChevronRight, Flame, Crown,
+  ChevronLeft, ChevronRight, ChevronDown, Flame, Crown,
   UserCircle, UserPlus, Lock, BookOpen, Truck, WifiOff, ClipboardCheck
 } from 'lucide-react';
 
@@ -17,6 +17,7 @@ interface NavItem {
   icon: React.ComponentType<{ className?: string }>;
   checkAccess: (permisos: ReturnType<typeof usePermiso>, usuario: ReturnType<typeof useAuth>['usuario']) => boolean;
   disabled?: boolean;
+  children?: NavItem[];
 }
 
 const NAV_ITEMS: NavItem[] = [
@@ -25,10 +26,16 @@ const NAV_ITEMS: NavItem[] = [
   { path: '/planillas', label: 'Planillas de Guardia', icon: ClipboardList, checkAccess: p => p.puedeCargarPlanillas },
   { path: '/practicas-citaciones', label: 'Practicas y Citaciones', icon: BookOpen, checkAccess: p => p.puedeCargarPlanillas },
   { path: '/salida-movil', label: 'Salidas de Movil', icon: Truck, checkAccess: p => p.puedeCargarPlanillas },
-  { path: '/informe-asistencia', label: 'Informes de Asistencia', icon: ClipboardCheck, checkAccess: (p, u) => { const c = (u?.cargo || '').trim().toUpperCase(); return c === 'SEGUNDO OFICIAL' || c === 'DESARROLLADOR'; } },
-  { path: '/roles-guardia', label: 'Roles de Guardia', icon: Shield, checkAccess: (p, u) => { const c = (u?.cargo || '').trim().toUpperCase(); return c === 'SEGUNDO OFICIAL' || c === 'DESARROLLADOR'; } },
-  { path: '/personal', label: 'Personal', icon: Users, checkAccess: (p, u) => p.puedeVerPersonal && u?.cargo?.trim().toUpperCase() !== 'VOLUNTARIO(A)' },
-  { path: '/agregar-bombero', label: 'Agregar Bombero', icon: UserPlus, checkAccess: (p, u) => p.puedeVerPersonal && u?.cargo?.trim().toUpperCase() !== 'VOLUNTARIO(A)' },
+  {
+    path: '/segundo-oficial', label: 'Segundo Oficial', icon: Shield,
+    checkAccess: (p, u) => { const c = (u?.cargo || '').trim().toUpperCase(); return ['COMANDANTE', 'PRIMER OFICIAL', 'SEGUNDO OFICIAL', 'DESARROLLADOR'].includes(c); },
+    children: [
+      { path: '/informe-asistencia', label: 'Informes de Asistencia', icon: ClipboardCheck, checkAccess: () => true },
+      { path: '/roles-guardia', label: 'Roles de Guardia', icon: Shield, checkAccess: () => true },
+      { path: '/personal', label: 'Personal', icon: Users, checkAccess: () => true },
+      { path: '/agregar-bombero', label: 'Agregar Bombero', icon: UserPlus, checkAccess: () => true },
+    ],
+  },
   { path: '/configuracion', label: 'Configuracion', icon: Settings, checkAccess: p => p.puedeConfiguracion },
 ];
 
@@ -42,6 +49,7 @@ export default function AppLayout() {
   const { usuario, logout } = useAuth();
   const permisos = usePermiso();
   const [collapsed, setCollapsed] = useState(false);
+  const [grupoAbierto, setGrupoAbierto] = useState<string | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
 
@@ -109,6 +117,56 @@ export default function AppLayout() {
         <nav className="flex-1 py-4 px-2 space-y-0.5 overflow-y-auto scrollbar-thin">
           {visibleNavItems.map(item => {
             const Icon = item.icon;
+
+            if (item.children) {
+              const childrenVisibles = item.children.filter(child => child.checkAccess(permisos, usuario));
+              if (childrenVisibles.length === 0) return null;
+              const isGroupActive = childrenVisibles.some(child => location.pathname.startsWith(child.path));
+              const isOpen = grupoAbierto === item.path || isGroupActive;
+              return (
+                <div key={item.path}>
+                  <button
+                    onClick={() => setGrupoAbierto(grupoAbierto === item.path ? null : item.path)}
+                    title={collapsed ? item.label : undefined}
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all text-sm mx-1 ${
+                      isGroupActive ? 'text-white' : 'text-white/50 hover:text-white hover:bg-white/[0.03]'
+                    } ${collapsed ? 'justify-center' : ''}`}
+                  >
+                    <div className={`p-1 rounded-md ${isGroupActive ? 'bg-cbvp-red/20' : 'bg-transparent'}`}>
+                      <Icon className="w-[16px] h-[16px] shrink-0" />
+                    </div>
+                    {!collapsed && <span className="truncate font-medium flex-1 text-left">{item.label}</span>}
+                    {!collapsed && (
+                      <ChevronDown className={`w-3.5 h-3.5 shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                    )}
+                  </button>
+                  {isOpen && !collapsed && (
+                    <div className="ml-4 pl-2 border-l border-white/[0.06] space-y-0.5 mt-0.5">
+                      {childrenVisibles.map(child => {
+                        const ChildIcon = child.icon;
+                        const isChildActive = location.pathname.startsWith(child.path);
+                        return (
+                          <NavLink
+                            key={child.path}
+                            to={child.path}
+                            onClick={() => setMobileOpen(false)}
+                            className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all text-sm ${
+                              isChildActive
+                                ? 'bg-cbvp-red/10 text-white shadow-glow'
+                                : 'text-white/50 hover:text-white hover:bg-white/[0.03]'
+                            }`}
+                          >
+                            <ChildIcon className="w-[14px] h-[14px] shrink-0" />
+                            <span className="truncate font-medium">{child.label}</span>
+                          </NavLink>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            }
+
             const isActive = item.path === '/'
               ? location.pathname === '/'
               : location.pathname.startsWith(item.path);

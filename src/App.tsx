@@ -71,27 +71,27 @@ function AppRoutes() {
         } />
         <Route path="/informe-asistencia" element={
           <ProtectedRoute>
-            {(usuario?.cargo?.trim().toUpperCase() === 'SEGUNDO OFICIAL' || usuario?.cargo?.trim().toUpperCase() === 'DESARROLLADOR') ? <InformeAsistencia /> : <Navigate to="/" replace />}
+            {['COMANDANTE', 'PRIMER OFICIAL', 'SEGUNDO OFICIAL', 'DESARROLLADOR'].includes((usuario?.cargo || '').trim().toUpperCase()) ? <InformeAsistencia /> : <Navigate to="/" replace />}
           </ProtectedRoute>
         } />
         <Route path="/roles-guardia" element={
           <ProtectedRoute>
-            {(usuario?.cargo?.trim().toUpperCase() === 'SEGUNDO OFICIAL' || usuario?.cargo?.trim().toUpperCase() === 'DESARROLLADOR') ? <RolesGuardia /> : <Navigate to="/" replace />}
+            {['COMANDANTE', 'PRIMER OFICIAL', 'SEGUNDO OFICIAL', 'DESARROLLADOR'].includes((usuario?.cargo || '').trim().toUpperCase()) ? <RolesGuardia /> : <Navigate to="/" replace />}
           </ProtectedRoute>
         } />
         <Route path="/roles-guardia/:id" element={
           <ProtectedRoute>
-            {(usuario?.cargo?.trim().toUpperCase() === 'SEGUNDO OFICIAL' || usuario?.cargo?.trim().toUpperCase() === 'DESARROLLADOR') ? <RolGuardiaDetalle /> : <Navigate to="/" replace />}
+            {['COMANDANTE', 'PRIMER OFICIAL', 'SEGUNDO OFICIAL', 'DESARROLLADOR'].includes((usuario?.cargo || '').trim().toUpperCase()) ? <RolGuardiaDetalle /> : <Navigate to="/" replace />}
           </ProtectedRoute>
         } />
         <Route path="/personal" element={
           <ProtectedRoute>
-            {permisos.puedeVerPersonal ? <Personal /> : <Navigate to="/" replace />}
+            {['COMANDANTE', 'PRIMER OFICIAL', 'SEGUNDO OFICIAL', 'DESARROLLADOR'].includes((usuario?.cargo || '').trim().toUpperCase()) ? <Personal /> : <Navigate to="/" replace />}
           </ProtectedRoute>
         } />
         <Route path="/agregar-bombero" element={
           <ProtectedRoute>
-            {permisos.puedeVerPersonal ? <AgregarBombero /> : <Navigate to="/" replace />}
+            {['COMANDANTE', 'PRIMER OFICIAL', 'SEGUNDO OFICIAL', 'DESARROLLADOR'].includes((usuario?.cargo || '').trim().toUpperCase()) ? <AgregarBombero /> : <Navigate to="/" replace />}
           </ProtectedRoute>
         } />
         <Route path="/editar-bombero/:codigo" element={
