@@ -53,7 +53,7 @@ function encabezado(doc: jsPDF, logo: string | null, escudo: string | null, subt
   doc.text(subtitulo, pageWidth / 2, 20, { align: 'center' });
   doc.setDrawColor(180, 30, 30);
   doc.setLineWidth(0.4);
-  doc.line(10, 23, pageWidth - 10, 23);
+  doc.line(10, 27, pageWidth - 10, 27);
 }
 
 function generarSemanas(anio: number, mes: number): (number | null)[][] {
@@ -225,13 +225,13 @@ export async function exportarRolGuardiaPdf(params: {
   let cursorY = 0;
 
   encabezado(doc, logo, escudo, subtitulo);
-  cursorY = 28;
+  cursorY = 32;
 
   const asegurarEspacio = (alturaEstim: number) => {
     if (cursorY + alturaEstim > pageHeight - 10) {
       doc.addPage('a4', 'portrait');
       encabezado(doc, logo, escudo, subtitulo);
-      cursorY = 28;
+      cursorY = 32;
     }
   };
 
