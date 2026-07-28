@@ -1,7 +1,8 @@
 import { useState, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { trpc } from '@/providers/trpc';
-import { ArrowLeft, Plus, X, UserPlus, Trash2 } from 'lucide-react';
+import { ArrowLeft, Plus, X, UserPlus, Trash2, Download } from 'lucide-react';
+import { exportarRolGuardiaPdf } from '@/lib/exportarRolGuardiaPdf';
 
 const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
@@ -259,6 +260,7 @@ export default function RolGuardiaDetalle() {
   const [mostrarNuevoGrupo, setMostrarNuevoGrupo] = useState(false);
   const [nombreGrupo, setNombreGrupo] = useState('');
   const [creandoGrupo, setCreandoGrupo] = useState(false);
+  const [exportando, setExportando] = useState(false);
 
   const utils = trpc.useUtils();
   const { data, isLoading } = trpc.rolesGuardia.obtenerDetalle.useQuery({ idRol }, { enabled: !!idRol });
@@ -325,9 +327,35 @@ export default function RolGuardiaDetalle() {
           <>
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-semibold text-white">Rol de Guardia — {etiqueta}</h2>
-              <button onClick={() => setMostrarNuevoGrupo(true)} className="px-4 py-2 bg-cbvp-red hover:bg-cbvp-red/80 text-white rounded-lg text-sm flex items-center gap-2 transition-colors">
-                <Plus className="w-4 h-4" /> Nuevo Grupo
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={async () => {
+                    if (!data.cabecera) return;
+                    setExportando(true);
+                    try {
+                      await exportarRolGuardiaPdf({
+                        mesInicio: data.cabecera.mesInicio,
+                        anioInicio: data.cabecera.anioInicio,
+                        mesFin: data.cabecera.mesFin,
+                        anioFin: data.cabecera.anioFin,
+                        grupos: data.grupos || [],
+                        especiales: data.especiales || [],
+                        licencias: data.licencias || [],
+                        activos: data.activos || [],
+                      });
+                    } finally {
+                      setExportando(false);
+                    }
+                  }}
+                  disabled={exportando}
+                  className="px-4 py-2 bg-cbvp-green/10 hover:bg-cbvp-green/20 disabled:opacity-50 text-cbvp-green rounded-lg text-sm flex items-center gap-2 transition-colors"
+                >
+                  <Download className="w-4 h-4" /> {exportando ? 'Generando PDF...' : 'Exportar PDF'}
+                </button>
+                <button onClick={() => setMostrarNuevoGrupo(true)} className="px-4 py-2 bg-cbvp-red hover:bg-cbvp-red/80 text-white rounded-lg text-sm flex items-center gap-2 transition-colors">
+                  <Plus className="w-4 h-4" /> Nuevo Grupo
+                </button>
+              </div>
             </div>
 
             {mostrarNuevoGrupo && (
