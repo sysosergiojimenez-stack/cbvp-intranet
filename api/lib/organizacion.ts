@@ -9,4 +9,8 @@ export const ORGANIZACION = {
   direccion: "Silvio Pettirossi esq Rca Francesa - Mercado Municipal N 4",
   email: "k20mercado4.cbvp@gmail.com",
   telefono: "(021) 201-201",
+  sede: "Mercado 4, Asuncion",
+  jurisdiccion: "Mercado 4 y zonas aledanas",
+  fundacion: "30 de julio de 2001",
+  lema: "Sirviendo a quienes sirven con su trabajo",
 };

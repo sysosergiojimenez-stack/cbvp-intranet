@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { ORGANIZACION } from '@/config/organizacion';
 
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
@@ -46,12 +47,12 @@ function encabezado(doc: jsPDF, logo: string | null, subtitulo: string, escudo?:
   }
   doc.setFontSize(13);
   doc.setFont('helvetica', 'bold');
-  doc.text('Cuerpo de Bomberos Voluntarios del Paraguay', pageWidth / 2, 13, { align: 'center' });
+  doc.text(ORGANIZACION.nombreCompleto, pageWidth / 2, 13, { align: 'center' });
   doc.setFontSize(11);
-  doc.text('Vigesima Compania Capital "Mercado 4"', pageWidth / 2, 19, { align: 'center' });
+  doc.text(ORGANIZACION.compania, pageWidth / 2, 19, { align: 'center' });
   doc.setFontSize(9);
   doc.setFont('helvetica', 'italic');
-  doc.text('"Sirviendo a quienes sirven con su trabajo"', pageWidth / 2, 24, { align: 'center' });
+  doc.text(`"${ORGANIZACION.lema}"`, pageWidth / 2, 24, { align: 'center' });
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
   doc.text(subtitulo, pageWidth / 2, 30, { align: 'center' });
@@ -273,7 +274,7 @@ export async function exportarInformeCombinado(params: {
     doc.text(fechaHoyTexto, 30, cursorY);
     cursorY += 8;
 
-    const parrafo = `Con el fin de elevar informe de asistencia a guardias, practicas y citaciones, de los Bomberos Voluntarios, Activos y Combatientes de la Vigesima Compania Capital Mercado 4 (K-20). Asi como estadisticas de servicios, adjunto los registros correspondientes al mes de ${nombreMes} ${params.anio}. Tambien presentamos resumen de Voluntarios/as dentro del Cuadro y fuera del Cuadro de Servicio en el siguiente recuadro.`;
+    const parrafo = `Con el fin de elevar informe de asistencia a guardias, practicas y citaciones, de los Bomberos Voluntarios, Activos y Combatientes de la ${ORGANIZACION.compania}. Asi como estadisticas de servicios, adjunto los registros correspondientes al mes de ${nombreMes} ${params.anio}. Tambien presentamos resumen de Voluntarios/as dentro del Cuadro y fuera del Cuadro de Servicio en el siguiente recuadro.`;
     doc.setFontSize(9);
     const parrafoLineas = doc.splitTextToSize(parrafo, pageWidth - 20);
     doc.text(parrafoLineas, 10, cursorY, { align: 'justify', maxWidth: pageWidth - 20 });

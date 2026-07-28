@@ -1,6 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import { usePermiso } from '@/hooks/usePermiso';
 import { trpc } from '@/providers/trpc';
+import { ORGANIZACION } from '@/config/organizacion';
 import {
   Users, ClipboardList, Truck,
   Flame, TrendingUp, ChevronRight, Shield,
@@ -164,20 +165,20 @@ export default function Dashboard() {
           <div className="glass rounded-xl p-4 border border-white/[0.04]">
             <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
               <Award className="w-4 h-4 text-cbvp-orange/60" />
-              20ma Compania
+              {ORGANIZACION.companiaCorta}
             </h3>
             <div className="space-y-2.5 text-xs text-white/40">
               <div className="flex justify-between">
                 <span>Sede</span>
-                <span className="text-white/60">Mercado 4, Asuncion</span>
+                <span className="text-white/60">{ORGANIZACION.sede}</span>
               </div>
               <div className="flex justify-between">
                 <span>Fundacion</span>
-                <span className="text-white/60">30 de julio de 2001</span>
+                <span className="text-white/60">{ORGANIZACION.fundacion}</span>
               </div>
               <div className="flex justify-between">
                 <span>Jurisdiccion</span>
-                <span className="text-white/60">Mercado 4 y zonas aledanas</span>
+                <span className="text-white/60">{ORGANIZACION.jurisdiccion}</span>
               </div>
             </div>
           </div>

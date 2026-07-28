@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { ORGANIZACION } from '@/config/organizacion';
 
 const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 const DIAS_SEMANA = ['LU', 'MA', 'MI', 'JU', 'VI', 'SA', 'DO'];
@@ -45,9 +46,9 @@ function encabezado(doc: jsPDF, logo: string | null, escudo: string | null, subt
   }
   doc.setFontSize(10);
   doc.setFont('helvetica', 'bold');
-  doc.text('Cuerpo de Bomberos Voluntarios del Paraguay', pageWidth / 2, 10, { align: 'center' });
+  doc.text(ORGANIZACION.nombreCompleto, pageWidth / 2, 10, { align: 'center' });
   doc.setFontSize(8.5);
-  doc.text('Vigesima Compania Capital "Mercado 4"', pageWidth / 2, 15, { align: 'center' });
+  doc.text(ORGANIZACION.compania, pageWidth / 2, 15, { align: 'center' });
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
   doc.text(subtitulo, pageWidth / 2, 20, { align: 'center' });

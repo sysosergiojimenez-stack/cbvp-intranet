@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { ORGANIZACION } from '@/config/organizacion';
 
 async function cargarImagenBase64(ruta: string): Promise<string | null> {
   try {
@@ -42,12 +43,12 @@ function dibujarPlanillaDia(doc: jsPDF, logo: string | null, nombreGrupo: string
   }
   doc.setFontSize(10);
   doc.setFont('helvetica', 'bold');
-  doc.text('CUERPO DE BOMBEROS VOLUNTARIOS DEL PARAGUAY', 33, 11);
+  doc.text(ORGANIZACION.nombreCompleto.toUpperCase(), 33, 11);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
-  doc.text('Vigesima Compania Capital Mercado N° 4', 33, 15);
-  doc.text('Silvio Pettirossi esq Rca Francesa - Mercado Municipal N° 4', 33, 19);
-  doc.text('Email: k20mercado4.cbvp@gmail.com  -  Tele-Fax: (021) 201-201', 33, 23);
+  doc.text(ORGANIZACION.compania, 33, 15);
+  doc.text(ORGANIZACION.direccion, 33, 19);
+  doc.text(`Email: ${ORGANIZACION.email}  -  Tel: ${ORGANIZACION.telefono}`, 33, 23);
 
   let y = 30;
 
