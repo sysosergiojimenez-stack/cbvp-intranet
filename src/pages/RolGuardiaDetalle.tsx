@@ -1,8 +1,9 @@
 import { useState, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { trpc } from '@/providers/trpc';
-import { ArrowLeft, Plus, X, UserPlus, Trash2, Download } from 'lucide-react';
+import { ArrowLeft, Plus, X, UserPlus, Trash2, Download, FileText } from 'lucide-react';
 import { exportarRolGuardiaPdf } from '@/lib/exportarRolGuardiaPdf';
+import { exportarPlanillasGuardiaPdf } from '@/lib/exportarPlanillasGuardiaPdf';
 
 const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
@@ -345,6 +346,25 @@ export default function RolGuardiaDetalle() {
     onSuccess: () => utils.rolesGuardia.obtenerDetalle.invalidate({ idRol }),
   });
 
+  const handleGenerarPlanillas = (grupo: { nombreGrupo: string; personal: Array<{ id: string; codigo: string; nombre: string; radial: string; asignacion: string }>; diasInicio: number[]; diasFin: number[] }) => {
+    if (!data?.cabecera) return;
+    const fechas: Date[] = [
+      ...grupo.diasInicio.map((d) => new Date(data.cabecera!.anioInicio, data.cabecera!.mesInicio - 1, d)),
+      ...grupo.diasFin.map((d) => new Date(data.cabecera!.anioFin, data.cabecera!.mesFin - 1, d)),
+    ].sort((a, b) => a.getTime() - b.getTime());
+
+    if (fechas.length === 0) {
+      alert('Este grupo todavia no tiene dias marcados en el calendario.');
+      return;
+    }
+
+    exportarPlanillasGuardiaPdf({
+      nombreGrupo: grupo.nombreGrupo,
+      personal: grupo.personal.map((p) => ({ codigo: p.codigo, nombre: p.nombre, asignacion: p.asignacion })),
+      fechas,
+    });
+  };
+
   const handleCrearGrupo = () => {
     if (!nombreGrupo.trim()) return;
     setCreandoGrupo(true);
@@ -427,6 +447,9 @@ export default function RolGuardiaDetalle() {
                       <div className="flex items-center gap-2">
                         <button onClick={() => setMostrarAgregar(mostrarAgregar === grupo.id ? null : grupo.id)} className="px-3 py-1.5 bg-white/5 hover:bg-white/10 text-white/70 rounded-lg text-xs flex items-center gap-1.5 transition-colors">
                           <UserPlus className="w-3.5 h-3.5" /> Agregar Personal
+                        </button>
+                        <button onClick={() => handleGenerarPlanillas(grupo)} className="px-3 py-1.5 bg-cbvp-green/10 hover:bg-cbvp-green/20 text-cbvp-green rounded-lg text-xs flex items-center gap-1.5 transition-colors">
+                          <FileText className="w-3.5 h-3.5" /> Generar Planillas
                         </button>
                         <button onClick={() => { if (confirm(`¿Eliminar "${grupo.nombreGrupo}" y todo su personal?`)) eliminarGrupoMutation.mutate({ idGrupo: grupo.id }); }} className="p-1.5 rounded-lg hover:bg-cbvp-red/10 text-white/30 hover:text-cbvp-red transition-colors">
                           <Trash2 className="w-3.5 h-3.5" />
