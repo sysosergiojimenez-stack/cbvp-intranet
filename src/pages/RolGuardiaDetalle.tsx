@@ -436,9 +436,9 @@ export default function RolGuardiaDetalle() {
                               <thead>
                                 <tr className="border-b border-white/5 text-white/40">
                                   <th className="text-left py-1.5 pr-1 font-medium w-11">Codigo</th>
-                                  <th className="text-left py-1.5 pr-1 font-medium">Nombre</th>
+                                  <th className="text-left py-1.5 pr-1 font-medium w-28">Nombre</th>
                                   <th className="text-left py-1.5 pr-1 font-medium w-11">Radial</th>
-                                  <th className="text-left py-1.5 pr-1 font-medium w-16">Asignacion</th>
+                                  <th className="text-left py-1.5 pr-1 font-medium w-24">Asignacion</th>
                                   <th className="w-6"></th>
                                 </tr>
                               </thead>
