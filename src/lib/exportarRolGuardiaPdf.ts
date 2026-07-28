@@ -27,37 +27,33 @@ async function cargarEscudoBase64(): Promise<string | null> {
   return cargarImagenBase64('/escudo-cbvp.png');
 }
 
-// escudo (nuevo) va a la izquierda, logo/insignia (el que ya teniamos) va a la derecha
 function encabezado(doc: jsPDF, logo: string | null, escudo: string | null, subtitulo: string) {
   const pageWidth = doc.internal.pageSize.getWidth();
   if (escudo) {
     try {
-      doc.addImage(escudo, 'PNG', 10, 8, 19.7, 22);
+      doc.addImage(escudo, 'PNG', 10, 6, 16, 18);
     } catch {
       /* ignore */
     }
   }
   if (logo) {
     try {
-      doc.addImage(logo, 'JPEG', pageWidth - 10 - 22, 8, 22, 22);
+      doc.addImage(logo, 'JPEG', pageWidth - 10 - 18, 6, 18, 18);
     } catch {
       /* ignore */
     }
   }
-  doc.setFontSize(13);
-  doc.setFont('helvetica', 'bold');
-  doc.text('Cuerpo de Bomberos Voluntarios del Paraguay', pageWidth / 2, 13, { align: 'center' });
-  doc.setFontSize(11);
-  doc.text('Vigesima Compania Capital "Mercado 4"', pageWidth / 2, 19, { align: 'center' });
-  doc.setFontSize(9);
-  doc.setFont('helvetica', 'italic');
-  doc.text('"Sirviendo a quienes sirven con su trabajo"', pageWidth / 2, 24, { align: 'center' });
-  doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
-  doc.text(subtitulo, pageWidth / 2, 30, { align: 'center' });
+  doc.setFont('helvetica', 'bold');
+  doc.text('Cuerpo de Bomberos Voluntarios del Paraguay', pageWidth / 2, 10, { align: 'center' });
+  doc.setFontSize(8.5);
+  doc.text('Vigesima Compania Capital "Mercado 4"', pageWidth / 2, 15, { align: 'center' });
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.text(subtitulo, pageWidth / 2, 20, { align: 'center' });
   doc.setDrawColor(180, 30, 30);
-  doc.setLineWidth(0.5);
-  doc.line(10, 33, pageWidth - 10, 33);
+  doc.setLineWidth(0.4);
+  doc.line(10, 23, pageWidth - 10, 23);
 }
 
 function generarSemanas(anio: number, mes: number): (number | null)[][] {
@@ -91,13 +87,13 @@ function tablaCalendario(doc: jsPDF, anio: number, mes: number, diasMarcados: nu
     margin: { left: startX, right: doc.internal.pageSize.getWidth() - startX - ancho },
     tableWidth: ancho,
     head: [
-      [{ content: `${MESES[mes - 1]}-${anio}`, colSpan: 7 }],
-      DIAS_SEMANA,
+      [{ content: `${MESES[mes - 1].slice(0, 3)}-${anio}`, colSpan: 7 }],
+      DIAS_SEMANA.map((d) => d.slice(0, 1)),
     ],
     body: semanas.map((semana) => semana.map((d) => (d === null ? '' : String(d)))),
     theme: 'grid',
-    styles: { fontSize: 6, cellPadding: 1, halign: 'center', valign: 'middle' },
-    headStyles: { fillColor: [180, 30, 30], textColor: 255, fontSize: 6 },
+    styles: { fontSize: 4.5, cellPadding: 0.5, halign: 'center', valign: 'middle', lineWidth: 0.1 },
+    headStyles: { fillColor: [180, 30, 30], textColor: 255, fontSize: 4.2 },
     didParseCell: (data) => {
       if (data.section === 'body') {
         const val = Number(data.cell.raw);
@@ -134,34 +130,34 @@ function tablaPersonalConCalendarios(
   diasFin: number[],
   startY: number
 ) {
-  doc.setFontSize(11);
+  doc.setFontSize(8.5);
   doc.setFont('helvetica', 'bold');
   doc.text(titulo, 10, startY);
-  const y = startY + 4;
+  const y = startY + 3;
 
-  const anchoTabla = 155;
+  const anchoTabla = 108;
   autoTable(doc, {
     startY: y,
     margin: { left: 10, right: doc.internal.pageSize.getWidth() - 10 - anchoTabla },
     tableWidth: anchoTabla,
-    head: [['N°', 'Cod.', 'Radial', 'Personales', 'Asignacion']],
+    head: [['N', 'Cod.', 'Radial', 'Personales', 'Asignacion']],
     body: personal.map((p, idx) => [String(idx + 1), p.codigo, p.radial || '-', p.nombre, p.asignacion || '-']),
     theme: 'grid',
-    styles: { fontSize: 7, cellPadding: 1.5 },
-    headStyles: { fillColor: [180, 30, 30], textColor: 255, fontSize: 7 },
-    columnStyles: { 0: { cellWidth: 8 }, 1: { cellWidth: 22 }, 2: { cellWidth: 16 }, 3: { cellWidth: 65 }, 4: { cellWidth: 44 } },
+    styles: { fontSize: 5.5, cellPadding: 0.8, lineWidth: 0.1 },
+    headStyles: { fillColor: [180, 30, 30], textColor: 255, fontSize: 5.5 },
+    columnStyles: { 0: { cellWidth: 5 }, 1: { cellWidth: 15 }, 2: { cellWidth: 12 }, 3: { cellWidth: 46 }, 4: { cellWidth: 30 } },
   });
 
-  const anchoCal = 55;
-  const separacion = 6;
-  const xCal1 = 10 + anchoTabla + 10;
+  const anchoCal = 34;
+  const separacion = 3;
+  const xCal1 = 10 + anchoTabla + 5;
   const xCal2 = xCal1 + anchoCal + separacion;
 
   tablaCalendario(doc, anioInicio, mesInicio, diasInicio, xCal1, y, anchoCal);
   tablaCalendario(doc, anioFin, mesFin, diasFin, xCal2, y, anchoCal);
 
   // @ts-expect-error lastAutoTable
-  return doc.lastAutoTable.finalY + 10;
+  return doc.lastAutoTable.finalY + 4;
 }
 
 interface ListaItem {
@@ -174,11 +170,11 @@ interface ListaItem {
 }
 
 function tablaListaExtra(doc: jsPDF, titulo: string, items: ListaItem[], mostrarAsignacion: boolean, startY: number): number {
-  doc.setFontSize(11);
+  doc.setFontSize(8.5);
   doc.setFont('helvetica', 'bold');
   doc.text(titulo, 10, startY);
 
-  const head = ['N°', 'Cod.', 'Radial', 'Personales', ...(mostrarAsignacion ? ['Asignacion'] : []), 'Observaciones'];
+  const head = ['N', 'Cod.', 'Radial', 'Personales', ...(mostrarAsignacion ? ['Asignacion'] : []), 'Observaciones'];
   const body = items.map((p, idx) => [
     String(idx + 1),
     p.codigo,
@@ -189,17 +185,17 @@ function tablaListaExtra(doc: jsPDF, titulo: string, items: ListaItem[], mostrar
   ]);
 
   autoTable(doc, {
-    startY: startY + 4,
+    startY: startY + 3,
     margin: { left: 10, right: 10 },
     head: [head],
     body: body.length > 0 ? body : [Array(head.length).fill('')],
     theme: 'grid',
-    styles: { fontSize: 8, cellPadding: 1.5 },
-    headStyles: { fillColor: [180, 30, 30], textColor: 255, fontSize: 8 },
+    styles: { fontSize: 6, cellPadding: 0.8, lineWidth: 0.1 },
+    headStyles: { fillColor: [180, 30, 30], textColor: 255, fontSize: 6 },
   });
 
   // @ts-expect-error lastAutoTable
-  return doc.lastAutoTable.finalY + 10;
+  return doc.lastAutoTable.finalY + 4;
 }
 
 interface Grupo {
@@ -224,16 +220,24 @@ export async function exportarRolGuardiaPdf(params: {
   const escudo = await cargarEscudoBase64();
   const subtitulo = `ROL DE GUARDIA - ${MESES[params.mesInicio - 1]} ${params.anioInicio} / ${MESES[params.mesFin - 1]} ${params.anioFin}`;
 
-  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const pageHeight = doc.internal.pageSize.getHeight();
   let cursorY = 0;
-  let primera = true;
+
+  encabezado(doc, logo, escudo, subtitulo);
+  cursorY = 28;
+
+  const asegurarEspacio = (alturaEstim: number) => {
+    if (cursorY + alturaEstim > pageHeight - 10) {
+      doc.addPage('a4', 'portrait');
+      encabezado(doc, logo, escudo, subtitulo);
+      cursorY = 28;
+    }
+  };
 
   for (const grupo of params.grupos) {
-    if (!primera) doc.addPage('a4', 'landscape');
-    primera = false;
-    encabezado(doc, logo, escudo, subtitulo);
-    cursorY = 40;
-    tablaPersonalConCalendarios(
+    asegurarEspacio(30);
+    cursorY = tablaPersonalConCalendarios(
       doc,
       grupo.nombreGrupo,
       grupo.personal,
@@ -247,14 +251,11 @@ export async function exportarRolGuardiaPdf(params: {
     );
   }
 
-  // Pagina final: Guardias Especiales, Licencias y Activos
-  doc.addPage('a4', 'landscape');
-  encabezado(doc, logo, escudo, subtitulo);
-  cursorY = 40;
+  asegurarEspacio(20);
   cursorY = tablaListaExtra(doc, 'Guardias Especiales', params.especiales, true, cursorY);
-  if (cursorY > 150) { doc.addPage('a4', 'landscape'); encabezado(doc, logo, escudo, subtitulo); cursorY = 40; }
+  asegurarEspacio(20);
   cursorY = tablaListaExtra(doc, 'Licencias', params.licencias, false, cursorY);
-  if (cursorY > 150) { doc.addPage('a4', 'landscape'); encabezado(doc, logo, escudo, subtitulo); cursorY = 40; }
+  asegurarEspacio(20);
   cursorY = tablaListaExtra(doc, 'Activos', params.activos, true, cursorY);
 
   const nombreArchivo = `Rol_de_Guardia_${MESES[params.mesInicio - 1]}_${MESES[params.mesFin - 1]}_${params.anioFin}.pdf`;
