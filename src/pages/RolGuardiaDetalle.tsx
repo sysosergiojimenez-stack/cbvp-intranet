@@ -113,14 +113,13 @@ function generarSemanasCalendario(anio: number, mes: number): (number | null)[][
 function CalendarioGrupo({ idGrupo, anio, mes, diasIniciales }: { idGrupo: string; anio: number; mes: number; diasIniciales: number[] }) {
   const [seleccionados, setSeleccionados] = useState<Set<number>>(new Set(diasIniciales));
   const [guardando, setGuardando] = useState(false);
-  const [guardado, setGuardado] = useState(false);
+  const [hayCambiosSinGuardar, setHayCambiosSinGuardar] = useState(false);
   const semanas = generarSemanasCalendario(anio, mes);
 
   const guardarMutation = trpc.rolesGuardia.guardarCalendario.useMutation({
     onSuccess: () => {
       setGuardando(false);
-      setGuardado(true);
-      setTimeout(() => setGuardado(false), 2000);
+      setHayCambiosSinGuardar(false);
     },
     onError: () => setGuardando(false),
   });
@@ -131,6 +130,7 @@ function CalendarioGrupo({ idGrupo, anio, mes, diasIniciales }: { idGrupo: strin
       if (next.has(dia)) next.delete(dia); else next.add(dia);
       return next;
     });
+    setHayCambiosSinGuardar(true);
   };
 
   const handleGuardar = () => {
@@ -142,8 +142,16 @@ function CalendarioGrupo({ idGrupo, anio, mes, diasIniciales }: { idGrupo: strin
     <div className="bg-white/[0.02] border border-white/10 rounded-lg p-2.5 w-[210px] shrink-0">
       <div className="flex items-center justify-between mb-1.5">
         <span className="text-[11px] font-semibold text-white/70">{MESES[mes - 1]} {anio}</span>
-        <button onClick={handleGuardar} disabled={guardando} className="px-1.5 py-0.5 bg-cbvp-green/10 hover:bg-cbvp-green/20 disabled:opacity-50 text-cbvp-green rounded text-[9px] transition-colors">
-          {guardando ? 'Guardando...' : guardado ? 'Guardado' : 'Guardar'}
+        <button
+          onClick={handleGuardar}
+          disabled={guardando || !hayCambiosSinGuardar}
+          className={`px-1.5 py-0.5 rounded text-[9px] transition-colors ${
+            hayCambiosSinGuardar
+              ? 'bg-cbvp-green text-white hover:bg-cbvp-green/90 animate-pulse'
+              : 'bg-white/5 text-white/30'
+          } disabled:cursor-not-allowed`}
+        >
+          {guardando ? 'Guardando...' : hayCambiosSinGuardar ? 'Guardar *' : 'Guardado'}
         </button>
       </div>
       <div className="grid grid-cols-7 gap-0.5 mb-0.5">
