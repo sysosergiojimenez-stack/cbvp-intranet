@@ -86,11 +86,35 @@ function AgregarPersonalForm({ idRol, idGrupo, onCerrar }: { idRol: string; idGr
   );
 }
 
+const DIAS_SEMANA = ['LU', 'MA', 'MI', 'JU', 'VI', 'SA', 'DO'];
+
+function generarSemanasCalendario(anio: number, mes: number): (number | null)[][] {
+  const primerDia = new Date(anio, mes - 1, 1);
+  const numDias = new Date(anio, mes, 0).getDate();
+  let diaSemanaInicio = primerDia.getDay();
+  diaSemanaInicio = diaSemanaInicio === 0 ? 6 : diaSemanaInicio - 1;
+
+  const semanas: (number | null)[][] = [];
+  let semanaActual: (number | null)[] = new Array(diaSemanaInicio).fill(null);
+  for (let dia = 1; dia <= numDias; dia++) {
+    semanaActual.push(dia);
+    if (semanaActual.length === 7) {
+      semanas.push(semanaActual);
+      semanaActual = [];
+    }
+  }
+  if (semanaActual.length > 0) {
+    while (semanaActual.length < 7) semanaActual.push(null);
+    semanas.push(semanaActual);
+  }
+  return semanas;
+}
+
 function CalendarioGrupo({ idGrupo, anio, mes, diasIniciales }: { idGrupo: string; anio: number; mes: number; diasIniciales: number[] }) {
   const [seleccionados, setSeleccionados] = useState<Set<number>>(new Set(diasIniciales));
   const [guardando, setGuardando] = useState(false);
   const [guardado, setGuardado] = useState(false);
-  const numDias = new Date(anio, mes, 0).getDate();
+  const semanas = generarSemanasCalendario(anio, mes);
 
   const guardarMutation = trpc.rolesGuardia.guardarCalendario.useMutation({
     onSuccess: () => {
@@ -115,24 +139,35 @@ function CalendarioGrupo({ idGrupo, anio, mes, diasIniciales }: { idGrupo: strin
   };
 
   return (
-    <div className="bg-white/[0.02] border border-white/10 rounded-lg p-2 max-w-[190px]">
+    <div className="bg-white/[0.02] border border-white/10 rounded-lg p-2.5 max-w-[210px]">
       <div className="flex items-center justify-between mb-1.5">
-        <span className="text-[10px] font-semibold text-white/70">{MESES[mes - 1]} {anio}</span>
-        <button onClick={handleGuardar} disabled={guardando} className="px-1.5 py-0.5 bg-cbvp-green/10 hover:bg-cbvp-green/20 disabled:opacity-50 text-cbvp-green rounded text-[8px] transition-colors">
+        <span className="text-[11px] font-semibold text-white/70">{MESES[mes - 1]} {anio}</span>
+        <button onClick={handleGuardar} disabled={guardando} className="px-1.5 py-0.5 bg-cbvp-green/10 hover:bg-cbvp-green/20 disabled:opacity-50 text-cbvp-green rounded text-[9px] transition-colors">
           {guardando ? 'Guardando...' : guardado ? 'Guardado' : 'Guardar'}
         </button>
       </div>
-      <div className="grid grid-cols-7 gap-0.5">
-        {Array.from({ length: numDias }, (_, i) => i + 1).map(dia => (
-          <button
-            key={dia}
-            onClick={() => toggleDia(dia)}
-            className={`aspect-square rounded text-[8px] font-medium transition-colors ${seleccionados.has(dia) ? 'bg-cbvp-green text-white' : 'bg-white/5 text-white/50 hover:bg-white/10'}`}
-          >
-            {dia}
-          </button>
+      <div className="grid grid-cols-7 gap-0.5 mb-0.5">
+        {DIAS_SEMANA.map((d) => (
+          <div key={d} className="text-center text-[8px] font-semibold text-white/30">{d}</div>
         ))}
       </div>
+      {semanas.map((semana, i) => (
+        <div key={i} className="grid grid-cols-7 gap-0.5 mb-0.5">
+          {semana.map((dia, j) => (
+            dia === null ? (
+              <div key={j} />
+            ) : (
+              <button
+                key={j}
+                onClick={() => toggleDia(dia)}
+                className={`aspect-square rounded text-[9px] font-medium transition-colors ${seleccionados.has(dia) ? 'bg-cbvp-green text-white' : 'bg-white/5 text-white/50 hover:bg-white/10'}`}
+              >
+                {dia}
+              </button>
+            )
+          ))}
+        </div>
+      ))}
     </div>
   );
 }
