@@ -58,16 +58,7 @@ function dibujarPlanillaDia(doc: jsPDF, logo: string | null, nombreGrupo: string
   doc.setFontSize(10);
   doc.setFont('helvetica', 'bold');
   doc.text(`PLANILLA DE GUARDIA: ${nombreGrupo.toUpperCase()}   FECHA: ${formatearFecha(fecha)}`, pageWidth / 2, y + 5.5, { align: 'center' });
-  y += 10;
-  doc.setFontSize(6.5);
-  doc.setFont('helvetica', 'normal');
-  doc.text(
-    'OBS: SI EL PERSONAL ESTA AUSENTE PONER EN LA CASILLA FIRMA SEGUN CORRESPONDA: ACACR / ACASR / ASASR / SANCIONADO',
-    pageWidth / 2,
-    y,
-    { align: 'center' }
-  );
-  y += 3;
+  y += 12;
 
   // ---- GUARDIA NORMAL ----
   doc.setFontSize(9);
@@ -119,7 +110,7 @@ function dibujarPlanillaDia(doc: jsPDF, logo: string | null, nombreGrupo: string
       5: { cellWidth: 13 },
       6: { cellWidth: 16 },
       7: { cellWidth: 14 },
-      8: { cellWidth: 27, halign: 'left' },
+      8: { cellWidth: 37, halign: 'left' },
     },
   });
 
@@ -133,17 +124,18 @@ function dibujarPlanillaDia(doc: jsPDF, logo: string | null, nombreGrupo: string
   doc.text('MOVILES', pageWidth - 55, y);
   y += 2;
 
-  const anchoEspeciales = pageWidth - 20 - 45;
+  const anchoEspeciales = 139;
 
   autoTable(doc, {
     startY: y,
-    margin: { left: 10, right: 65 },
+    margin: { left: 10, right: 55 },
     tableWidth: anchoEspeciales,
     head: [['N°', 'Cod', 'Personal', 'Asignacion', 'Entrada', 'Salida', 'Firma']],
     body: Array.from({ length: 4 }, (_, i) => [String(i + 1), '', '', '', '', '', '']),
     theme: 'grid',
     styles: { fontSize: 6.5, cellPadding: 1.2, halign: 'center', lineWidth: 0.1 },
     headStyles: { fillColor: [230, 230, 230], textColor: 0, fontSize: 6, fontStyle: 'bold' },
+    columnStyles: { 0: { cellWidth: 7 }, 1: { cellWidth: 18 }, 2: { cellWidth: 48, halign: 'left' }, 3: { cellWidth: 24 }, 4: { cellWidth: 13 }, 5: { cellWidth: 13 }, 6: { cellWidth: 16 } },
   });
   // @ts-expect-error lastAutoTable
   const finEspeciales = doc.lastAutoTable.finalY;
@@ -177,13 +169,14 @@ function dibujarPlanillaDia(doc: jsPDF, logo: string | null, nombreGrupo: string
 
   autoTable(doc, {
     startY: y,
-    margin: { left: 10, right: 65 },
+    margin: { left: 10, right: 55 },
     tableWidth: anchoEspeciales,
     head: [['N°', 'Cod', 'Personal', 'Asignacion', 'Entrada', 'Salida', 'Firma']],
     body: Array.from({ length: 4 }, (_, i) => [String(i + 1), '', '', '', '', '', '']),
     theme: 'grid',
     styles: { fontSize: 6.5, cellPadding: 1.2, halign: 'center', lineWidth: 0.1 },
     headStyles: { fillColor: [230, 230, 230], textColor: 0, fontSize: 6, fontStyle: 'bold' },
+    columnStyles: { 0: { cellWidth: 7 }, 1: { cellWidth: 18 }, 2: { cellWidth: 48, halign: 'left' }, 3: { cellWidth: 24 }, 4: { cellWidth: 13 }, 5: { cellWidth: 13 }, 6: { cellWidth: 16 } },
   });
   // @ts-expect-error lastAutoTable
   const finRefuerzos = doc.lastAutoTable.finalY;
