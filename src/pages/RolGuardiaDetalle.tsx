@@ -391,42 +391,43 @@ export default function RolGuardiaDetalle() {
                       </div>
                     </div>
 
-                    {grupo.personal.length === 0 ? (
-                      <div className="text-white/30 text-xs py-2">Sin personal asignado todavia.</div>
-                    ) : (
-                      <div className="overflow-x-auto">
-                        <table className="text-xs w-full">
-                          <thead>
-                            <tr className="border-b border-white/5 text-white/40">
-                              <th className="text-left py-1.5 pr-3 font-medium">Codigo</th>
-                              <th className="text-left py-1.5 pr-3 font-medium">Nombre</th>
-                              <th className="text-left py-1.5 pr-3 font-medium">Radial</th>
-                              <th className="text-left py-1.5 pr-3 font-medium">Asignacion</th>
-                              <th className="w-8"></th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {grupo.personal.map((p) => (
-                              <tr key={p.id} className="border-b border-white/5">
-                                <td className="py-1.5 pr-3 text-white/60">{p.codigo}</td>
-                                <td className="py-1.5 pr-3 text-white/80">{p.nombre}</td>
-                                <td className="py-1.5 pr-3 text-white/50">{p.radial || '-'}</td>
-                                <td className="py-1.5 pr-3 text-white/50">{p.asignacion || '-'}</td>
-                                <td className="py-1.5 text-right">
-                                  <button onClick={() => quitarPersonalMutation.mutate({ idPersonal: p.id })} className="p-1 rounded hover:bg-cbvp-red/10 text-white/30 hover:text-cbvp-red transition-colors">
-                                    <X className="w-3.5 h-3.5" />
-                                  </button>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                    <div className="flex flex-col lg:flex-row gap-4">
+                      <div className="flex-1 min-w-0">
+                        {grupo.personal.length === 0 ? (
+                          <div className="text-white/30 text-xs py-2">Sin personal asignado todavia.</div>
+                        ) : (
+                          <div className="overflow-x-auto">
+                            <table className="text-xs w-full">
+                              <thead>
+                                <tr className="border-b border-white/5 text-white/40">
+                                  <th className="text-left py-1.5 pr-3 font-medium">Codigo</th>
+                                  <th className="text-left py-1.5 pr-3 font-medium">Nombre</th>
+                                  <th className="text-left py-1.5 pr-3 font-medium">Radial</th>
+                                  <th className="text-left py-1.5 pr-3 font-medium">Asignacion</th>
+                                  <th className="w-8"></th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {grupo.personal.map((p) => (
+                                  <tr key={p.id} className="border-b border-white/5">
+                                    <td className="py-1.5 pr-3 text-white/60">{p.codigo}</td>
+                                    <td className="py-1.5 pr-3 text-white/80">{p.nombre}</td>
+                                    <td className="py-1.5 pr-3 text-white/50">{p.radial || '-'}</td>
+                                    <td className="py-1.5 pr-3 text-white/50">{p.asignacion || '-'}</td>
+                                    <td className="py-1.5 text-right">
+                                      <button onClick={() => quitarPersonalMutation.mutate({ idPersonal: p.id })} className="p-1 rounded hover:bg-cbvp-red/10 text-white/30 hover:text-cbvp-red transition-colors">
+                                        <X className="w-3.5 h-3.5" />
+                                      </button>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
                       </div>
-                    )}
 
-                    <div className="mt-3">
-                      <div className="text-[10px] text-white/40 uppercase tracking-wider mb-2">Calendario de guardia</div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="flex gap-2 shrink-0">
                         <CalendarioGrupo idGrupo={grupo.id} anio={data.cabecera!.anioInicio} mes={data.cabecera!.mesInicio} diasIniciales={grupo.diasInicio} />
                         <CalendarioGrupo idGrupo={grupo.id} anio={data.cabecera!.anioFin} mes={data.cabecera!.mesFin} diasIniciales={grupo.diasFin} />
                       </div>
