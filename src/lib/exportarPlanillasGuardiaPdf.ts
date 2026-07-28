@@ -36,7 +36,7 @@ function dibujarPlanillaDia(doc: jsPDF, logo: string | null, nombreGrupo: string
   // ---- Encabezado ----
   if (logo) {
     try {
-      doc.addImage(logo, 'JPEG', 10, 7, 20, 20);
+      doc.addImage(logo, 'PNG', 10, 7, 20, 20);
     } catch {
       /* ignore */
     }
@@ -255,7 +255,7 @@ export async function exportarPlanillasGuardiaPdf(params: {
   personal: PersonalItem[];
   fechas: Date[];
 }) {
-  const logo = await cargarImagenBase64('/insignia.jpg');
+  const logo = await cargarImagenBase64('/insignia.png');
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
 
   let primera = true;

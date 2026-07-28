@@ -41,7 +41,7 @@ const NAV_ITEMS: NavItem[] = [
 
 function AppLogo({ className = "" }: { className?: string }) {
   return (
-    <img src="/insignia.jpg" alt="Insignia" className={`${className} rounded-full object-cover`} />
+    <img src="/insignia.png" alt="Insignia" className={`${className} rounded-full object-cover`} />
   );
 }
 

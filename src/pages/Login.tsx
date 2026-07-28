@@ -32,7 +32,7 @@ export default function Login() {
         <div className="bg-white/[0.03] backdrop-blur-sm border border-white/10 rounded-2xl p-10 shadow-glow">
           <div className="text-center mb-8">
             <div className="inline-flex items-center justify-center w-16 h-16 mb-4">
-              <img src="/insignia.jpg" alt="Insignia" className="w-16 h-16 rounded-full object-cover" />
+              <img src="/insignia.png" alt="Insignia" className="w-16 h-16 rounded-full object-cover" />
             </div>
             <h1 className="text-3xl font-bold text-white tracking-tight">Fire Intranet</h1>
             <p className="text-sm text-white/50 mt-2">{ORGANIZACION.compania}</p>

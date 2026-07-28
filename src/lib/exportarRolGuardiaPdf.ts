@@ -21,7 +21,7 @@ async function cargarImagenBase64(ruta: string): Promise<string | null> {
 }
 
 async function cargarLogoBase64(): Promise<string | null> {
-  return cargarImagenBase64('/insignia.jpg');
+  return cargarImagenBase64('/insignia.png');
 }
 
 async function cargarEscudoBase64(): Promise<string | null> {
@@ -39,7 +39,7 @@ function encabezado(doc: jsPDF, logo: string | null, escudo: string | null, subt
   }
   if (logo) {
     try {
-      doc.addImage(logo, 'JPEG', pageWidth - 10 - 18, 6, 18, 18);
+      doc.addImage(logo, 'PNG', pageWidth - 10 - 18, 6, 18, 18);
     } catch {
       /* ignore */
     }
