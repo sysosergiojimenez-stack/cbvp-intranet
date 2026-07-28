@@ -139,7 +139,7 @@ function CalendarioGrupo({ idGrupo, anio, mes, diasIniciales }: { idGrupo: strin
   };
 
   return (
-    <div className="bg-white/[0.02] border border-white/10 rounded-lg p-2.5 max-w-[210px]">
+    <div className="bg-white/[0.02] border border-white/10 rounded-lg p-2.5 w-[210px] shrink-0">
       <div className="flex items-center justify-between mb-1.5">
         <span className="text-[11px] font-semibold text-white/70">{MESES[mes - 1]} {anio}</span>
         <button onClick={handleGuardar} disabled={guardando} className="px-1.5 py-0.5 bg-cbvp-green/10 hover:bg-cbvp-green/20 disabled:opacity-50 text-cbvp-green rounded text-[9px] transition-colors">
@@ -435,20 +435,20 @@ export default function RolGuardiaDetalle() {
                             <table className="text-xs w-full table-fixed">
                               <thead>
                                 <tr className="border-b border-white/5 text-white/40">
-                                  <th className="text-left py-1.5 pr-1.5 font-medium w-14">Codigo</th>
-                                  <th className="text-left py-1.5 pr-1.5 font-medium">Nombre</th>
-                                  <th className="text-left py-1.5 pr-1.5 font-medium w-14">Radial</th>
-                                  <th className="text-left py-1.5 pr-1.5 font-medium w-24">Asignacion</th>
+                                  <th className="text-left py-1.5 pr-1 font-medium w-11">Codigo</th>
+                                  <th className="text-left py-1.5 pr-1 font-medium">Nombre</th>
+                                  <th className="text-left py-1.5 pr-1 font-medium w-11">Radial</th>
+                                  <th className="text-left py-1.5 pr-1 font-medium w-16">Asignacion</th>
                                   <th className="w-6"></th>
                                 </tr>
                               </thead>
                               <tbody>
                                 {grupo.personal.map((p) => (
                                   <tr key={p.id} className="border-b border-white/5">
-                                    <td className="py-1.5 pr-1.5 text-white/60 truncate">{p.codigo}</td>
-                                    <td className="py-1.5 pr-1.5 text-white/80 truncate">{p.nombre}</td>
-                                    <td className="py-1.5 pr-1.5 text-white/50 truncate">{p.radial || '-'}</td>
-                                    <td className="py-1.5 pr-1.5 text-white/50 truncate">{p.asignacion || '-'}</td>
+                                    <td className="py-1.5 pr-1 text-white/60 truncate" title={p.codigo}>{p.codigo}</td>
+                                    <td className="py-1.5 pr-1 text-white/80 truncate" title={p.nombre}>{p.nombre}</td>
+                                    <td className="py-1.5 pr-1 text-white/50 truncate" title={p.radial || '-'}>{p.radial || '-'}</td>
+                                    <td className="py-1.5 pr-1 text-white/50 truncate" title={p.asignacion || '-'}>{p.asignacion || '-'}</td>
                                     <td className="py-1.5 text-right">
                                       <button onClick={() => quitarPersonalMutation.mutate({ idPersonal: p.id })} className="p-1 rounded hover:bg-cbvp-red/10 text-white/30 hover:text-cbvp-red transition-colors">
                                         <X className="w-3.5 h-3.5" />
