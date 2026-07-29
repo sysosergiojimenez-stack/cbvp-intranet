@@ -44,7 +44,7 @@ export default function AgregarBombero() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError(''); setSuccess('');
-    if (!form.codigo || !form.anioJuramento || !form.primerNombre || !form.primerApellido) {
+    if (!form.primerNombre || !form.primerApellido) {
       setError('Complete los campos obligatorios'); return;
     }
     // Enviar con valores por defecto para los campos de acceso eliminados
@@ -79,8 +79,8 @@ export default function AgregarBombero() {
       <form onSubmit={handleSubmit} className="bg-white/[0.03] border border-white/5 rounded-xl p-5 space-y-4">
         <h2 className="text-sm font-semibold text-white/60 uppercase tracking-wider border-b border-white/5 pb-2">Datos Generales</h2>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          {field('Codigo', 'codigo', { placeholder: '4852', required: true })}
-          {field('Anio Juramento', 'anioJuramento', { placeholder: '2014', required: true })}
+          {field('Codigo', 'codigo', { placeholder: '4852' })}
+          {field('Anio Juramento', 'anioJuramento', { placeholder: '2014' })}
           <div>
             <label className="text-[10px] text-white/40 uppercase tracking-wider mb-1 block">Categoria</label>
             <select value={form.categoria} onChange={e => setForm(f => ({ ...f, categoria: e.target.value }))} className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-cbvp-red/50">
