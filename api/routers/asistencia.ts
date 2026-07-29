@@ -465,6 +465,7 @@ export const asistenciaRouter = createRouter({
         const primerNombre = fila[7] ? String(fila[7]).trim() : "";
         const categoria = String(fila[3] || "").trim().toUpperCase();
         if (!codigo || !primerNombre) continue;
+        if (String(fila[4] || "").trim().toUpperCase() === "DESARROLLADOR") continue;
         if (categoria !== input.categoria.toUpperCase()) continue;
         const primerApellido = fila[9] ? String(fila[9]).trim() : "";
         const nombre = primerNombre + (primerApellido ? " " + primerApellido : "");

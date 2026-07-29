@@ -30,6 +30,9 @@ export const personalRouter = createRouter({
       const primerNombre = fila[7] ? String(fila[7]).trim() : "";
       if (!codigo || !primerNombre) continue;
 
+      const cargoFila = fila[4] ? String(fila[4]).trim() : "";
+      if (cargoFila.toUpperCase() === "DESARROLLADOR") continue;
+
       const primerApellido = fila[9] ? String(fila[9]).trim() : "";
       const nombreCompleto = primerNombre + (primerApellido ? " " + primerApellido : "");
 
@@ -38,7 +41,7 @@ export const personalRouter = createRouter({
         codigo,
         anioJuramento: String(fila[2] || ""),
         categoria: String(fila[3] || ""),
-        cargo: String(fila[4] || ""),
+        cargo: cargoFila,
         rango: String(fila[5] || ""),
         codigoRadial: String(fila[6] || ""),
         nombreCompleto,

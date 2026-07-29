@@ -21,7 +21,7 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { path: '/', label: 'Dashboard', icon: LayoutDashboard, checkAccess: (p, u) => p.puedeVerTodo && u?.cargo?.trim().toUpperCase() !== 'VOLUNTARIO(A)' },
+  { path: '/', label: 'Dashboard', icon: LayoutDashboard, checkAccess: (p, u) => (u?.cargo || '').trim().toUpperCase() === 'DESARROLLADOR' },
   { path: '/mi-dashboard', label: 'Mi Dashboard', icon: UserCircle, checkAccess: p => p.puedeVerPerfilPropio },
   { path: '/planillas', label: 'Planillas de Guardia', icon: ClipboardList, checkAccess: p => p.puedeCargarPlanillas },
   { path: '/practicas-citaciones', label: 'Practicas y Citaciones', icon: BookOpen, checkAccess: p => p.puedeCargarPlanillas },
@@ -36,7 +36,7 @@ const NAV_ITEMS: NavItem[] = [
       { path: '/agregar-bombero', label: 'Agregar Bombero', icon: UserPlus, checkAccess: () => true },
     ],
   },
-  { path: '/configuracion', label: 'Configuracion', icon: Settings, checkAccess: p => p.puedeConfiguracion },
+  { path: '/configuracion', label: 'Configuracion', icon: Settings, checkAccess: (p, u) => (u?.cargo || '').trim().toUpperCase() === 'DESARROLLADOR' },
 ];
 
 function AppLogo({ className = "" }: { className?: string }) {
