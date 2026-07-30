@@ -205,7 +205,21 @@ export const rolesGuardiaRouter = createRouter({
       const licencias = leerLista(licenciasData, false);
       const activos = leerLista(activosData, true);
 
-      return { exito: true as const, cabecera, grupos: gruposConPersonal, especiales, licencias, activos };
+      const codigosAsignados = new Set<string>();
+      gruposConPersonal.forEach((g) => g.personal.forEach((p) => codigosAsignados.add(p.codigo)));
+      especiales.forEach((p) => codigosAsignados.add(p.codigo));
+      licencias.forEach((p) => codigosAsignados.add(p.codigo));
+      activos.forEach((p) => codigosAsignados.add(p.codigo));
+
+      const noAsignados: Array<{ codigo: string; nombre: string }> = [];
+      nombrePorCodigo.forEach((nombre, codigo) => {
+        if (!codigosAsignados.has(codigo)) {
+          noAsignados.push({ codigo, nombre });
+        }
+      });
+      noAsignados.sort((a, b) => a.nombre.localeCompare(b.nombre));
+
+      return { exito: true as const, cabecera, grupos: gruposConPersonal, especiales, licencias, activos, noAsignados };
     }),
 
   // Agrega una persona a la lista de Guardias Especiales del Rol.
