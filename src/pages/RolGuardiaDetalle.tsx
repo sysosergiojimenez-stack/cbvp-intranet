@@ -532,6 +532,23 @@ export default function RolGuardiaDetalle() {
                 onQuitar={(id) => quitarActivoMutation.mutate({ id })}
                 guardando={agregarActivoMutation.isPending}
               />
+
+              <div className="bg-amber-500/[0.05] border border-amber-500/20 rounded-lg p-4">
+                <h3 className="text-sm font-semibold text-amber-400/90 mb-3">
+                  Sin Asignar Todavia ({(data.noAsignados || []).length})
+                </h3>
+                {(data.noAsignados || []).length === 0 ? (
+                  <div className="text-white/30 text-xs py-1">Todo el personal ya esta asignado en este Rol.</div>
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                    {(data.noAsignados || []).map((p) => (
+                      <div key={p.codigo} className="text-xs text-white/70 bg-white/[0.03] rounded px-2 py-1.5">
+                        <span className="text-white/40">{p.codigo}</span> — {p.nombre}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </>
         )}
