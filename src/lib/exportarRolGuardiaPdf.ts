@@ -148,17 +148,18 @@ function tablaPersonalConCalendarios(
     headStyles: { fillColor: [180, 30, 30], textColor: 255, fontSize: 5.5 },
     columnStyles: { 0: { cellWidth: 5 }, 1: { cellWidth: 15 }, 2: { cellWidth: 12 }, 3: { cellWidth: 46 }, 4: { cellWidth: 30 } },
   });
+  // @ts-expect-error lastAutoTable
+  const finPersonal = doc.lastAutoTable.finalY;
 
   const anchoCal = 34;
   const separacion = 3;
   const xCal1 = 10 + anchoTabla + 5;
   const xCal2 = xCal1 + anchoCal + separacion;
 
-  tablaCalendario(doc, anioInicio, mesInicio, diasInicio, xCal1, y, anchoCal);
-  tablaCalendario(doc, anioFin, mesFin, diasFin, xCal2, y, anchoCal);
+  const finCal1 = tablaCalendario(doc, anioInicio, mesInicio, diasInicio, xCal1, y, anchoCal);
+  const finCal2 = tablaCalendario(doc, anioFin, mesFin, diasFin, xCal2, y, anchoCal);
 
-  // @ts-expect-error lastAutoTable
-  return doc.lastAutoTable.finalY + 4;
+  return Math.max(finPersonal, finCal1, finCal2) + 4;
 }
 
 interface ListaItem {
