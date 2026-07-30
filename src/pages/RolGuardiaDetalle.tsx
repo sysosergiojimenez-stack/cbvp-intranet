@@ -516,14 +516,38 @@ export default function RolGuardiaDetalle() {
                 onQuitar={(id) => quitarEspecialMutation.mutate({ id })}
                 guardando={agregarEspecialMutation.isPending}
               />
-              <ListaSeccion
-                titulo="Licencias"
-                items={data.licencias || []}
-                mostrarAsignacion={false}
-                onAgregar={(codigo, radial, _asignacion, observaciones) => agregarLicenciaMutation.mutate({ idRol, codigo, radial, observaciones })}
-                onQuitar={(id) => quitarLicenciaMutation.mutate({ id })}
-                guardando={agregarLicenciaMutation.isPending}
-              />
+              <div className="bg-white/[0.02] border border-white/10 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-semibold text-white">Licencias</h3>
+                  <span className="text-[10px] text-white/30 uppercase tracking-wider">Automatico segun SITU</span>
+                </div>
+                {(data.licencias || []).length === 0 ? (
+                  <div className="text-white/30 text-xs py-2">Nadie tiene una Licencia vigente durante este Rol.</div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="text-xs w-full">
+                      <thead>
+                        <tr className="border-b border-white/5 text-white/40">
+                          <th className="text-left py-1.5 pr-3 font-medium">Codigo</th>
+                          <th className="text-left py-1.5 pr-3 font-medium">Nombre</th>
+                          <th className="text-left py-1.5 pr-3 font-medium">Tipo</th>
+                          <th className="text-left py-1.5 pr-3 font-medium">Periodo</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(data.licencias || []).map((p) => (
+                          <tr key={p.id} className="border-b border-white/5">
+                            <td className="py-1.5 pr-3 text-white/60">{p.codigo}</td>
+                            <td className="py-1.5 pr-3 text-white/80">{p.nombre}</td>
+                            <td className="py-1.5 pr-3 text-white/50">{p.asignacion}</td>
+                            <td className="py-1.5 pr-3 text-white/50">{p.observaciones}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
               <ListaSeccion
                 titulo="Activos"
                 items={data.activos || []}
