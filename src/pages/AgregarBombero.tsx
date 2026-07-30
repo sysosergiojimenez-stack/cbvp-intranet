@@ -9,7 +9,7 @@ export default function AgregarBombero() {
     codigo: '', anioJuramento: '', categoria: 'COMBATIENTE',
     rango: 'Voluntario(a)', codigoRadial: '',
     primerNombre: '', segundoNombre: '', primerApellido: '', segundoApellido: '',
-    nroDocId: '', fechaNacimiento: '', situ: 'RN', cuota: '',
+    nroDocId: '', fechaNacimiento: '', situ: 'RN', cuota: '', licenciaInicio: '', licenciaDias: '',
   });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -113,6 +113,7 @@ export default function AgregarBombero() {
               <option value="CM">CM - Comisionado</option>
               <option value="SC">SC - Sancionado</option>
               <option value="LC">LC - Licencia</option>
+              <option value="LM">LM - Licencia Maternidad</option>
               <option value="PS">PS - Pasantia</option>
               <option value="BCP">BCP - Baja c/Prescripcion Especial</option>
               <option value="B10A">B10A - Beneficios 10 años</option>
@@ -124,6 +125,32 @@ export default function AgregarBombero() {
             <label className="text-[10px] text-white/40 uppercase tracking-wider mb-1 block">Cuota al dia hasta</label>
             <input type="month" value={form.cuota} onChange={e => setForm(f => ({ ...f, cuota: e.target.value }))} className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-cbvp-red/50 [color-scheme:dark]" />
           </div>
+          {(form.situ === 'LC' || form.situ === 'LM') && (
+            <>
+              <div>
+                <label className="text-[10px] text-white/40 uppercase tracking-wider mb-1 block">Inicio de Licencia</label>
+                <input type="date" value={form.licenciaInicio} onChange={e => setForm(f => ({ ...f, licenciaInicio: e.target.value }))} className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-cbvp-red/50 [color-scheme:dark]" />
+              </div>
+              <div>
+                <label className="text-[10px] text-white/40 uppercase tracking-wider mb-1 block">Duracion (dias)</label>
+                <input type="number" min="1" value={form.licenciaDias} onChange={e => setForm(f => ({ ...f, licenciaDias: e.target.value }))} placeholder="Ej: 90" className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-cbvp-red/50" />
+              </div>
+              {form.licenciaInicio && form.licenciaDias && (() => {
+                const fin = new Date(form.licenciaInicio);
+                fin.setDate(fin.getDate() + Number(form.licenciaDias));
+                const vencida = fin < new Date();
+                return vencida ? (
+                  <div className="col-span-full text-amber-400 text-xs bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
+                    Esta licencia ya vencio el {fin.toLocaleDateString('es-PY')}. Recorda volver el SITU a RN si corresponde.
+                  </div>
+                ) : (
+                  <div className="col-span-full text-white/40 text-xs">
+                    Vence el {fin.toLocaleDateString('es-PY')}
+                  </div>
+                );
+              })()}
+            </>
+          )}
         </div>
 
         <h2 className="text-sm font-semibold text-white/60 uppercase tracking-wider border-b border-white/5 pb-2 pt-2">Datos Personales</h2>
