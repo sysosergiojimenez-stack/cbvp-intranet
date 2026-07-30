@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { formatearNombreCompleto } from "../lib/nombres";
 import { createRouter, publicQuery } from "../middleware";
 import { readSheet, appendRow, updateRange, findRowIndex } from "../services/sheets";
 import { env } from "../lib/env";
@@ -34,7 +35,9 @@ export const personalRouter = createRouter({
       if (cargoFila.toUpperCase() === "DESARROLLADOR") continue;
 
       const primerApellido = fila[9] ? String(fila[9]).trim() : "";
-      const nombreCompleto = primerNombre + (primerApellido ? " " + primerApellido : "");
+      const rango = fila[5] ? String(fila[5]).trim() : "";
+      const categoriaFila = fila[3] ? String(fila[3]).trim() : "";
+      const nombreCompleto = formatearNombreCompleto(rango, categoriaFila, primerNombre, primerApellido);
 
       personal.push({
         identificador: String(fila[0] || ""),

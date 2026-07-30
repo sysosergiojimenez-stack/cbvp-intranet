@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { formatearNombreCompleto } from "../lib/nombres";
 import { createRouter, publicQuery } from "../middleware";
 import { readSheet } from "../services/sheets";
 import { env } from "../lib/env";
@@ -62,8 +63,9 @@ export const authRouter = createRouter({
 
           const primerNombre = fila[7] ? String(fila[7]).trim() : "";
           const primerApellido = fila[9] ? String(fila[9]).trim() : "";
-          const nombreCompleto =
-            primerNombre + (primerApellido ? " " + primerApellido : "");
+          const rango = fila[5] ? String(fila[5]).trim() : "";
+          const categoriaFila = fila[3] ? String(fila[3]).trim() : "";
+          const nombreCompleto = formatearNombreCompleto(rango, categoriaFila, primerNombre, primerApellido);
 
           return {
             exito: true as const,
@@ -99,8 +101,9 @@ export const authRouter = createRouter({
         if (correoFila === correoBusqueda) {
           const primerNombre = fila[7] ? String(fila[7]).trim() : "";
           const primerApellido = fila[9] ? String(fila[9]).trim() : "";
-          const nombreCompleto =
-            primerNombre + (primerApellido ? " " + primerApellido : "");
+          const rango = fila[5] ? String(fila[5]).trim() : "";
+          const categoriaFila = fila[3] ? String(fila[3]).trim() : "";
+          const nombreCompleto = formatearNombreCompleto(rango, categoriaFila, primerNombre, primerApellido);
 
           return {
             exito: true as const,

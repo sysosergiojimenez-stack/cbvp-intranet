@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { formatearNombreCompleto } from "../lib/nombres";
 import { createRouter, publicQuery } from "../middleware";
 import { readSheet, appendRow, updateRange, deleteRows, getSheetId } from "../services/sheets";
 import { env } from "../lib/env";
@@ -468,7 +469,8 @@ export const asistenciaRouter = createRouter({
         if (String(fila[4] || "").trim().toUpperCase() === "DESARROLLADOR") continue;
         if (categoria !== input.categoria.toUpperCase()) continue;
         const primerApellido = fila[9] ? String(fila[9]).trim() : "";
-        const nombre = primerNombre + (primerApellido ? " " + primerApellido : "");
+        const rango = fila[5] ? String(fila[5]).trim() : "";
+        const nombre = formatearNombreCompleto(rango, categoria, primerNombre, primerApellido);
         const situ = String(fila[17] || "RN").trim() || "RN";
         const numero = (codigo.match(/\d+/) || [""])[0];
         personasBase.push({ codigo, numero, nombre, situ });

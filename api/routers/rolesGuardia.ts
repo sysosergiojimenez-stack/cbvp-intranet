@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { formatearNombreCompleto } from "../lib/nombres";
 import { createRouter, publicQuery } from "../middleware";
 import { readSheet, appendRow, updateRange, deleteRows, getSheetId, findRowIndex } from "../services/sheets";
 import { env } from "../lib/env";
@@ -132,7 +133,9 @@ export const rolesGuardiaRouter = createRouter({
         const codigo = String(usuariosData[i][1] || "").trim();
         const primerNombre = String(usuariosData[i][7] || "").trim();
         const primerApellido = String(usuariosData[i][9] || "").trim();
-        if (codigo) nombrePorCodigo.set(codigo, primerNombre + (primerApellido ? " " + primerApellido : ""));
+        const rangoFila = String(usuariosData[i][5] || "").trim();
+        const categoriaFila = String(usuariosData[i][3] || "").trim();
+        if (codigo) nombrePorCodigo.set(codigo, formatearNombreCompleto(rangoFila, categoriaFila, primerNombre, primerApellido));
       }
 
       const calData = await readSheet(env.SHEET_GUARDIAS_ID, "RolesGuardia_Calendario!A1:E");
