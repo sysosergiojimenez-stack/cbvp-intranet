@@ -2,6 +2,7 @@ import { z } from "zod";
 import { formatearNombreCompleto } from "../lib/nombres";
 import { createRouter, publicQuery } from "../middleware";
 import { readSheet, appendRow, updateRange, deleteRows, getSheetId, findRowIndex } from "../services/sheets";
+import { normalizarFechaISO } from "../lib/fechas";
 import { env } from "../lib/env";
 
 function generateId(): string {
@@ -214,7 +215,7 @@ export const rolesGuardiaRouter = createRouter({
         if (!codigoU) continue;
         const situU = String(filaU[17] || "").trim().toUpperCase();
         if (situU !== "LC" && situU !== "LM") continue;
-        const licInicioStr = String(filaU[19] || "").trim();
+        const licInicioStr = normalizarFechaISO(String(filaU[19] || "").trim());
         const licDiasStr = String(filaU[20] || "").trim();
         if (!licInicioStr || !licDiasStr) continue;
         const licInicioDate = new Date(licInicioStr);

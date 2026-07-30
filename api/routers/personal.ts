@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { formatearNombreCompleto } from "../lib/nombres";
+import { normalizarFechaISO } from "../lib/fechas";
 import { createRouter, publicQuery } from "../middleware";
 import { readSheet, appendRow, updateRange, findRowIndex } from "../services/sheets";
 import { env } from "../lib/env";
@@ -49,7 +50,7 @@ export const personalRouter = createRouter({
         nombreCompleto,
         situ: String(fila[17] || ""),
         cuota: String(fila[18] || ""),
-        licenciaInicio: String(fila[19] || ""),
+        licenciaInicio: normalizarFechaISO(String(fila[19] || "")),
         licenciaDias: String(fila[20] || ""),
       });
     }
@@ -201,7 +202,7 @@ export const personalRouter = createRouter({
               descripcionPermiso: String(data[i][16] || ""),
               situ: String(data[i][17] || ""),
               cuota: String(data[i][18] || ""),
-              licenciaInicio: String(data[i][19] || ""),
+              licenciaInicio: normalizarFechaISO(String(data[i][19] || "")),
               licenciaDias: String(data[i][20] || ""),
             },
           };
