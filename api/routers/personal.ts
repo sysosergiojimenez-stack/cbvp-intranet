@@ -353,4 +353,32 @@ export const personalRouter = createRouter({
       total,
     };
   }),
+
+  // Asigna el Cargo (rol) y el Nivel de Permiso a un bombero existente.
+  actualizarRolPermiso: publicQuery
+    .input(
+      z.object({
+        codigo: z.string().min(1),
+        cargo: z.string().min(1),
+        nivelPermiso: z.number().min(1).max(5),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const data = await readSheet(env.SHEET_USUARIOS_ID, "USUARIOS!A1:U");
+      const searchNum = extractNumber(input.codigo);
+      let rowIndex = -1;
+      for (let i = 1; i < data.length; i++) {
+        const codigoFila = String(data[i][1] || "").trim();
+        if (extractNumber(codigoFila) === searchNum) {
+          rowIndex = i + 1;
+          break;
+        }
+      }
+      if (rowIndex === -1) {
+        return { exito: false as const, error: "Bombero no encontrado" };
+      }
+      await updateRange(env.SHEET_USUARIOS_ID, `USUARIOS!E${rowIndex}`, [[input.cargo]]);
+      await updateRange(env.SHEET_USUARIOS_ID, `USUARIOS!P${rowIndex}`, [[input.nivelPermiso]]);
+      return { exito: true as const };
+    }),
 });
