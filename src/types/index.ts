@@ -1,3 +1,7 @@
+import type { AccionPermiso } from '@contracts/permisos';
+
+export type { AccionPermiso };
+
 export interface Usuario {
   exito: boolean;
   identificador: string;
@@ -144,16 +148,6 @@ export interface EstadisticasGuardias {
 }
 
 export type TipoPersonal = 'GUARDIA NORMAL' | 'GUARDIA ESPECIAL' | 'REFUERZO' | 'RADIO OPERADOR' | 'MOVIL';
-
-export type AccionPermiso =
-  | 'ver_todo'
-  | 'editar_planillas'
-  | 'eliminar_planillas'
-  | 'ver_personal'
-  | 'ver_historial'
-  | 'cargar_planillas'
-  | 'ver_perfil_propio'
-  | 'configuracion';
 
 // ========== ASISTENCIA (Practicas/Citaciones) ==========
 export interface AsistenciaEncabezado {

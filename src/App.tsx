@@ -11,6 +11,7 @@ import MiDashboard from '@/pages/MiDashboard';
 import AgregarBombero from '@/pages/AgregarBombero';
 import EditarBombero from '@/pages/EditarBombero';
 import ConfigurarAcceso from '@/pages/ConfigurarAcceso';
+import Configuracion from '@/pages/Configuracion';
 import PracticasCitaciones from '@/pages/PracticasCitaciones';
 import SalidaMovil from '@/pages/SalidaMovil';
 import InformeAsistencia from '@/pages/InformeAsistencia';
@@ -71,27 +72,27 @@ function AppRoutes() {
         } />
         <Route path="/informe-asistencia" element={
           <ProtectedRoute>
-            {['COMANDANTE', 'PRIMER OFICIAL', 'SEGUNDO OFICIAL', 'DESARROLLADOR'].includes((usuario?.cargo || '').trim().toUpperCase()) ? <InformeAsistencia /> : <Navigate to="/" replace />}
+            {permisos.puedeVerInformes ? <InformeAsistencia /> : <Navigate to="/" replace />}
           </ProtectedRoute>
         } />
         <Route path="/roles-guardia" element={
           <ProtectedRoute>
-            {['COMANDANTE', 'PRIMER OFICIAL', 'SEGUNDO OFICIAL', 'DESARROLLADOR'].includes((usuario?.cargo || '').trim().toUpperCase()) ? <RolesGuardia /> : <Navigate to="/" replace />}
+            {permisos.puedeGestionarRolesGuardia ? <RolesGuardia /> : <Navigate to="/" replace />}
           </ProtectedRoute>
         } />
         <Route path="/roles-guardia/:id" element={
           <ProtectedRoute>
-            {['COMANDANTE', 'PRIMER OFICIAL', 'SEGUNDO OFICIAL', 'DESARROLLADOR'].includes((usuario?.cargo || '').trim().toUpperCase()) ? <RolGuardiaDetalle /> : <Navigate to="/" replace />}
+            {permisos.puedeGestionarRolesGuardia ? <RolGuardiaDetalle /> : <Navigate to="/" replace />}
           </ProtectedRoute>
         } />
         <Route path="/personal" element={
           <ProtectedRoute>
-            {['COMANDANTE', 'PRIMER OFICIAL', 'SEGUNDO OFICIAL', 'DESARROLLADOR'].includes((usuario?.cargo || '').trim().toUpperCase()) ? <Personal /> : <Navigate to="/" replace />}
+            {permisos.puedeVerPersonal ? <Personal /> : <Navigate to="/" replace />}
           </ProtectedRoute>
         } />
         <Route path="/agregar-bombero" element={
           <ProtectedRoute>
-            {['COMANDANTE', 'PRIMER OFICIAL', 'SEGUNDO OFICIAL', 'DESARROLLADOR'].includes((usuario?.cargo || '').trim().toUpperCase()) ? <AgregarBombero /> : <Navigate to="/" replace />}
+            {permisos.puedeCrearBombero ? <AgregarBombero /> : <Navigate to="/" replace />}
           </ProtectedRoute>
         } />
         <Route path="/editar-bombero/:codigo" element={
@@ -102,6 +103,11 @@ function AppRoutes() {
         <Route path="/configurar-acceso" element={
           <ProtectedRoute>
             <ConfigurarAcceso />
+          </ProtectedRoute>
+        } />
+        <Route path="/configuracion" element={
+          <ProtectedRoute>
+            {permisos.puedeConfiguracion ? <Configuracion /> : <Navigate to="/" replace />}
           </ProtectedRoute>
         } />
       </Route>

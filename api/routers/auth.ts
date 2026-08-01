@@ -50,7 +50,7 @@ export const authRouter = createRouter({
       // Columns: 0=ID, 1=Codigo, 2=AnioJuramento, 3=Categoria, 4=Cargo, 5=Rango,
       // 6=CodigoRadial, 7=PrimerNombre, 8=SegundoNombre, 9=PrimerApellido, 10=SegundoApellido,
       // 11=NroDoc, 12=FechaNacimiento, 13=Correo, 14=Contrasena
-      const data = await readSheet(env.SHEET_USUARIOS_ID, "USUARIOS!A1:O");
+      const data = await readSheet(env.SHEET_USUARIOS_ID, "USUARIOS!A1:U");
 
       for (let i = 1; i < data.length; i++) {
         const fila = data[i];
@@ -60,6 +60,13 @@ export const authRouter = createRouter({
         if (correoFila === correoInput && passFila === passInput) {
           const cargo = fila[4] ? String(fila[4]).trim() : "Voluntario(a)";
           const permiso = await obtenerNivelPermiso(cargo);
+          const nivelColP = parseInt(String(fila[15] || ""), 10);
+          const nivelPermiso =
+            nivelColP >= 1 && nivelColP <= 5
+              ? nivelColP
+              : permiso.exito
+                ? permiso.nivel
+                : 2;
 
           const primerNombre = fila[7] ? String(fila[7]).trim() : "";
           const primerApellido = fila[9] ? String(fila[9]).trim() : "";
@@ -71,10 +78,11 @@ export const authRouter = createRouter({
             exito: true as const,
             identificador: String(fila[0] || ""),
             codigo: String(fila[1] || ""),
+            anioJuramento: String(fila[2] || ""),
             categoria: String(fila[3] || ""),
             cargo,
             rango: String(fila[5] || ""),
-            nivelPermiso: permiso.exito ? permiso.nivel : 2,
+            nivelPermiso,
             descripcionPermiso: permiso.exito ? permiso.descripcion : "",
             accesosPermiso: permiso.exito ? permiso.accesos : "",
             nombreCompleto,

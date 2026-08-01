@@ -839,8 +839,10 @@ export const planillasRouter = createRouter({
         let acumulado: number | string;
         if (p.situ === "SC") {
           acumulado = "SANCIONADO";
+        } else if (p.situ === "LM") {
+          acumulado = 100;
         } else if (p.situ === "LC") {
-          acumulado = "LICENCIA";
+          acumulado = 0;
         } else {
           const valores: number[] = [guardiasPercent];
           if (practicasPercent !== null) valores.push(practicasPercent);

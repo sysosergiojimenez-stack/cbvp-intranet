@@ -2,6 +2,7 @@ import { z } from "zod";
 import { formatearNombreCompleto } from "../lib/nombres";
 import { createRouter, publicQuery } from "../middleware";
 import { readSheet, appendRow, updateRange, deleteRows, getSheetId, findRowIndex } from "../services/sheets";
+import { normalizarFechaISO } from "../lib/fechas";
 import { env } from "../lib/env";
 
 function generateId(): string {
@@ -127,7 +128,7 @@ export const rolesGuardiaRouter = createRouter({
       grupos.sort((a, b) => a.orden - b.orden);
 
       const personalData = await readSheet(env.SHEET_GUARDIAS_ID, "RolesGuardia_Personal!A1:G");
-      const usuariosData = await readSheet(env.SHEET_USUARIOS_ID, "USUARIOS!A1:K");
+      const usuariosData = await readSheet(env.SHEET_USUARIOS_ID, "USUARIOS!A1:U");
       const nombrePorCodigo = new Map<string, string>();
       for (let i = 1; i < usuariosData.length; i++) {
         const codigo = String(usuariosData[i][1] || "").trim();
@@ -198,12 +199,40 @@ export const rolesGuardiaRouter = createRouter({
       }
 
       const especialesData = await readSheet(env.SHEET_GUARDIAS_ID, "RolesGuardia_Especiales!A1:F");
-      const licenciasData = await readSheet(env.SHEET_GUARDIAS_ID, "RolesGuardia_Licencias!A1:E");
       const activosData = await readSheet(env.SHEET_GUARDIAS_ID, "RolesGuardia_Activos!A1:F");
 
       const especiales = leerLista(especialesData, true);
-      const licencias = leerLista(licenciasData, false);
       const activos = leerLista(activosData, true);
+
+      // Licencias: se calculan automaticamente segun quien tenga SITU=LC o LM
+      // con una licencia vigente que se superponga con las fechas de este Rol.
+      const rolInicioDate = new Date(cabecera!.anioInicio, cabecera!.mesInicio - 1, 1);
+      const rolFinDate = new Date(cabecera!.anioFin, cabecera!.mesFin, 0);
+      const licencias: Array<{ id: string; codigo: string; nombre: string; radial: string; asignacion: string; observaciones: string }> = [];
+      for (let i = 1; i < usuariosData.length; i++) {
+        const filaU = usuariosData[i];
+        const codigoU = String(filaU[1] || "").trim();
+        if (!codigoU) continue;
+        const situU = String(filaU[17] || "").trim().toUpperCase();
+        if (situU !== "LC" && situU !== "LM") continue;
+        const licInicioStr = normalizarFechaISO(String(filaU[19] || "").trim());
+        const licDiasStr = String(filaU[20] || "").trim();
+        if (!licInicioStr || !licDiasStr) continue;
+        const licInicioDate = new Date(licInicioStr);
+        if (isNaN(licInicioDate.getTime())) continue;
+        const licFinDate = new Date(licInicioDate);
+        licFinDate.setDate(licFinDate.getDate() + (Number(licDiasStr) || 0));
+        const vigenteEnRol = licInicioDate <= rolFinDate && licFinDate >= rolInicioDate;
+        if (!vigenteEnRol) continue;
+        licencias.push({
+          id: codigoU,
+          codigo: codigoU,
+          nombre: nombrePorCodigo.get(codigoU) || codigoU,
+          radial: "",
+          asignacion: situU === "LM" ? "Licencia Maternidad" : "Licencia",
+          observaciones: `Del ${licInicioDate.toLocaleDateString("es-PY")} al ${licFinDate.toLocaleDateString("es-PY")}`,
+        });
+      }
 
       const codigosAsignados = new Set<string>();
       gruposConPersonal.forEach((g) => g.personal.forEach((p) => codigosAsignados.add(p.codigo)));
