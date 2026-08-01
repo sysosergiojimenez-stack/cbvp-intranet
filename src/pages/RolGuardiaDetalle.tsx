@@ -140,13 +140,13 @@ function CalendarioGrupo({ idGrupo, anio, mes, diasIniciales }: { idGrupo: strin
   };
 
   return (
-    <div className="bg-white/[0.02] border border-white/10 rounded-lg p-2.5 w-[210px] shrink-0">
-      <div className="flex items-center justify-between mb-1.5">
-        <span className="text-[11px] font-semibold text-white/70">{MESES[mes - 1]} {anio}</span>
+    <div className="w-full sm:w-[220px] lg:w-[210px] shrink-0 bg-transparent sm:bg-white/[0.02] sm:border border-white/10 rounded-lg p-3 sm:p-2.5">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-xs sm:text-[11px] font-semibold text-white/70">{MESES[mes - 1]} {anio}</span>
         <button
           onClick={handleGuardar}
           disabled={guardando || !hayCambiosSinGuardar}
-          className={`px-1.5 py-0.5 rounded text-[9px] transition-colors ${
+          className={`px-2 py-1 rounded text-xs sm:text-[9px] transition-colors ${
             hayCambiosSinGuardar
               ? 'bg-cbvp-green text-white hover:bg-cbvp-green/90 animate-pulse'
               : 'bg-white/5 text-white/30'
@@ -155,21 +155,21 @@ function CalendarioGrupo({ idGrupo, anio, mes, diasIniciales }: { idGrupo: strin
           {guardando ? 'Guardando...' : hayCambiosSinGuardar ? 'Guardar *' : 'Guardado'}
         </button>
       </div>
-      <div className="grid grid-cols-7 gap-0.5 mb-0.5">
+      <div className="grid grid-cols-7 gap-1 sm:gap-0.5 mb-1">
         {DIAS_SEMANA.map((d) => (
-          <div key={d} className="text-center text-[8px] font-semibold text-white/30">{d}</div>
+          <div key={d} className="text-center text-[10px] sm:text-[8px] font-semibold text-white/30">{d}</div>
         ))}
       </div>
       {semanas.map((semana, i) => (
-        <div key={i} className="grid grid-cols-7 gap-0.5 mb-0.5">
+        <div key={i} className="grid grid-cols-7 gap-1 sm:gap-0.5 mb-1">
           {semana.map((dia, j) => (
             dia === null ? (
-              <div key={j} />
+              <div key={j} className="h-8 sm:h-7" />
             ) : (
               <button
                 key={j}
                 onClick={() => toggleDia(dia)}
-                className={`aspect-square rounded text-[9px] font-medium transition-colors ${seleccionados.has(dia) ? 'bg-cbvp-green text-white' : 'bg-white/5 text-white/50 hover:bg-white/10'}`}
+                className={`w-full h-8 sm:h-7 rounded text-xs sm:text-[9px] font-medium transition-colors ${seleccionados.has(dia) ? 'bg-cbvp-green text-white' : 'bg-white/5 text-white/50 hover:bg-white/10'}`}
               >
                 {dia}
               </button>
@@ -388,9 +388,9 @@ export default function RolGuardiaDetalle() {
           <div className="text-center py-6 text-white/40 text-sm">No se encontro el Rol de Guardia.</div>
         ) : (
           <>
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-3">
               <h2 className="text-lg font-semibold text-white">Rol de Guardia — {etiqueta}</h2>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <button
                   onClick={async () => {
                     if (!data.cabecera) return;
@@ -442,9 +442,9 @@ export default function RolGuardiaDetalle() {
               <div className="space-y-4">
                 {data.grupos.map((grupo) => (
                   <div key={grupo.id} className="bg-white/[0.02] border border-white/10 rounded-lg p-4">
-                    <div className="flex items-center justify-between mb-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-3 gap-2">
                       <h3 className="text-sm font-semibold text-white">{grupo.nombreGrupo}</h3>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <button onClick={() => setMostrarAgregar(mostrarAgregar === grupo.id ? null : grupo.id)} className="px-3 py-1.5 bg-white/5 hover:bg-white/10 text-white/70 rounded-lg text-xs flex items-center gap-1.5 transition-colors">
                           <UserPlus className="w-3.5 h-3.5" /> Agregar Personal
                         </button>
@@ -493,7 +493,7 @@ export default function RolGuardiaDetalle() {
                         )}
                       </div>
 
-                      <div className="flex gap-2 shrink-0">
+                      <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
                         <CalendarioGrupo idGrupo={grupo.id} anio={data.cabecera!.anioInicio} mes={data.cabecera!.mesInicio} diasIniciales={grupo.diasInicio} />
                         <CalendarioGrupo idGrupo={grupo.id} anio={data.cabecera!.anioFin} mes={data.cabecera!.mesFin} diasIniciales={grupo.diasFin} />
                       </div>
