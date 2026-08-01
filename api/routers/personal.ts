@@ -36,7 +36,6 @@ export const personalRouter = createRouter({
       if (!codigo || !primerNombre) continue;
 
       const cargoFila = fila[4] ? String(fila[4]).trim() : "";
-      if (cargoFila.toUpperCase() === "DESARROLLADOR") continue;
 
       const primerApellido = fila[9] ? String(fila[9]).trim() : "";
       const rango = fila[5] ? String(fila[5]).trim() : "";
