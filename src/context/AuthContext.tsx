@@ -1,14 +1,18 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import { trpc } from '@/providers/trpc';
+import { DEFAULTS_POR_NIVEL } from '@contracts/permisos';
 import type { AccionPermiso } from '@/types';
 
-const PERMISOS_POR_NIVEL: Record<number, AccionPermiso[]> = {
-  5: ['ver_todo', 'editar_planillas', 'eliminar_planillas', 'ver_personal', 'ver_historial', 'cargar_planillas', 'ver_perfil_propio', 'configuracion'],
-  4: ['ver_todo', 'editar_planillas', 'eliminar_planillas', 'ver_personal', 'ver_historial', 'cargar_planillas', 'ver_perfil_propio'],
-  3: ['ver_todo', 'ver_personal', 'ver_historial', 'cargar_planillas', 'ver_perfil_propio'],
-  2: ['ver_todo', 'ver_personal', 'ver_historial', 'cargar_planillas', 'ver_perfil_propio'],
-  1: ['ver_perfil_propio'],
-};
+function permisosDesdeNiveles(
+  niveles: Record<number, Record<string, boolean>> | undefined,
+  nivel: number
+): AccionPermiso[] {
+  const flags = niveles?.[nivel] ?? DEFAULTS_POR_NIVEL[nivel];
+  if (!flags) return [];
+  return (Object.entries(flags) as [AccionPermiso, boolean][])
+    .filter(([, activo]) => activo)
+    .map(([accion]) => accion);
+}
 
 interface Usuario {
   exito: boolean;
@@ -29,6 +33,7 @@ interface AuthContextType {
   usuario: Usuario | null;
   login: (correo: string, contrasena: string, recordar?: boolean) => Promise<boolean>;
   logout: () => void;
+  syncUsuario: (cambios: Partial<Usuario>) => void;
   tienePermiso: (accion: AccionPermiso) => boolean;
   isLoading: boolean;
   error: string | null;
@@ -59,6 +64,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const { data: permisosData } = trpc.permisos.obtenerNiveles.useQuery(undefined, {
+    staleTime: 60_000,
+  });
 
   const loginMutation = trpc.auth.login.useMutation();
 
@@ -126,15 +135,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem('cbvp_sesion');
   }, []);
 
+  const syncUsuario = useCallback((cambios: Partial<Usuario>) => {
+    setUsuario((prev) => {
+      if (!prev) return prev;
+      const actualizado = { ...prev, ...cambios };
+      try {
+        const data = JSON.stringify({ usuario: actualizado, timestamp: Date.now() });
+        const enLocal = localStorage.getItem('cbvp_sesion');
+        if (enLocal) localStorage.setItem('cbvp_sesion', data);
+        const enSession = sessionStorage.getItem('cbvp_sesion');
+        if (enSession) sessionStorage.setItem('cbvp_sesion', data);
+      } catch {
+        // storage puede fallar en modo privado en mobile - ignorar
+      }
+      return actualizado;
+    });
+  }, []);
+
   const tienePermiso = useCallback((accion: AccionPermiso): boolean => {
     if (!usuario) return false;
     const nivel = usuario.nivelPermiso || 1;
-    const accionesPermitidas = PERMISOS_POR_NIVEL[nivel] || [];
+    const accionesPermitidas = permisosDesdeNiveles(permisosData?.niveles, nivel);
     return accionesPermitidas.includes(accion);
-  }, [usuario]);
+  }, [usuario, permisosData]);
 
   return (
-    <AuthContext.Provider value={{ usuario, login, logout, tienePermiso, isLoading, error }}>
+    <AuthContext.Provider value={{ usuario, login, logout, syncUsuario, tienePermiso, isLoading, error }}>
       {children}
     </AuthContext.Provider>
   );

@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { formatearNombreCompleto } from "../lib/nombres";
 import { normalizarFechaISO } from "../lib/fechas";
-import { createRouter, publicQuery } from "../middleware";
+import { createRouter, publicQuery, adminProcedure } from "../middleware";
 import { readSheet, appendRow, updateRange, findRowIndex } from "../services/sheets";
 import { env } from "../lib/env";
 
@@ -22,6 +22,7 @@ export const personalRouter = createRouter({
       rango: string;
       codigoRadial: string;
       nombreCompleto: string;
+      nivelPermiso: number;
       situ: string;
       cuota: string;
       licenciaInicio: string;
@@ -39,6 +40,8 @@ export const personalRouter = createRouter({
       const categoriaFila = fila[3] ? String(fila[3]).trim() : "";
       const nombreCompleto = formatearNombreCompleto(rango, categoriaFila, primerNombre, primerApellido);
 
+      const nivelRaw = parseInt(String(fila[15] || "1"), 10);
+
       personal.push({
         identificador: String(fila[0] || ""),
         codigo,
@@ -48,6 +51,7 @@ export const personalRouter = createRouter({
         rango: String(fila[5] || ""),
         codigoRadial: String(fila[6] || ""),
         nombreCompleto,
+        nivelPermiso: nivelRaw >= 1 && nivelRaw <= 5 ? nivelRaw : 1,
         situ: String(fila[17] || ""),
         cuota: String(fila[18] || ""),
         licenciaInicio: normalizarFechaISO(String(fila[19] || "")),
@@ -355,7 +359,7 @@ export const personalRouter = createRouter({
   }),
 
   // Asigna el Cargo (rol) y el Nivel de Permiso a un bombero existente.
-  actualizarRolPermiso: publicQuery
+  actualizarRolPermiso: adminProcedure
     .input(
       z.object({
         codigo: z.string().min(1),

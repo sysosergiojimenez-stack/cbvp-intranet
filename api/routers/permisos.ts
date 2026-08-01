@@ -1,48 +1,69 @@
 import { z } from "zod";
-import { createRouter, publicQuery } from "../middleware";
+import { createRouter, publicQuery, adminProcedure } from "../middleware";
 import { readSheet, appendRow, updateRange } from "../services/sheets";
 import { env } from "../lib/env";
+import { DEFAULTS_POR_NIVEL } from "@contracts/permisos";
+import type { AccionPermiso } from "@contracts/permisos";
 
-const DEFAULTS: Record<number, Record<string, boolean>> = {
-  5: { ver_todo: true, editar_planillas: true, eliminar_planillas: true, ver_personal: true, ver_historial: true, cargar_planillas: true, ver_perfil_propio: true, configuracion: true },
-  4: { ver_todo: true, editar_planillas: true, eliminar_planillas: true, ver_personal: true, ver_historial: true, cargar_planillas: true, ver_perfil_propio: true, configuracion: false },
-  3: { ver_todo: true, editar_planillas: false, eliminar_planillas: false, ver_personal: true, ver_historial: true, cargar_planillas: true, ver_perfil_propio: true, configuracion: false },
-  2: { ver_todo: true, editar_planillas: false, eliminar_planillas: false, ver_personal: true, ver_historial: true, cargar_planillas: true, ver_perfil_propio: true, configuracion: false },
-  1: { ver_todo: false, editar_planillas: false, eliminar_planillas: false, ver_personal: false, ver_historial: false, cargar_planillas: false, ver_perfil_propio: true, configuracion: false },
-};
+// Columna 0 = nivel. El resto son flags en orden.
+const COLUMNAS_PERMISO: AccionPermiso[] = [
+  'ver_todo',
+  'editar_planillas',
+  'eliminar_planillas',
+  'ver_personal',
+  'ver_historial',
+  'cargar_planillas',
+  'ver_perfil_propio',
+  'configuracion',
+  'ver_informes',
+  'gestionar_roles_guardia',
+  'crear_bombero',
+];
+
+function parseBool(value: unknown): boolean {
+  return String(value || "").trim().toUpperCase() === "TRUE";
+}
 
 export const permisosRouter = createRouter({
   // Trae la configuracion de que puede hacer cada Nivel (1 a 5).
   // Si un nivel no esta cargado en la hoja, se completa con los valores por defecto.
+  // Si una fila existe pero le faltan columnas (datos antiguos), se rellena con el default.
   obtenerNiveles: publicQuery.query(async () => {
-    const data = await readSheet(env.SHEET_USUARIOS_ID, "PERMISOS_NIVELES!A1:I");
-    const niveles: Record<number, Record<string, boolean>> = {};
+    try {
+      const data = await readSheet(env.SHEET_USUARIOS_ID, "PERMISOS_NIVELES!A1:L");
+      const niveles: Record<number, Record<string, boolean>> = {};
 
-    for (let i = 1; i < data.length; i++) {
-      const fila = data[i];
-      const nivel = Number(fila[0]);
-      if (!nivel) continue;
-      niveles[nivel] = {
-        ver_todo: String(fila[1] || "").trim().toUpperCase() === "TRUE",
-        editar_planillas: String(fila[2] || "").trim().toUpperCase() === "TRUE",
-        eliminar_planillas: String(fila[3] || "").trim().toUpperCase() === "TRUE",
-        ver_personal: String(fila[4] || "").trim().toUpperCase() === "TRUE",
-        ver_historial: String(fila[5] || "").trim().toUpperCase() === "TRUE",
-        cargar_planillas: String(fila[6] || "").trim().toUpperCase() === "TRUE",
-        ver_perfil_propio: String(fila[7] || "").trim().toUpperCase() === "TRUE",
-        configuracion: String(fila[8] || "").trim().toUpperCase() === "TRUE",
-      };
+      for (let i = 1; i < data.length; i++) {
+        const fila = data[i];
+        const nivel = Number(fila[0]);
+        if (!nivel) continue;
+
+        const base = DEFAULTS_POR_NIVEL[nivel] || {};
+        const flags: Record<string, boolean> = { ...base };
+
+        COLUMNAS_PERMISO.forEach((accion, idx) => {
+          const colIndex = idx + 1;
+          if (fila[colIndex] !== undefined) {
+            flags[accion] = parseBool(fila[colIndex]);
+          }
+        });
+
+        niveles[nivel] = flags;
+      }
+
+      for (const n of [1, 2, 3, 4, 5]) {
+        if (!niveles[n]) niveles[n] = DEFAULTS_POR_NIVEL[n];
+      }
+
+      return { exito: true as const, niveles };
+    } catch {
+      // Si la hoja no existe, devolvemos los defaults para no bloquear la app.
+      return { exito: true as const, niveles: DEFAULTS_POR_NIVEL };
     }
-
-    for (const n of [1, 2, 3, 4, 5]) {
-      if (!niveles[n]) niveles[n] = DEFAULTS[n];
-    }
-
-    return { exito: true as const, niveles };
   }),
 
   // Crea o actualiza la fila de un Nivel con los permisos que tiene habilitados.
-  actualizarNivel: publicQuery
+  actualizarNivel: adminProcedure
     .input(
       z.object({
         nivel: z.number().min(1).max(5),
@@ -54,10 +75,13 @@ export const permisosRouter = createRouter({
         cargar_planillas: z.boolean(),
         ver_perfil_propio: z.boolean(),
         configuracion: z.boolean(),
+        ver_informes: z.boolean(),
+        gestionar_roles_guardia: z.boolean(),
+        crear_bombero: z.boolean(),
       })
     )
     .mutation(async ({ input }) => {
-      const data = await readSheet(env.SHEET_USUARIOS_ID, "PERMISOS_NIVELES!A1:I");
+      const data = await readSheet(env.SHEET_USUARIOS_ID, "PERMISOS_NIVELES!A1:L");
       let rowIndex = -1;
       for (let i = 1; i < data.length; i++) {
         if (Number(data[i][0]) === input.nivel) {
@@ -76,12 +100,15 @@ export const permisosRouter = createRouter({
         input.cargar_planillas,
         input.ver_perfil_propio,
         input.configuracion,
+        input.ver_informes,
+        input.gestionar_roles_guardia,
+        input.crear_bombero,
       ];
 
       if (rowIndex === -1) {
         await appendRow(env.SHEET_USUARIOS_ID, "PERMISOS_NIVELES", fila);
       } else {
-        await updateRange(env.SHEET_USUARIOS_ID, `PERMISOS_NIVELES!A${rowIndex}:I${rowIndex}`, [fila]);
+        await updateRange(env.SHEET_USUARIOS_ID, `PERMISOS_NIVELES!A${rowIndex}:L${rowIndex}`, [fila]);
       }
 
       return { exito: true as const };

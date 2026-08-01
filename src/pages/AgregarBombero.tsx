@@ -4,7 +4,7 @@ import { usePermiso } from '@/hooks/usePermiso';
 import { UserPlus, Save, AlertTriangle, CheckCircle } from 'lucide-react';
 
 export default function AgregarBombero() {
-  const { puedeVerPersonal } = usePermiso();
+  const { puedeCrearBombero } = usePermiso();
   const [form, setForm] = useState({
     codigo: '', anioJuramento: '', categoria: 'COMBATIENTE',
     rango: 'Voluntario(a)', codigoRadial: '',
@@ -29,7 +29,7 @@ export default function AgregarBombero() {
     onError: (err) => { setError(err.message); setSuccess(''); },
   });
 
-  if (!puedeVerPersonal) {
+  if (!puedeCrearBombero) {
     return (
       <div className="animate-fade-in">
         <h1 className="text-2xl font-bold text-white mb-6">Agregar Bombero</h1>
