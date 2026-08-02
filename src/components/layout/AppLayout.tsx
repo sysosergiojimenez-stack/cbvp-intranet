@@ -27,7 +27,7 @@ const NAV_ITEMS: NavItem[] = [
   { path: '/practicas-citaciones', label: 'Practicas y Citaciones', icon: BookOpen, checkAccess: p => p.puedeCargarPlanillas },
   { path: '/salida-movil', label: 'Salidas de Movil', icon: Truck, checkAccess: p => p.puedeCargarPlanillas },
   {
-    path: '/administracion', label: 'Administracion', icon: Shield,
+    path: '/administracion', label: 'Segundo Oficial', icon: Shield,
     checkAccess: (p) => p.puedeVerInformes || p.puedeGestionarRolesGuardia || p.puedeVerPersonal || p.puedeCrearBombero,
     children: [
       { path: '/informe-asistencia', label: 'Informes de Asistencia', icon: ClipboardCheck, checkAccess: p => p.puedeVerInformes },
