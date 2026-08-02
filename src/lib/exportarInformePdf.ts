@@ -63,6 +63,7 @@ function encabezado(doc: jsPDF, logo: string | null, subtitulo: string, escudo?:
 
 interface FilaDias {
   codigo: string;
+  identificador?: string;
   nombre: string;
   situ?: string;
   dias: string[];
@@ -90,7 +91,7 @@ function tablaDias(doc: jsPDF, titulo: string, filas: FilaDias[], columnas: numb
 
   const head = [['Cod.', 'Nombre', ...(mostrarSitu ? ['SITU'] : []), ...columnas.map(String), '%']];
   const body = filas.map((f) => [
-    f.codigo,
+    f.codigo || f.identificador || '',
     f.nombre,
     ...(mostrarSitu ? [f.situ || ''] : []),
     ...f.dias,

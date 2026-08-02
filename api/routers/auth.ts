@@ -4,15 +4,6 @@ import { createRouter, publicQuery } from "../middleware";
 import { readSheet } from "../services/sheets";
 import { env } from "../lib/env";
 
-function normalizeCode(code: string): string {
-  return code.toString().trim().toUpperCase();
-}
-
-function extractNumber(code: string): string {
-  const match = code.match(/\d+/);
-  return match ? match[0] : "";
-}
-
 async function obtenerNivelPermiso(cargo: string) {
   try {
     const data = await readSheet(env.SHEET_USUARIOS_ID, "ROLES!A1:D");

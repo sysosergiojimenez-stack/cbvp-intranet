@@ -15,7 +15,7 @@ export default function PersonalPage() {
   const [search, setSearch] = useState('');
   const [selectedBombero, setSelectedBombero] = useState<Personal | null>(null);
   const { data: metricasData } = trpc.planillas.misMetricas.useQuery(
-    { codigo: selectedBombero?.codigo || '' },
+    { identificador: selectedBombero?.identificador || '' },
     { enabled: !!selectedBombero }
   );
   const fichaData: { guardias: GuardiaHistorial[]; stats: EstadisticasGuardias } | null =
@@ -189,7 +189,7 @@ export default function PersonalPage() {
                         <p className="text-xs text-white/40">{bombero.categoria}</p>
                       </div>
                       <button
-                        onClick={(e) => { e.stopPropagation(); navigate(`/editar-bombero/${bombero.codigo}`); }}
+                        onClick={(e) => { e.stopPropagation(); navigate(`/editar-bombero/${bombero.identificador}`); }}
                         className="p-2 rounded-lg bg-white/5 hover:bg-cbvp-blue/20 text-white/40 hover:text-cbvp-blue transition-colors shrink-0"
                         title="Editar bombero"
                       >
@@ -251,7 +251,7 @@ export default function PersonalPage() {
                         </td>
                         <td className="px-3 py-3">
                           <button
-                            onClick={(e) => { e.stopPropagation(); navigate(`/editar-bombero/${bombero.codigo}`); }}
+                            onClick={(e) => { e.stopPropagation(); navigate(`/editar-bombero/${bombero.identificador}`); }}
                             className="p-2.5 sm:p-1.5 rounded-lg bg-white/5 hover:bg-cbvp-blue/20 text-white/40 hover:text-cbvp-blue transition-colors"
                             title="Editar bombero"
                           >

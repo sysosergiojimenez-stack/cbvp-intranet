@@ -29,14 +29,14 @@ function AgregarPersonalForm({ idRol, idGrupo, onCerrar }: { idRol: string; idGr
     if (!personalData || busqueda.trim().length < 2) return [];
     const b = busqueda.trim().toLowerCase();
     return personalData
-      .filter(p => p.nombreCompleto.toLowerCase().includes(b) || p.codigo.toLowerCase().includes(b))
+      .filter(p => p.nombreCompleto.toLowerCase().includes(b) || (p.codigo || p.identificador).toLowerCase().includes(b))
       .slice(0, 8);
   }, [personalData, busqueda]);
 
   const handleAgregar = () => {
     if (!codigoSel) return;
     setGuardando(true);
-    agregarMutation.mutate({ idRol, idGrupo, codigo: codigoSel, radial, asignacion });
+    agregarMutation.mutate({ idRol, idGrupo, identificador: codigoSel, radial, asignacion });
   };
 
   return (
@@ -58,11 +58,11 @@ function AgregarPersonalForm({ idRol, idGrupo, onCerrar }: { idRol: string; idGr
             <div className="mt-2 border border-white/10 rounded-lg overflow-hidden divide-y divide-white/5">
               {resultados.map(p => (
                 <button
-                  key={p.codigo}
-                  onClick={() => { setCodigoSel(p.codigo); setBusqueda(''); }}
+                  key={p.identificador}
+                  onClick={() => { setCodigoSel(p.identificador); setBusqueda(''); }}
                   className="w-full text-left px-3 py-2 text-sm text-white/80 hover:bg-white/5 transition-colors"
                 >
-                  {p.codigo} — {p.nombreCompleto}
+                  {p.codigo || p.identificador} — {p.nombreCompleto}
                 </button>
               ))}
             </div>
@@ -71,7 +71,7 @@ function AgregarPersonalForm({ idRol, idGrupo, onCerrar }: { idRol: string; idGr
       ) : (
         <div className="space-y-2">
           <div className="text-sm text-white/80">
-            Seleccionado: <span className="font-medium">{personalData?.find(p => p.codigo === codigoSel)?.nombreCompleto || codigoSel}</span>
+            Seleccionado: <span className="font-medium">{personalData?.find(p => p.identificador === codigoSel)?.nombreCompleto || codigoSel}</span>
             <button onClick={() => setCodigoSel('')} className="ml-2 text-xs text-cbvp-red/80 hover:text-cbvp-red">cambiar</button>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -185,7 +185,7 @@ function ListaSeccion({ titulo, items, mostrarAsignacion, onAgregar, onQuitar, g
   titulo: string;
   items: Array<{ id: string; codigo: string; nombre: string; radial: string; asignacion: string; observaciones: string }>;
   mostrarAsignacion: boolean;
-  onAgregar: (codigo: string, radial: string, asignacion: string, observaciones: string) => void;
+  onAgregar: (identificador: string, radial: string, asignacion: string, observaciones: string) => void;
   onQuitar: (id: string) => void;
   guardando: boolean;
 }) {
@@ -201,7 +201,7 @@ function ListaSeccion({ titulo, items, mostrarAsignacion, onAgregar, onQuitar, g
   const resultados = useMemo(() => {
     if (!personalData || busqueda.trim().length < 2) return [];
     const b = busqueda.trim().toLowerCase();
-    return personalData.filter(p => p.nombreCompleto.toLowerCase().includes(b) || p.codigo.toLowerCase().includes(b)).slice(0, 8);
+    return personalData.filter(p => p.nombreCompleto.toLowerCase().includes(b) || (p.codigo || p.identificador).toLowerCase().includes(b)).slice(0, 8);
   }, [personalData, busqueda]);
 
   const handleAgregar = () => {
@@ -266,8 +266,8 @@ function ListaSeccion({ titulo, items, mostrarAsignacion, onAgregar, onQuitar, g
               {resultados.length > 0 && (
                 <div className="mt-2 border border-white/10 rounded-lg overflow-hidden divide-y divide-white/5">
                   {resultados.map(p => (
-                    <button key={p.codigo} onClick={() => { setCodigoSel(p.codigo); setBusqueda(''); }} className="w-full text-left px-3 py-2 text-sm text-white/80 hover:bg-white/5 transition-colors">
-                      {p.codigo} - {p.nombreCompleto}
+                    <button key={p.identificador} onClick={() => { setCodigoSel(p.identificador); setBusqueda(''); }} className="w-full text-left px-3 py-2 text-sm text-white/80 hover:bg-white/5 transition-colors">
+                      {p.codigo || p.identificador} - {p.nombreCompleto}
                     </button>
                   ))}
                 </div>
@@ -276,7 +276,7 @@ function ListaSeccion({ titulo, items, mostrarAsignacion, onAgregar, onQuitar, g
           ) : (
             <div className="space-y-2">
               <div className="text-sm text-white/80">
-                Seleccionado: <span className="font-medium">{personalData?.find(p => p.codigo === codigoSel)?.nombreCompleto || codigoSel}</span>
+                Seleccionado: <span className="font-medium">{personalData?.find(p => p.identificador === codigoSel)?.nombreCompleto || codigoSel}</span>
                 <button onClick={() => setCodigoSel('')} className="ml-2 text-xs text-cbvp-red/80 hover:text-cbvp-red">cambiar</button>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -512,7 +512,7 @@ export default function RolGuardiaDetalle() {
                 titulo="Guardias Especiales"
                 items={data.especiales || []}
                 mostrarAsignacion={true}
-                onAgregar={(codigo, radial, asignacion, observaciones) => agregarEspecialMutation.mutate({ idRol, codigo, radial, asignacion, observaciones })}
+                onAgregar={(identificador, radial, asignacion, observaciones) => agregarEspecialMutation.mutate({ idRol, identificador, radial, asignacion, observaciones })}
                 onQuitar={(id) => quitarEspecialMutation.mutate({ id })}
                 guardando={agregarEspecialMutation.isPending}
               />
@@ -552,7 +552,7 @@ export default function RolGuardiaDetalle() {
                 titulo="Activos"
                 items={data.activos || []}
                 mostrarAsignacion={true}
-                onAgregar={(codigo, radial, asignacion, observaciones) => agregarActivoMutation.mutate({ idRol, codigo, radial, asignacion, observaciones })}
+                onAgregar={(identificador, radial, asignacion, observaciones) => agregarActivoMutation.mutate({ idRol, identificador, radial, asignacion, observaciones })}
                 onQuitar={(id) => quitarActivoMutation.mutate({ id })}
                 guardando={agregarActivoMutation.isPending}
               />

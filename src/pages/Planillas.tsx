@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 
 export default function Planillas() {
-  const { puedeCargarPlanillas, esVoluntario, codigo } = usePermiso();
+  const { puedeCargarPlanillas, esVoluntario, identificador } = usePermiso();
   const { usuario } = useAuth();
   const [file, setFile] = useState<File | null>(null);
   const [filePreview, setFilePreview] = useState<string | null>(null);
@@ -52,7 +52,7 @@ export default function Planillas() {
   const extraerMutation = trpc.planillas.extraer.useMutation();
   const guardarMutation = trpc.planillas.guardar.useMutation();
   const { data: historialData, isLoading: historialLoading } = trpc.planillas.historial.useQuery(
-    esVoluntario && codigo ? { codigo } : {}, { enabled: showHistory }
+    esVoluntario && identificador ? { identificador } : {}, { enabled: showHistory }
   );
   const { data: detalleData } = trpc.planillas.detalle.useQuery(
     { idPlanilla: selectedPlanilla || "" },
@@ -264,8 +264,8 @@ export default function Planillas() {
     setEditingPerson({ codigo: person.codigo, nombre: person.nombre, asistencia: person.asistencia });
     setPersonAsistencia((person.asistencia === "AUSENTE" || person.asistencia === "AUSENTE CON REEMPLAZO") ? person.asistencia as "PRESENTE" | "AUSENTE" | "AUSENTE CON REEMPLAZO" : "PRESENTE");
   };
-  const savePersonEdit = async (idPlanilla: string, codigo: string) => {
-    await editarPersonMutation.mutateAsync({ idPlanilla, codigo, nuevaAsistencia: personAsistencia });
+  const savePersonEdit = async (idPlanilla: string, identificador: string) => {
+    await editarPersonMutation.mutateAsync({ idPlanilla, identificador, nuevaAsistencia: personAsistencia });
   };
 
   const getAsistenciaBadge = (a: string) => {

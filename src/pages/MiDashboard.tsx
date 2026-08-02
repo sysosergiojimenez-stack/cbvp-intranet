@@ -24,14 +24,14 @@ export default function MiDashboard() {
   const miData = useMemo(() => {
     if (!personalData?.personal || !usuario) return null;
     return personalData.personal.find(
-      p => p.codigo?.trim().toUpperCase() === usuario.codigo?.trim().toUpperCase()
+      p => p.identificador?.trim() === usuario.identificador?.trim()
     );
   }, [personalData, usuario]);
 
   // Fetch metrics for current user
   const { data: metricasData } = trpc.planillas.misMetricas.useQuery(
-    { codigo: usuario?.codigo || "" },
-    { enabled: !!usuario?.codigo, retry: 1, refetchOnWindowFocus: false }
+    { identificador: usuario?.identificador || "" },
+    { enabled: !!usuario?.identificador, retry: 1, refetchOnWindowFocus: false }
   );
 
   const metricas = metricasData?.exito ? metricasData.stats : null;

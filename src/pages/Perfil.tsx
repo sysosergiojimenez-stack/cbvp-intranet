@@ -21,8 +21,8 @@ export default function Perfil() {
     fechaNacimiento: '',
   } : null;
   const { data: metricasData } = trpc.planillas.misMetricas.useQuery(
-    { codigo: usuario?.codigo || '' },
-    { enabled: !!usuario?.codigo }
+    { identificador: usuario?.identificador || '' },
+    { enabled: !!usuario?.identificador }
   );
   const fichaData: { guardias: GuardiaHistorial[]; stats: EstadisticasGuardias } | null =
     metricasData?.exito ? { guardias: metricasData.guardias, stats: metricasData.stats } : null;

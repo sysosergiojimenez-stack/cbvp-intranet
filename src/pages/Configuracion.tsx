@@ -103,18 +103,18 @@ export default function Configuracion() {
       setSavingCodigo(null);
       if (res.exito) {
         await utils.personal.list.invalidate();
-        if (usuario?.codigo === vars.codigo) {
+        if (usuario?.identificador === vars.identificador) {
           syncUsuario({ cargo: vars.cargo, nivelPermiso: vars.nivelPermiso });
         }
-        setUsuarioMsg({ codigo: vars.codigo, type: 'ok', text: 'Guardado' });
+        setUsuarioMsg({ codigo: vars.identificador, type: 'ok', text: 'Guardado' });
         setTimeout(() => setUsuarioMsg(null), 2500);
       } else {
-        setUsuarioMsg({ codigo: vars.codigo, type: 'err', text: res.error || 'Error al guardar' });
+        setUsuarioMsg({ codigo: vars.identificador, type: 'err', text: res.error || 'Error al guardar' });
       }
     },
     onError: (err, vars) => {
       setSavingCodigo(null);
-      setUsuarioMsg({ codigo: vars.codigo, type: 'err', text: err.message });
+      setUsuarioMsg({ codigo: vars.identificador, type: 'err', text: err.message });
       if (err.message?.toLowerCase().includes('autorizado') || err.message?.includes('prohibido')) {
         setAdminPassword('');
         clearAdminCredentials();
@@ -137,21 +137,21 @@ export default function Configuracion() {
     const q = search.toLowerCase();
     return personal.filter(p =>
       p.nombreCompleto.toLowerCase().includes(q) ||
-      p.codigo.toLowerCase().includes(q) ||
+      (p.codigo || p.identificador).toLowerCase().includes(q) ||
       (p.cargo || '').toLowerCase().includes(q)
     );
   }, [personal, search]);
 
-  const getEdit = (codigo: string, cargo: string, nivelPermiso: number) =>
-    edits[codigo] ?? { cargo: cargo || 'Voluntario(a)', nivelPermiso };
+  const getEdit = (identificador: string, cargo: string, nivelPermiso: number) =>
+    edits[identificador] ?? { cargo: cargo || 'Voluntario(a)', nivelPermiso };
 
-  const setEdit = (codigo: string, patch: Partial<{ cargo: string; nivelPermiso: number }>) => {
+  const setEdit = (identificador: string, patch: Partial<{ cargo: string; nivelPermiso: number }>) => {
     setEdits(prev => {
-      const base = prev[codigo] ?? {
-        cargo: personal.find(p => p.codigo === codigo)?.cargo || 'Voluntario(a)',
-        nivelPermiso: personal.find(p => p.codigo === codigo)?.nivelPermiso ?? 1,
+      const base = prev[identificador] ?? {
+        cargo: personal.find(p => p.identificador === identificador)?.cargo || 'Voluntario(a)',
+        nivelPermiso: personal.find(p => p.identificador === identificador)?.nivelPermiso ?? 1,
       };
-      return { ...prev, [codigo]: { ...base, ...patch } };
+      return { ...prev, [identificador]: { ...base, ...patch } };
     });
   };
 
@@ -166,15 +166,15 @@ export default function Configuracion() {
     actualizarNivel.mutate({ nivel: nivelSeleccionado, ...permisosEdit });
   };
 
-  const guardarUsuario = (codigo: string) => {
+  const guardarUsuario = (identificador: string) => {
     const edit = getEdit(
-      codigo,
-      personal.find(p => p.codigo === codigo)?.cargo || '',
-      personal.find(p => p.codigo === codigo)?.nivelPermiso ?? 1
+      identificador,
+      personal.find(p => p.identificador === identificador)?.cargo || '',
+      personal.find(p => p.identificador === identificador)?.nivelPermiso ?? 1
     );
-    setSavingCodigo(codigo);
+    setSavingCodigo(identificador);
     setUsuarioMsg(null);
-    actualizarRol.mutate({ codigo, cargo: edit.cargo, nivelPermiso: edit.nivelPermiso });
+    actualizarRol.mutate({ identificador, cargo: edit.cargo, nivelPermiso: edit.nivelPermiso });
   };
 
   if (!puedeConfiguracion) {
@@ -335,19 +335,19 @@ export default function Configuracion() {
               {/* Mobile cards */}
               <div className="sm:hidden space-y-2">
                 {filtered.map(p => {
-                  const edit = getEdit(p.codigo, p.cargo, p.nivelPermiso);
-                  const msg = usuarioMsg?.codigo === p.codigo ? usuarioMsg : null;
+                  const edit = getEdit(p.identificador, p.cargo, p.nivelPermiso);
+                  const msg = usuarioMsg?.codigo === p.identificador ? usuarioMsg : null;
                   const dirty = edit.cargo !== (p.cargo || 'Voluntario(a)') || edit.nivelPermiso !== p.nivelPermiso;
                   return (
-                    <div key={p.codigo} className="border border-white/5 rounded-xl p-3 bg-white/[0.02]">
+                    <div key={p.identificador} className="border border-white/5 rounded-xl p-3 bg-white/[0.02]">
                       <p className="text-white font-medium text-sm">{p.nombreCompleto}</p>
-                      <p className="text-xs text-white/40 mb-3">{p.codigo}</p>
+                      <p className="text-xs text-white/40 mb-3">{p.codigo || p.identificador}</p>
                       <div className="grid grid-cols-2 gap-2 mb-2">
                         <div>
                           <label className="text-[10px] text-white/40 uppercase">Cargo</label>
                           <select
                             value={edit.cargo}
-                            onChange={e => setEdit(p.codigo, { cargo: e.target.value })}
+                            onChange={e => setEdit(p.identificador, { cargo: e.target.value })}
                             className="w-full mt-1 px-2 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-xs"
                           >
                             {CARGOS.map(c => <option key={c} value={c}>{c}</option>)}
@@ -357,7 +357,7 @@ export default function Configuracion() {
                           <label className="text-[10px] text-white/40 uppercase">Nivel</label>
                           <select
                             value={edit.nivelPermiso}
-                            onChange={e => setEdit(p.codigo, { nivelPermiso: Number(e.target.value) })}
+                            onChange={e => setEdit(p.identificador, { nivelPermiso: Number(e.target.value) })}
                             className="w-full mt-1 px-2 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-xs"
                           >
                             {[5, 4, 3, 2, 1].map(n => (
@@ -372,12 +372,12 @@ export default function Configuracion() {
                         </p>
                       )}
                       <button
-                        onClick={() => guardarUsuario(p.codigo)}
-                        disabled={!dirty || savingCodigo === p.codigo || !adminPassword}
+                        onClick={() => guardarUsuario(p.identificador)}
+                        disabled={!dirty || savingCodigo === p.identificador || !adminPassword}
                         className="w-full flex items-center justify-center gap-2 py-2 rounded-lg bg-cbvp-red/80 text-white text-xs disabled:opacity-40"
                       >
                         <Save className="w-3.5 h-3.5" />
-                        {savingCodigo === p.codigo ? 'Guardando...' : 'Guardar'}
+                        {savingCodigo === p.identificador ? 'Guardando...' : 'Guardar'}
                       </button>
                     </div>
                   );
@@ -405,11 +405,11 @@ export default function Configuracion() {
                       </tr>
                     ) : (
                       filtered.map(p => {
-                        const edit = getEdit(p.codigo, p.cargo, p.nivelPermiso);
-                        const msg = usuarioMsg?.codigo === p.codigo ? usuarioMsg : null;
+                        const edit = getEdit(p.identificador, p.cargo, p.nivelPermiso);
+                        const msg = usuarioMsg?.codigo === p.identificador ? usuarioMsg : null;
                         const dirty = edit.cargo !== (p.cargo || 'Voluntario(a)') || edit.nivelPermiso !== p.nivelPermiso;
                         return (
-                          <tr key={p.codigo} className="hover:bg-white/[0.02]">
+                          <tr key={p.identificador} className="hover:bg-white/[0.02]">
                             <td className="px-3 py-3">
                               <div className="flex items-center gap-2">
                                 <Shield className="w-4 h-4 text-cbvp-red/50 shrink-0" />
@@ -417,12 +417,12 @@ export default function Configuracion() {
                               </div>
                             </td>
                             <td className="px-3 py-3">
-                              <code className="text-xs bg-white/5 px-1.5 py-0.5 rounded text-white/70">{p.codigo}</code>
+                              <code className="text-xs bg-white/5 px-1.5 py-0.5 rounded text-white/70">{p.codigo || p.identificador}</code>
                             </td>
                             <td className="px-3 py-3">
                               <select
                                 value={edit.cargo}
-                                onChange={e => setEdit(p.codigo, { cargo: e.target.value })}
+                                onChange={e => setEdit(p.identificador, { cargo: e.target.value })}
                                 className="w-full max-w-[180px] px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white text-xs focus:outline-none focus:border-cbvp-red/50"
                               >
                                 {CARGOS.map(c => <option key={c} value={c}>{c}</option>)}
@@ -431,7 +431,7 @@ export default function Configuracion() {
                             <td className="px-3 py-3">
                               <select
                                 value={edit.nivelPermiso}
-                                onChange={e => setEdit(p.codigo, { nivelPermiso: Number(e.target.value) })}
+                                onChange={e => setEdit(p.identificador, { nivelPermiso: Number(e.target.value) })}
                                 className="w-full max-w-[160px] px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white text-xs focus:outline-none focus:border-cbvp-red/50"
                               >
                                 {[5, 4, 3, 2, 1].map(n => (
@@ -442,12 +442,12 @@ export default function Configuracion() {
                             <td className="px-3 py-3">
                               <div className="flex items-center gap-2">
                                 <button
-                                  onClick={() => guardarUsuario(p.codigo)}
-                                  disabled={!dirty || savingCodigo === p.codigo || !adminPassword}
+                                  onClick={() => guardarUsuario(p.identificador)}
+                                  disabled={!dirty || savingCodigo === p.identificador || !adminPassword}
                                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-cbvp-red/80 hover:bg-cbvp-red text-white text-xs disabled:opacity-40 transition-colors"
                                 >
                                   <Save className="w-3.5 h-3.5" />
-                                  {savingCodigo === p.codigo ? '...' : 'Guardar'}
+                                  {savingCodigo === p.identificador ? '...' : 'Guardar'}
                                 </button>
                                 {msg && (
                                   <span className={`text-xs ${msg.type === 'ok' ? 'text-cbvp-green' : 'text-cbvp-red-light'}`}>

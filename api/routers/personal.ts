@@ -1,9 +1,10 @@
 import { z } from "zod";
-import { formatearNombreCompleto } from "../lib/nombres";
 import { normalizarFechaISO } from "../lib/fechas";
 import { createRouter, publicQuery, adminProcedure } from "../middleware";
-import { readSheet, appendRow, updateRange, findRowIndex } from "../services/sheets";
+import { readSheet, appendRow, updateRange } from "../services/sheets";
 import { env } from "../lib/env";
+import { generarIdentificadorUnico } from "../lib/identificador";
+import { leerUsuariosBase } from "../lib/usuarios";
 
 function extractNumber(code: string): string {
   const match = code.match(/\d+/);
@@ -12,55 +13,25 @@ function extractNumber(code: string): string {
 
 export const personalRouter = createRouter({
   list: publicQuery.query(async () => {
-    const data = await readSheet(env.SHEET_USUARIOS_ID, "USUARIOS!A1:U");
-    const personal: Array<{
-      identificador: string;
-      codigo: string;
-      anioJuramento: string;
-      categoria: string;
-      cargo: string;
-      rango: string;
-      codigoRadial: string;
-      nombreCompleto: string;
-      nivelPermiso: number;
-      situ: string;
-      cuota: string;
-      licenciaInicio: string;
-      licenciaDias: string;
-    }> = [];
+    const { usuarios } = await leerUsuariosBase();
 
-    for (let i = 1; i < data.length; i++) {
-      const fila = data[i];
-      const codigo = fila[1] ? String(fila[1]).trim() : "";
-      const primerNombre = fila[7] ? String(fila[7]).trim() : "";
-      if (!codigo || !primerNombre) continue;
-
-      const cargoFila = fila[4] ? String(fila[4]).trim() : "";
-      if (cargoFila.toUpperCase() === "DESARROLLADOR") continue;
-
-      const primerApellido = fila[9] ? String(fila[9]).trim() : "";
-      const rango = fila[5] ? String(fila[5]).trim() : "";
-      const categoriaFila = fila[3] ? String(fila[3]).trim() : "";
-      const nombreCompleto = formatearNombreCompleto(rango, categoriaFila, primerNombre, primerApellido);
-
-      const nivelRaw = parseInt(String(fila[15] || "1"), 10);
-
-      personal.push({
-        identificador: String(fila[0] || ""),
-        codigo,
-        anioJuramento: String(fila[2] || ""),
-        categoria: String(fila[3] || ""),
-        cargo: cargoFila,
-        rango: String(fila[5] || ""),
-        codigoRadial: String(fila[6] || ""),
-        nombreCompleto,
-        nivelPermiso: nivelRaw >= 1 && nivelRaw <= 5 ? nivelRaw : 1,
-        situ: String(fila[17] || ""),
-        cuota: String(fila[18] || ""),
-        licenciaInicio: normalizarFechaISO(String(fila[19] || "")),
-        licenciaDias: String(fila[20] || ""),
-      });
-    }
+    const personal = usuarios
+      .filter((u) => u.cargo.toUpperCase() !== "DESARROLLADOR")
+      .map((u) => ({
+        identificador: u.identificador,
+        codigo: u.codigo,
+        anioJuramento: u.anioJuramento,
+        categoria: u.categoria,
+        cargo: u.cargo,
+        rango: u.rango,
+        codigoRadial: u.codigoRadial,
+        nombreCompleto: u.nombreCompleto,
+        nivelPermiso: 1,
+        situ: u.situ,
+        cuota: u.cuota,
+        licenciaInicio: normalizarFechaISO(u.licenciaInicio),
+        licenciaDias: u.licenciaDias,
+      }));
 
     // Ordenar: primero por AnioJuramento (numerico ASC), luego por Codigo (numerico ASC)
     personal.sort((a, b) => {
@@ -77,10 +48,9 @@ export const personalRouter = createRouter({
   }),
 
   historial: publicQuery
-    .input(z.object({ codigo: z.string() }))
+    .input(z.object({ identificador: z.string() }))
     .query(async ({ input }) => {
-      const codigoBusqueda = input.codigo.toString().trim().toUpperCase();
-      const numeroBusqueda = extractNumber(codigoBusqueda);
+      const identificadorBusqueda = input.identificador.trim();
 
       const data = await readSheet(
         env.SHEET_GUARDIAS_ID,
@@ -98,10 +68,9 @@ export const personalRouter = createRouter({
       }> = [];
 
       for (let i = 1; i < data.length; i++) {
-        const codigoFila = data[i][6] ? String(data[i][6]).trim().toUpperCase() : "";
-        const numeroFila = extractNumber(codigoFila);
+        const identificadorFila = data[i][6] ? String(data[i][6]).trim() : "";
 
-        if (numeroFila && numeroFila === numeroBusqueda) {
+        if (identificadorFila === identificadorBusqueda) {
           guardias.push({
             idPlanilla: String(data[i][1] || ""),
             fechaGuardia: String(data[i][3] || ""),
@@ -131,7 +100,7 @@ export const personalRouter = createRouter({
   crear: publicQuery
     .input(
       z.object({
-        codigo: z.string().min(1),
+        codigo: z.string().optional().or(z.literal("")),
         anioJuramento: z.string().min(1),
         categoria: z.string().min(1),
         rango: z.string().min(1),
@@ -142,20 +111,28 @@ export const personalRouter = createRouter({
         segundoApellido: z.string(),
         nroDocId: z.string().optional(),
         fechaNacimiento: z.string().optional(),
-        correo: z.string().email().optional().or(z.literal('')),
-        contrasena: z.string().optional().or(z.literal('')),
-        nivelPermiso: z.string().optional().or(z.literal('')),
-        descripcionPermiso: z.string().optional().or(z.literal('')),
-        situ: z.string().optional().or(z.literal('')),
-        cuota: z.string().optional().or(z.literal('')),
-        licenciaInicio: z.string().optional().or(z.literal('')),
-        licenciaDias: z.string().optional().or(z.literal('')),
+        correo: z.string().email().optional().or(z.literal("")),
+        contrasena: z.string().optional().or(z.literal("")),
+        nivelPermiso: z.string().optional().or(z.literal("")),
+        descripcionPermiso: z.string().optional().or(z.literal("")),
+        situ: z.string().optional().or(z.literal("")),
+        cuota: z.string().optional().or(z.literal("")),
+        licenciaInicio: z.string().optional().or(z.literal("")),
+        licenciaDias: z.string().optional().or(z.literal("")),
       })
     )
     .mutation(async ({ input }) => {
+      const data = await readSheet(env.SHEET_USUARIOS_ID, "USUARIOS!A1:A");
+      const existentes = new Set<string>();
+      for (let i = 1; i < data.length; i++) {
+        const id = String(data[i][0] || "").trim();
+        if (id) existentes.add(id);
+      }
+      const identificador = await generarIdentificadorUnico(existentes);
+
       await appendRow(env.SHEET_USUARIOS_ID, "USUARIOS", [
-        "", // A: IDENTIFICADOR (no se usa)
-        input.codigo,
+        identificador,
+        input.codigo || "",
         input.anioJuramento,
         input.categoria,
         "", // E: CARGO (no se usa en formulario)
@@ -176,53 +153,51 @@ export const personalRouter = createRouter({
         input.licenciaInicio || "",
         input.licenciaDias || "",
       ]);
-      return { exito: true as const, mensaje: "Bombero registrado correctamente" };
+      return { exito: true as const, mensaje: "Bombero registrado correctamente", identificador };
     }),
 
-  obtenerPorCodigo: publicQuery
-    .input(z.object({ codigo: z.string() }))
+  obtenerPorIdentificador: publicQuery
+    .input(z.object({ identificador: z.string() }))
     .query(async ({ input }) => {
-      const data = await readSheet(env.SHEET_USUARIOS_ID, "USUARIOS!A1:U");
-      const searchNum = extractNumber(input.codigo);
-      for (let i = 1; i < data.length; i++) {
-        const codigoFila = String(data[i][1] || "").trim();
-        const numFila = extractNumber(codigoFila);
-        if (numFila === searchNum) {
-          return {
-            exito: true as const,
-            bombero: {
-              identificador: String(data[i][0] || ""),
-              codigo: codigoFila,
-              anioJuramento: String(data[i][2] || ""),
-              categoria: String(data[i][3] || ""),
-              cargo: String(data[i][4] || ""),
-              rango: String(data[i][5] || ""),
-              codigoRadial: String(data[i][6] || ""),
-              primerNombre: String(data[i][7] || ""),
-              segundoNombre: String(data[i][8] || ""),
-              primerApellido: String(data[i][9] || ""),
-              segundoApellido: String(data[i][10] || ""),
-              nroDocId: String(data[i][11] || ""),
-              fechaNacimiento: String(data[i][12] || ""),
-              correo: String(data[i][13] || ""),
-              nivelPermiso: String(data[i][15] || "1"),
-              descripcionPermiso: String(data[i][16] || ""),
-              situ: String(data[i][17] || ""),
-              cuota: String(data[i][18] || ""),
-              licenciaInicio: normalizarFechaISO(String(data[i][19] || "")),
-              licenciaDias: String(data[i][20] || ""),
-            },
-          };
-        }
+      const { porIdentificador } = await leerUsuariosBase();
+      const u = porIdentificador.get(input.identificador.trim());
+      if (!u) {
+        return { exito: false as const, error: "Bombero no encontrado" };
       }
-      return { exito: false as const, error: "Bombero no encontrado" };
+      const fullData = await readSheet(env.SHEET_USUARIOS_ID, `USUARIOS!A${u.rowIndex}:U${u.rowIndex}`);
+      const row = fullData[0] || [];
+      return {
+        exito: true as const,
+        bombero: {
+          identificador: u.identificador,
+          codigo: u.codigo,
+          anioJuramento: u.anioJuramento,
+          categoria: u.categoria,
+          cargo: u.cargo,
+          rango: u.rango,
+          codigoRadial: u.codigoRadial,
+          primerNombre: u.primerNombre,
+          segundoNombre: String(row[8] || ""),
+          segundoApellido: String(row[10] || ""),
+          primerApellido: u.primerApellido,
+          nroDocId: String(row[11] || ""),
+          fechaNacimiento: String(row[12] || ""),
+          correo: String(row[13] || ""),
+          nivelPermiso: String(row[15] || "1"),
+          descripcionPermiso: String(row[16] || ""),
+          situ: u.situ,
+          cuota: u.cuota,
+          licenciaInicio: normalizarFechaISO(u.licenciaInicio),
+          licenciaDias: u.licenciaDias,
+        },
+      };
     }),
 
   editar: publicQuery
     .input(
       z.object({
-        codigoOriginal: z.string().min(1),
-        codigo: z.string().min(1),
+        identificador: z.string().min(1),
+        codigo: z.string().optional().or(z.literal("")),
         anioJuramento: z.string().min(1),
         categoria: z.string().min(1),
         rango: z.string().min(1),
@@ -233,32 +208,23 @@ export const personalRouter = createRouter({
         segundoApellido: z.string(),
         nroDocId: z.string().optional(),
         fechaNacimiento: z.string().optional(),
-        situ: z.string().optional().or(z.literal('')),
-        cuota: z.string().optional().or(z.literal('')),
-        licenciaInicio: z.string().optional().or(z.literal('')),
-        licenciaDias: z.string().optional().or(z.literal('')),
+        situ: z.string().optional().or(z.literal("")),
+        cuota: z.string().optional().or(z.literal("")),
+        licenciaInicio: z.string().optional().or(z.literal("")),
+        licenciaDias: z.string().optional().or(z.literal("")),
       })
     )
     .mutation(async ({ input }) => {
-      const data = await readSheet(env.SHEET_USUARIOS_ID, "USUARIOS!A1:U");
-      const searchNum = extractNumber(input.codigoOriginal);
-      let rowIndex = -1;
-      let existingRow: string[] = [];
-      for (let i = 1; i < data.length; i++) {
-        const codigoFila = String(data[i][1] || "").trim();
-        const numFila = extractNumber(codigoFila);
-        if (numFila === searchNum) {
-          rowIndex = i + 1;
-          existingRow = data[i] as string[];
-          break;
-        }
-      }
-      if (rowIndex === -1) {
+      const { porIdentificador } = await leerUsuariosBase();
+      const u = porIdentificador.get(input.identificador.trim());
+      if (!u) {
         return { exito: false as const, error: "Bombero no encontrado" };
       }
-      await updateRange(env.SHEET_USUARIOS_ID, `USUARIOS!A${rowIndex}:U${rowIndex}`, [[
-        "", // A: IDENTIFICADOR
-        input.codigo,
+      const data = await readSheet(env.SHEET_USUARIOS_ID, `USUARIOS!A${u.rowIndex}:U${u.rowIndex}`);
+      const existingRow = data[0] || [];
+      await updateRange(env.SHEET_USUARIOS_ID, `USUARIOS!A${u.rowIndex}:U${u.rowIndex}`, [[
+        input.identificador,
+        input.codigo ?? existingRow[1] ?? "",
         input.anioJuramento,
         input.categoria,
         existingRow[4] || "", // E: CARGO (preserve existing)
@@ -292,7 +258,7 @@ export const personalRouter = createRouter({
       })
     )
     .mutation(async ({ input }) => {
-      // Buscar por correo+contrasena en vez de por codigo
+      // Buscar por correo+contrasena en vez de por identificador
       // Asi solo puedes modificar tu propia fila
       const data = await readSheet(env.SHEET_USUARIOS_ID, "USUARIOS!A1:Q");
       let rowIndex = -1;
@@ -316,7 +282,8 @@ export const personalRouter = createRouter({
     }),
 
   resumenCuadroServicio: publicQuery.query(async () => {
-    const data = await readSheet(env.SHEET_USUARIOS_ID, "USUARIOS!A1:S");
+    const { usuarios } = await leerUsuariosBase();
+
     let regimenNormal = 0;
     let regimenEspecial = 0;
     let b10a = 0;
@@ -324,16 +291,10 @@ export const personalRouter = createRouter({
     let b20a = 0;
     let comisionados = 0;
     let licencia = 0;
-    let total = 0;
 
-    for (let i = 1; i < data.length; i++) {
-      const fila = data[i];
-      const codigo = fila[1] ? String(fila[1]).trim() : "";
-      const primerNombre = fila[7] ? String(fila[7]).trim() : "";
-      if (!codigo || !primerNombre) continue;
-      total++;
-
-      const situ = String(fila[17] || "RN").trim().toUpperCase() || "RN";
+    for (const u of usuarios) {
+      if (u.cargo.toUpperCase() === "DESARROLLADOR") continue;
+      const situ = u.situ;
       if (situ === "RN") regimenNormal++;
       else if (situ === "GE") regimenEspecial++;
       else if (situ === "B10A") b10a++;
@@ -343,6 +304,7 @@ export const personalRouter = createRouter({
       else if (situ === "LC") licencia++;
     }
 
+    const total = usuarios.filter((u) => u.cargo.toUpperCase() !== "DESARROLLADOR").length;
     const enCuadro = regimenNormal + regimenEspecial + b10a + b15a + b20a + comisionados;
     const fueraDeCuadro = total - enCuadro - licencia;
 
@@ -365,27 +327,19 @@ export const personalRouter = createRouter({
   actualizarRolPermiso: adminProcedure
     .input(
       z.object({
-        codigo: z.string().min(1),
+        identificador: z.string().min(1),
         cargo: z.string().min(1),
         nivelPermiso: z.number().min(1).max(5),
       })
     )
     .mutation(async ({ input }) => {
-      const data = await readSheet(env.SHEET_USUARIOS_ID, "USUARIOS!A1:U");
-      const searchNum = extractNumber(input.codigo);
-      let rowIndex = -1;
-      for (let i = 1; i < data.length; i++) {
-        const codigoFila = String(data[i][1] || "").trim();
-        if (extractNumber(codigoFila) === searchNum) {
-          rowIndex = i + 1;
-          break;
-        }
-      }
-      if (rowIndex === -1) {
+      const { porIdentificador } = await leerUsuariosBase();
+      const u = porIdentificador.get(input.identificador.trim());
+      if (!u) {
         return { exito: false as const, error: "Bombero no encontrado" };
       }
-      await updateRange(env.SHEET_USUARIOS_ID, `USUARIOS!E${rowIndex}`, [[input.cargo]]);
-      await updateRange(env.SHEET_USUARIOS_ID, `USUARIOS!P${rowIndex}`, [[input.nivelPermiso]]);
+      await updateRange(env.SHEET_USUARIOS_ID, `USUARIOS!E${u.rowIndex}`, [[input.cargo]]);
+      await updateRange(env.SHEET_USUARIOS_ID, `USUARIOS!P${u.rowIndex}`, [[input.nivelPermiso]]);
       return { exito: true as const };
     }),
 });

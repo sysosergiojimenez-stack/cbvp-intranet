@@ -1,10 +1,10 @@
 import { z } from "zod";
-import { formatearNombreCompleto } from "../lib/nombres";
 import { createRouter, publicQuery } from "../middleware";
 import { readSheet, appendRow, updateRange, findRowIndex, deleteRows, getSheetId } from "../services/sheets";
 import { extractGuardiaData } from "../services/gemini";
 import { uploadFile } from "../services/storage";
 import { env } from "../lib/env";
+import { leerUsuariosBase } from "../lib/usuarios";
 
 // Convert Google Sheets serial time (fraction of day) to HH:MM
 function serialToTime(serial: unknown): string {
@@ -19,7 +19,7 @@ function serialToTime(serial: unknown): string {
 
 export const planillasRouter = createRouter({
   historial: publicQuery
-    .input(z.object({ codigo: z.string().optional() }).optional())
+    .input(z.object({ identificador: z.string().optional() }).optional())
     .query(async ({ input }) => {
       const data = await readSheet(env.SHEET_GUARDIAS_ID, "Guardias_Encabezado!A1:K");
       const planillas = [];
@@ -40,17 +40,14 @@ export const planillasRouter = createRouter({
         });
       }
 
-      // If codigo provided (Voluntario), filter planillas where bombero appears
-      const searchCode = input?.codigo;
-      if (searchCode) {
+      // If identificador provided (Voluntario), filter planillas where bombero appears
+      const searchId = input?.identificador;
+      if (searchId) {
         const persData = await readSheet(env.SHEET_GUARDIAS_ID, "Guardias_Personal!A1:L");
-        const numericSearch = (searchCode.match(/\d+/) || [searchCode])[0];
         const planillaIds = new Set<string>();
         for (let i = 1; i < persData.length; i++) {
-          const codigoRaw = String(persData[i][6] || "").trim();
-          const codigoMatch = codigoRaw.match(/\d+/);
-          const codigo = codigoMatch ? codigoMatch[0] : codigoRaw;
-          if (codigo === numericSearch) {
+          const identificadorFila = String(persData[i][6] || "").trim();
+          if (identificadorFila === searchId.trim()) {
             planillaIds.add(String(persData[i][1] || "").trim());
           }
         }
@@ -206,6 +203,27 @@ export const planillasRouter = createRouter({
         const datosExtraidos = input.datos;
         const urlImagen = input.urlImagen;
 
+        // Mapa codigo/nombre -> identificador para convertir los registros extraidos
+        const { porCodigo, porIdentificador } = await leerUsuariosBase();
+        function resolverIdentificador(codigo: string): string {
+          const codigoLimpio = codigo.trim();
+          if (!codigoLimpio) return "";
+          // Si ya es un identificador (sin numeros o formato alfanumerico corto)
+          if (porIdentificador.has(codigoLimpio)) return codigoLimpio;
+          // Si es un codigo tradicional
+          const u = porCodigo.get(codigoLimpio);
+          if (u) return u.identificador;
+          // Match por numero extraido del codigo
+          const numero = (codigoLimpio.match(/\d+/) || [""])[0];
+          if (numero) {
+            for (const u of porCodigo.values()) {
+              const numU = (u.codigo.match(/\d+/) || [""])[0];
+              if (numU === numero) return u.identificador;
+            }
+          }
+          return codigoLimpio;
+        }
+
         const now = new Date();
         const idPlanilla =
           "GRD-" +
@@ -247,7 +265,7 @@ export const planillasRouter = createRouter({
             String(datosExtraidos.fechaGuardia || ""),
             String(datosExtraidos.grupo || ""),
             "GUARDIA NORMAL",
-            String(p.codigo || ""),
+            resolverIdentificador(String(p.codigo || "")),
             String(p.nombre || ""),
             String(p.asignacion || ""),
             String(p.asistencia || ""),
@@ -266,7 +284,7 @@ export const planillasRouter = createRouter({
               String(datosExtraidos.fechaGuardia || ""),
               String(datosExtraidos.grupo || ""),
               "GUARDIA ESPECIAL",
-              String(e.codigo || ""),
+              resolverIdentificador(String(e.codigo || "")),
               String(e.nombre || ""),
               String(e.asignacion || ""),
               "",
@@ -286,7 +304,7 @@ export const planillasRouter = createRouter({
               String(datosExtraidos.fechaGuardia || ""),
               String(datosExtraidos.grupo || ""),
               "REFUERZO",
-              String(r.codigo || ""),
+              resolverIdentificador(String(r.codigo || "")),
               String(r.nombre || ""),
               String(r.asignacion || ""),
               "",
@@ -408,7 +426,7 @@ export const planillasRouter = createRouter({
     .input(
       z.object({
         idPlanilla: z.string(),
-        codigo: z.string(),
+        identificador: z.string(),
         nuevaAsistencia: z.enum(["PRESENTE", "AUSENTE", "AUSENTE CON REEMPLAZO"]),
       })
     )
@@ -416,8 +434,8 @@ export const planillasRouter = createRouter({
       const data = await readSheet(env.SHEET_GUARDIAS_ID, "Guardias_Personal!A1:L");
       for (let i = 1; i < data.length; i++) {
         const rowIdPlanilla = String(data[i][1] || "").trim();
-        const rowCodigo = String(data[i][6] || "").trim();
-        if (rowIdPlanilla === input.idPlanilla.trim() && rowCodigo === input.codigo.trim()) {
+        const rowIdentificador = String(data[i][6] || "").trim();
+        if (rowIdPlanilla === input.idPlanilla.trim() && rowIdentificador === input.identificador.trim()) {
           await updateRange(
             env.SHEET_GUARDIAS_ID,
             `Guardias_Personal!J${i + 1}:J${i + 1}`,
@@ -523,14 +541,13 @@ export const planillasRouter = createRouter({
     }),
 
   misMetricas: publicQuery
-    .input(z.object({ codigo: z.string() }))
+    .input(z.object({ identificador: z.string() }))
     .query(async ({ input }) => {
       const persData = await readSheet(
         env.SHEET_GUARDIAS_ID,
         "Guardias_Personal!A1:J"
       );
-      const searchCodeMatch = input.codigo.match(/\d+/);
-      const searchCode = searchCodeMatch ? searchCodeMatch[0] : input.codigo.trim();
+      const searchId = input.identificador.trim();
 
       const guardias: Array<{
         idPlanilla: string; fechaGuardia: string; grupo: string;
@@ -539,10 +556,8 @@ export const planillasRouter = createRouter({
 
       for (let i = 1; i < persData.length; i++) {
         const row = persData[i];
-        const codigoRaw = String(row[6] || "").trim();
-        const codigoMatch = codigoRaw.match(/\d+/);
-        const codigo = codigoMatch ? codigoMatch[0] : codigoRaw;
-        if (codigo !== searchCode) continue;
+        const identificadorFila = String(row[6] || "").trim();
+        if (identificadorFila !== searchId) continue;
         guardias.push({
           idPlanilla: String(row[1] || ""),
           fechaCarga: String(row[2] || ""),
@@ -578,43 +593,43 @@ export const planillasRouter = createRouter({
       return {
         exito: true as const,
         rows: persData,
-        columns: ["A-idFila", "B-idPlanilla", "C-fechaCarga", "D-fechaGuardia", "E-grupo", "F-regimen", "G-codigo", "H-personal", "I-asignacion", "J-asistencia"],
+        columns: ["A-idFila", "B-idPlanilla", "C-fechaCarga", "D-fechaGuardia", "E-grupo", "F-regimen", "G-identificador", "H-personal", "I-asignacion", "J-asistencia"],
       };
     }),
 
   debugMisMetricas: publicQuery
-    .input(z.object({ codigo: z.string() }))
+    .input(z.object({ identificador: z.string() }))
     .query(async ({ input }) => {
       const persData = await readSheet(
         env.SHEET_GUARDIAS_ID,
         "Guardias_Personal!A1:J"
       );
 
-      const searchCode = input.codigo.trim().toUpperCase().replace(/\s+/g, ' ');
-      const matches: Array<{ row: number; codigo: string; regimen: string; asistencia: string; personal: string }> = [];
-      const allCodigos: string[] = [];
+      const searchId = input.identificador.trim();
+      const matches: Array<{ row: number; identificador: string; regimen: string; asistencia: string; personal: string }> = [];
+      const allIdentificadores: string[] = [];
 
       for (let i = 1; i < persData.length; i++) {
         const row = persData[i];
-        const codigo = String(row[6] || "").trim().toUpperCase().replace(/\s+/g, ' ');
+        const identificador = String(row[6] || "").trim();
         const regimen = String(row[5] || "").trim().toUpperCase();
         const asistencia = String(row[9] || "").trim().toUpperCase();
         const personal = String(row[7] || "").trim();
 
-        if (i <= 15) allCodigos.push(codigo);
+        if (i <= 15) allIdentificadores.push(identificador);
 
-        if (codigo === searchCode) {
-          matches.push({ row: i + 1, codigo, regimen, asistencia, personal });
+        if (identificador === searchId) {
+          matches.push({ row: i + 1, identificador, regimen, asistencia, personal });
         }
       }
 
       return {
         exito: true as const,
-        searchCode,
-        originalInput: input.codigo,
+        searchId,
+        originalInput: input.identificador,
         totalRows: persData.length - 1,
         matchesFound: matches.length,
-        firstCodigos: allCodigos.slice(0, 15),
+        firstIdentificadores: allIdentificadores.slice(0, 15),
         matches,
       };
     }),
@@ -622,37 +637,33 @@ export const planillasRouter = createRouter({
   asistenciaMensualDetallada: publicQuery
     .input(z.object({ mes: z.number().min(1).max(12), anio: z.number(), categoria: z.string() }))
     .query(async ({ input }) => {
-      const usuariosData = await readSheet(env.SHEET_USUARIOS_ID, "USUARIOS!A1:S");
-      const personasBase: Array<{ codigo: string; numero: string; nombre: string; situ: string }> = [];
-      for (let i = 1; i < usuariosData.length; i++) {
-        const fila = usuariosData[i];
-        const codigo = fila[1] ? String(fila[1]).trim() : "";
-        const primerNombre = fila[7] ? String(fila[7]).trim() : "";
-        const categoria = String(fila[3] || "").trim().toUpperCase();
-        if (!codigo || !primerNombre) continue;
-        if (String(fila[4] || "").trim().toUpperCase() === "DESARROLLADOR") continue;
-        if (categoria !== input.categoria.toUpperCase()) continue;
-        const primerApellido = fila[9] ? String(fila[9]).trim() : "";
-        const rango = fila[5] ? String(fila[5]).trim() : "";
-        const nombre = formatearNombreCompleto(rango, categoria, primerNombre, primerApellido);
-        const situ = String(fila[17] || "RN").trim() || "RN";
-        const numero = (codigo.match(/\d+/) || [""])[0];
-        personasBase.push({ codigo, numero, nombre, situ });
+      const { usuarios, porIdentificador } = await leerUsuariosBase();
+      const personasBase: Array<{ identificador: string; codigo: string; numero: string; nombre: string; situ: string }> = [];
+      for (const u of usuarios) {
+        if (u.cargo.toUpperCase() === "DESARROLLADOR") continue;
+        if (u.categoria.toUpperCase() !== input.categoria.toUpperCase()) continue;
+        const numero = (u.codigo.match(/\d+/) || [""])[0];
+        personasBase.push({
+          identificador: u.identificador,
+          codigo: u.codigo,
+          numero,
+          nombre: u.nombreCompleto,
+          situ: u.situ,
+        });
       }
       personasBase.sort((a, b) => (parseInt(a.numero) || 0) - (parseInt(b.numero) || 0));
 
       const guardiasData = await readSheet(env.SHEET_GUARDIAS_ID, "Guardias_Personal!A1:L");
       const diasDelMes = new Date(input.anio, input.mes, 0).getDate();
 
-      function calcular(p: { codigo: string; numero: string; nombre: string; situ: string }, tipoRequerido: string) {
+      function calcular(p: { identificador: string; numero: string; nombre: string; situ: string }, tipoRequerido: string) {
         const dias: string[] = new Array(diasDelMes).fill("");
         let totalGuardias = 0;
         let presentes = 0;
         for (let i = 1; i < guardiasData.length; i++) {
           const fila = guardiasData[i];
-          const codigoFila = String(fila[6] || "").trim();
-          const numeroFila = (codigoFila.match(/\d+/) || [""])[0];
-          if (!numeroFila || numeroFila !== p.numero) continue;
+          const identificadorFila = String(fila[6] || "").trim();
+          if (identificadorFila !== p.identificador) continue;
           const tipoFila = String(fila[5] || "").trim().toUpperCase();
           if (tipoFila !== tipoRequerido) continue;
           const fechaGuardia = String(fila[3] || "").trim();
@@ -682,7 +693,8 @@ export const planillasRouter = createRouter({
           porcentaje = presentes >= 1 ? 100 : 0;
         }
         return {
-          codigo: p.codigo,
+          identificador: p.identificador,
+          codigo: porIdentificador.get(p.identificador)?.codigo || "",
           nombre: p.nombre,
           situ: p.situ,
           dias,
@@ -711,23 +723,20 @@ export const planillasRouter = createRouter({
     .query(async ({ input }) => {
       const esActivo = input.categoria.toUpperCase() === "ACTIVO";
 
-      const usuariosData = await readSheet(env.SHEET_USUARIOS_ID, "USUARIOS!A1:S");
-      const personasBase: Array<{ codigo: string; numero: string; nombre: string; situ: string; cuota: string }> = [];
-      for (let i = 1; i < usuariosData.length; i++) {
-        const fila = usuariosData[i];
-        const codigo = fila[1] ? String(fila[1]).trim() : "";
-        const primerNombre = fila[7] ? String(fila[7]).trim() : "";
-        const categoria = String(fila[3] || "").trim().toUpperCase();
-        if (!codigo || !primerNombre) continue;
-        if (String(fila[4] || "").trim().toUpperCase() === "DESARROLLADOR") continue;
-        if (categoria !== input.categoria.toUpperCase()) continue;
-        const primerApellido = fila[9] ? String(fila[9]).trim() : "";
-        const rango = fila[5] ? String(fila[5]).trim() : "";
-        const nombre = formatearNombreCompleto(rango, categoria, primerNombre, primerApellido);
-        const situ = String(fila[17] || "RN").trim() || "RN";
-        const cuota = String(fila[18] || "").trim();
-        const numero = (codigo.match(/\d+/) || [""])[0];
-        personasBase.push({ codigo, numero, nombre, situ, cuota });
+      const { usuarios, porIdentificador } = await leerUsuariosBase();
+      const personasBase: Array<{ identificador: string; codigo: string; numero: string; nombre: string; situ: string; cuota: string }> = [];
+      for (const u of usuarios) {
+        if (u.cargo.toUpperCase() === "DESARROLLADOR") continue;
+        if (u.categoria.toUpperCase() !== input.categoria.toUpperCase()) continue;
+        const numero = (u.codigo.match(/\d+/) || [""])[0];
+        personasBase.push({
+          identificador: u.identificador,
+          codigo: u.codigo,
+          numero,
+          nombre: u.nombreCompleto,
+          situ: u.situ,
+          cuota: u.cuota,
+        });
       }
       personasBase.sort((a, b) => (parseInt(a.numero) || 0) - (parseInt(b.numero) || 0));
 
@@ -741,14 +750,13 @@ export const planillasRouter = createRouter({
         if (situ === "B20A") return presentes >= 1 ? 100 : 0;
         return Math.round(realPercent);
       }
-      function calcularGuardias(p: { numero: string; situ: string }, tipoRequerido: string) {
+      function calcularGuardias(p: { identificador: string; numero: string; situ: string }, tipoRequerido: string) {
         let total = 0;
         let presentes = 0;
         for (let i = 1; i < guardiasData.length; i++) {
           const fila = guardiasData[i];
-          const codigoFila = String(fila[6] || "").trim();
-          const numeroFila = (codigoFila.match(/\d+/) || [""])[0];
-          if (!numeroFila || numeroFila !== p.numero) continue;
+          const identificadorFila = String(fila[6] || "").trim();
+          if (identificadorFila !== p.identificador) continue;
           const tipoFila = String(fila[5] || "").trim().toUpperCase();
           if (tipoFila !== tipoRequerido) continue;
           const fechaGuardia = String(fila[3] || "").trim();
@@ -798,14 +806,13 @@ export const planillasRouter = createRouter({
       }
       const huboCitaciones = fechasCitacionSet.size > 0;
 
-      function calcularPersAsistencia(p: { numero: string; situ: string }, tipoBuscado: string, fechasPermitidas: Set<number> | null) {
+      function calcularPersAsistencia(p: { identificador: string; numero: string; situ: string }, tipoBuscado: string, fechasPermitidas: Set<number> | null) {
         let total = 0;
         let presentes = 0;
         for (let i = 1; i < persData.length; i++) {
           const fila = persData[i];
-          const codigoFila = String(fila[6] || "").trim();
-          const numeroFila = (codigoFila.match(/\d+/) || [""])[0];
-          if (!numeroFila || numeroFila !== p.numero) continue;
+          const identificadorFila = String(fila[6] || "").trim();
+          if (identificadorFila !== p.identificador) continue;
           const idPlanilla = String(fila[1] || "").trim();
           const tipo = tipoPorPlanilla.get(idPlanilla) || "";
           if (!tipo.includes(tipoBuscado)) continue;
@@ -852,7 +859,8 @@ export const planillasRouter = createRouter({
         }
 
         return {
-          codigo: p.codigo,
+          identificador: p.identificador,
+          codigo: porIdentificador.get(p.identificador)?.codigo || "",
           nombre: p.nombre,
           situ: p.situ,
           cuota: p.cuota,

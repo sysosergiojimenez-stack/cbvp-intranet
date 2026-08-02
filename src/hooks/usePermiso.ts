@@ -18,6 +18,7 @@ export function usePermiso() {
     nivel: usuario?.nivelPermiso || 0,
     cargo: usuario?.cargo || '',
     codigo: usuario?.codigo || '',
+    identificador: usuario?.identificador || '',
     esVoluntario: (usuario?.cargo || '').trim().toUpperCase() === 'VOLUNTARIO(A)',
   };
 }

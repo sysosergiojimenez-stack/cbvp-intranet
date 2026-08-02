@@ -1,8 +1,8 @@
 import { z } from "zod";
-import { formatearNombreCompleto } from "../lib/nombres";
 import { createRouter, publicQuery } from "../middleware";
 import { readSheet, appendRow, updateRange, deleteRows, getSheetId, findRowIndex } from "../services/sheets";
 import { normalizarFechaISO } from "../lib/fechas";
+import { leerUsuariosBase } from "../lib/usuarios";
 import { env } from "../lib/env";
 
 function generateId(): string {
@@ -128,15 +128,10 @@ export const rolesGuardiaRouter = createRouter({
       grupos.sort((a, b) => a.orden - b.orden);
 
       const personalData = await readSheet(env.SHEET_GUARDIAS_ID, "RolesGuardia_Personal!A1:G");
-      const usuariosData = await readSheet(env.SHEET_USUARIOS_ID, "USUARIOS!A1:U");
-      const nombrePorCodigo = new Map<string, string>();
-      for (let i = 1; i < usuariosData.length; i++) {
-        const codigo = String(usuariosData[i][1] || "").trim();
-        const primerNombre = String(usuariosData[i][7] || "").trim();
-        const primerApellido = String(usuariosData[i][9] || "").trim();
-        const rangoFila = String(usuariosData[i][5] || "").trim();
-        const categoriaFila = String(usuariosData[i][3] || "").trim();
-        if (codigo) nombrePorCodigo.set(codigo, formatearNombreCompleto(rangoFila, categoriaFila, primerNombre, primerApellido));
+      const { porIdentificador } = await leerUsuariosBase();
+      const nombrePorIdentificador = new Map<string, string>();
+      for (const u of porIdentificador.values()) {
+        nombrePorIdentificador.set(u.identificador, u.nombreCompleto);
       }
 
       const calData = await readSheet(env.SHEET_GUARDIAS_ID, "RolesGuardia_Calendario!A1:E");
@@ -160,11 +155,11 @@ export const rolesGuardiaRouter = createRouter({
           const fila = personalData[i];
           if (String(fila[1] || "").trim() !== input.idRol) continue;
           if (String(fila[2] || "").trim() !== g.id) continue;
-          const codigo = String(fila[3] || "").trim();
+          const identificador = String(fila[3] || "").trim();
           personalGrupo.push({
             id: String(fila[0] || ""),
-            codigo,
-            nombre: nombrePorCodigo.get(codigo) || codigo,
+            codigo: identificador,
+            nombre: nombrePorIdentificador.get(identificador) || identificador,
             radial: String(fila[4] || ""),
             asignacion: String(fila[5] || ""),
             orden: Number(fila[6]) || 0,
@@ -184,12 +179,12 @@ export const rolesGuardiaRouter = createRouter({
         for (let i = 1; i < rows.length; i++) {
           const fila = rows[i];
           if (String(fila[1] || "").trim() !== input.idRol) continue;
-          const codigo = String(fila[2] || "").trim();
-          if (!codigo) continue;
+          const identificador = String(fila[2] || "").trim();
+          if (!identificador) continue;
           lista.push({
             id: String(fila[0] || ""),
-            codigo,
-            nombre: nombrePorCodigo.get(codigo) || codigo,
+            codigo: identificador,
+            nombre: nombrePorIdentificador.get(identificador) || identificador,
             radial: String(fila[3] || ""),
             asignacion: conAsignacion ? String(fila[4] || "") : "",
             observaciones: conAsignacion ? String(fila[5] || "") : String(fila[4] || ""),
@@ -208,11 +203,12 @@ export const rolesGuardiaRouter = createRouter({
       // con una licencia vigente que se superponga con las fechas de este Rol.
       const rolInicioDate = new Date(cabecera!.anioInicio, cabecera!.mesInicio - 1, 1);
       const rolFinDate = new Date(cabecera!.anioFin, cabecera!.mesFin, 0);
+      const usuariosData = await readSheet(env.SHEET_USUARIOS_ID, "USUARIOS!A1:U");
       const licencias: Array<{ id: string; codigo: string; nombre: string; radial: string; asignacion: string; observaciones: string }> = [];
       for (let i = 1; i < usuariosData.length; i++) {
         const filaU = usuariosData[i];
-        const codigoU = String(filaU[1] || "").trim();
-        if (!codigoU) continue;
+        const identificadorU = String(filaU[0] || "").trim();
+        if (!identificadorU) continue;
         const situU = String(filaU[17] || "").trim().toUpperCase();
         if (situU !== "LC" && situU !== "LM") continue;
         const licInicioStr = normalizarFechaISO(String(filaU[19] || "").trim());
@@ -225,9 +221,9 @@ export const rolesGuardiaRouter = createRouter({
         const vigenteEnRol = licInicioDate <= rolFinDate && licFinDate >= rolInicioDate;
         if (!vigenteEnRol) continue;
         licencias.push({
-          id: codigoU,
-          codigo: codigoU,
-          nombre: nombrePorCodigo.get(codigoU) || codigoU,
+          id: identificadorU,
+          codigo: identificadorU,
+          nombre: nombrePorIdentificador.get(identificadorU) || identificadorU,
           radial: "",
           asignacion: situU === "LM" ? "Licencia Maternidad" : "Licencia",
           observaciones: `Del ${licInicioDate.toLocaleDateString("es-PY")} al ${licFinDate.toLocaleDateString("es-PY")}`,
@@ -241,9 +237,9 @@ export const rolesGuardiaRouter = createRouter({
       activos.forEach((p) => codigosAsignados.add(p.codigo));
 
       const noAsignados: Array<{ codigo: string; nombre: string }> = [];
-      nombrePorCodigo.forEach((nombre, codigo) => {
-        if (!codigosAsignados.has(codigo)) {
-          noAsignados.push({ codigo, nombre });
+      nombrePorIdentificador.forEach((nombre, identificador) => {
+        if (!codigosAsignados.has(identificador)) {
+          noAsignados.push({ codigo: identificador, nombre });
         }
       });
       noAsignados.sort((a, b) => a.nombre.localeCompare(b.nombre));
@@ -253,10 +249,10 @@ export const rolesGuardiaRouter = createRouter({
 
   // Agrega una persona a la lista de Guardias Especiales del Rol.
   agregarEspecial: publicQuery
-    .input(z.object({ idRol: z.string(), codigo: z.string().min(1), radial: z.string().optional().or(z.literal("")), asignacion: z.string().optional().or(z.literal("")), observaciones: z.string().optional().or(z.literal("")) }))
+    .input(z.object({ idRol: z.string(), identificador: z.string().min(1), radial: z.string().optional().or(z.literal("")), asignacion: z.string().optional().or(z.literal("")), observaciones: z.string().optional().or(z.literal("")) }))
     .mutation(async ({ input }) => {
       const id = generateId();
-      await appendRow(env.SHEET_GUARDIAS_ID, "RolesGuardia_Especiales", [id, input.idRol, input.codigo, input.radial || "", input.asignacion || "", input.observaciones || ""]);
+      await appendRow(env.SHEET_GUARDIAS_ID, "RolesGuardia_Especiales", [id, input.idRol, input.identificador, input.radial || "", input.asignacion || "", input.observaciones || ""]);
       return { exito: true as const, id };
     }),
 
@@ -273,10 +269,10 @@ export const rolesGuardiaRouter = createRouter({
 
   // Agrega una persona a la lista de Licencias del Rol.
   agregarLicencia: publicQuery
-    .input(z.object({ idRol: z.string(), codigo: z.string().min(1), radial: z.string().optional().or(z.literal("")), observaciones: z.string().optional().or(z.literal("")) }))
+    .input(z.object({ idRol: z.string(), identificador: z.string().min(1), radial: z.string().optional().or(z.literal("")), observaciones: z.string().optional().or(z.literal("")) }))
     .mutation(async ({ input }) => {
       const id = generateId();
-      await appendRow(env.SHEET_GUARDIAS_ID, "RolesGuardia_Licencias", [id, input.idRol, input.codigo, input.radial || "", input.observaciones || ""]);
+      await appendRow(env.SHEET_GUARDIAS_ID, "RolesGuardia_Licencias", [id, input.idRol, input.identificador, input.radial || "", input.observaciones || ""]);
       return { exito: true as const, id };
     }),
 
@@ -293,10 +289,10 @@ export const rolesGuardiaRouter = createRouter({
 
   // Agrega una persona a la lista de Activos del Rol.
   agregarActivo: publicQuery
-    .input(z.object({ idRol: z.string(), codigo: z.string().min(1), radial: z.string().optional().or(z.literal("")), asignacion: z.string().optional().or(z.literal("")), observaciones: z.string().optional().or(z.literal("")) }))
+    .input(z.object({ idRol: z.string(), identificador: z.string().min(1), radial: z.string().optional().or(z.literal("")), asignacion: z.string().optional().or(z.literal("")), observaciones: z.string().optional().or(z.literal("")) }))
     .mutation(async ({ input }) => {
       const id = generateId();
-      await appendRow(env.SHEET_GUARDIAS_ID, "RolesGuardia_Activos", [id, input.idRol, input.codigo, input.radial || "", input.asignacion || "", input.observaciones || ""]);
+      await appendRow(env.SHEET_GUARDIAS_ID, "RolesGuardia_Activos", [id, input.idRol, input.identificador, input.radial || "", input.asignacion || "", input.observaciones || ""]);
       return { exito: true as const, id };
     }),
 
@@ -399,7 +395,7 @@ export const rolesGuardiaRouter = createRouter({
       z.object({
         idRol: z.string(),
         idGrupo: z.string(),
-        codigo: z.string().min(1),
+        identificador: z.string().min(1),
         radial: z.string().optional().or(z.literal("")),
         asignacion: z.string().optional().or(z.literal("")),
       })
@@ -417,7 +413,7 @@ export const rolesGuardiaRouter = createRouter({
         id,
         input.idRol,
         input.idGrupo,
-        input.codigo,
+        input.identificador,
         input.radial || "",
         input.asignacion || "",
         maxOrden + 1,

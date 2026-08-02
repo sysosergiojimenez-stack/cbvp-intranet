@@ -7,6 +7,7 @@ const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto'
 
 type FilaAsistencia = {
   codigo: string;
+  identificador?: string;
   nombre: string;
   situ?: string;
   dias: string[];
@@ -36,7 +37,7 @@ function TablaAsistencia({ titulo, filas, columnas, mostrarSitu }: { titulo: str
           <tbody>
             {filas.map((p, idx) => (
               <tr key={idx} className="border-b border-white/5 hover:bg-white/[0.02]">
-                <td className="px-2 py-1.5 text-white/60 whitespace-nowrap sticky left-0 bg-[#14141c]">{p.codigo}</td>
+                <td className="px-2 py-1.5 text-white/60 whitespace-nowrap sticky left-0 bg-[#14141c]">{p.codigo || p.identificador}</td>
                 <td className="px-2 py-1.5 text-white/80 whitespace-nowrap sticky left-[70px] bg-[#14141c]">{p.nombre}</td>
                 {mostrarSitu && <td className="px-2 py-1.5 text-center text-white/50">{p.situ}</td>}
                 {p.dias.map((d, i) => (
@@ -54,6 +55,7 @@ function TablaAsistencia({ titulo, filas, columnas, mostrarSitu }: { titulo: str
 
 type FilaTotal = {
   codigo: string;
+  identificador?: string;
   nombre: string;
   situ: string;
   cuota: string;
@@ -87,7 +89,7 @@ function TablaTotalAcumulado({ filas, categoria }: { filas: FilaTotal[]; categor
               const esTexto = typeof p.acumulado === 'string';
               return (
                 <tr key={idx} className="border-b border-white/5 hover:bg-white/[0.02]">
-                  <td className="px-2 py-1.5 text-white/60 whitespace-nowrap">{p.codigo}</td>
+                  <td className="px-2 py-1.5 text-white/60 whitespace-nowrap">{p.codigo || p.identificador}</td>
                   <td className="px-2 py-1.5 text-white/80 whitespace-nowrap">{p.nombre}</td>
                   <td className="px-2 py-1.5 text-center text-white/50">{p.situ}</td>
                   <td className="px-2 py-1.5 text-center text-white/70">{p.guardiasPercent}%</td>

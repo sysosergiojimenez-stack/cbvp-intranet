@@ -95,7 +95,7 @@ function AppRoutes() {
             {permisos.puedeCrearBombero ? <AgregarBombero /> : <Navigate to="/" replace />}
           </ProtectedRoute>
         } />
-        <Route path="/editar-bombero/:codigo" element={
+        <Route path="/editar-bombero/:identificador" element={
           <ProtectedRoute>
             {permisos.puedeVerPersonal ? <EditarBombero /> : <Navigate to="/" replace />}
           </ProtectedRoute>

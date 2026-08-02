@@ -1,4 +1,4 @@
-import { google } from "googleapis";
+import { google, Auth } from "googleapis";
 import { env } from "../lib/env";
 
 /**
@@ -16,7 +16,7 @@ import { env } from "../lib/env";
  * 9. Share your Google Sheets with the service account email
  */
 
-let authClient: google.auth.GoogleAuth | null = null;
+let authClient: Auth.GoogleAuth | null = null;
 
 export function getGoogleAuth() {
   if (authClient) return authClient;
@@ -38,7 +38,7 @@ export function getGoogleAuth() {
     throw new Error("GOOGLE_SERVICE_ACCOUNT_JSON is not valid JSON");
   }
 
-  authClient = new google.auth.GoogleAuth({
+  authClient = new Auth.GoogleAuth({
     credentials,
     scopes: [
       "https://www.googleapis.com/auth/spreadsheets",
@@ -51,9 +51,9 @@ export function getGoogleAuth() {
 }
 
 export function getSheetsClient() {
-  return google.sheets({ version: "v4", auth: getGoogleAuth() });
+  return google.sheets({ version: "v4", auth: getGoogleAuth() as any });
 }
 
 export function getDriveClient() {
-  return google.drive({ version: "v3", auth: getGoogleAuth() });
+  return google.drive({ version: "v3", auth: getGoogleAuth() as any });
 }

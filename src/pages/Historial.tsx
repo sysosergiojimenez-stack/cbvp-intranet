@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 
 export default function Historial() {
-  const { puedeVerHistorial, puedeEditarPlanillas, puedeEliminarPlanillas, esVoluntario, codigo } = usePermiso();
+  const { puedeVerHistorial, puedeEditarPlanillas, puedeEliminarPlanillas, esVoluntario, identificador } = usePermiso();
   const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [viewPlanilla, setViewPlanilla] = useState<string | null>(null);
@@ -24,7 +24,7 @@ export default function Historial() {
   const itemsPerPage = 5;
 
   const { data: rpcData, isLoading: rpcLoading, error: rpcError, refetch } = trpc.planillas.historial.useQuery(
-    esVoluntario && codigo ? { codigo } : undefined,
+    esVoluntario && identificador ? { identificador } : undefined,
     { retry: 1, refetchOnWindowFocus: false }
   );
 

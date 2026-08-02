@@ -131,7 +131,7 @@ export async function getSheetId(
   for (const s of allSheets) {
     const title = s.properties?.title;
     if (title && title.trim() === searchName) {
-      if (s.properties?.sheetId !== undefined) {
+      if (s.properties?.sheetId != null) {
         return s.properties.sheetId;
       }
     }
@@ -141,7 +141,7 @@ export async function getSheetId(
   for (const s of allSheets) {
     const title = s.properties?.title;
     if (title && title.trim().toLowerCase() === searchName.toLowerCase()) {
-      if (s.properties?.sheetId !== undefined) {
+      if (s.properties?.sheetId != null) {
         return s.properties.sheetId;
       }
     }

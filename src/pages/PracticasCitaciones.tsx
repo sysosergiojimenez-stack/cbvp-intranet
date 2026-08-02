@@ -238,7 +238,7 @@ export default function PracticasCitaciones() {
           detalles: extraccion.detalles,
           personal: extraccion.personal,
         },
-        usuarioId: usuario.codigo,
+        usuarioId: usuario.identificador,
         usuarioNombre: usuario.nombreCompleto,
       });
       if (resp.exito) {
@@ -305,10 +305,10 @@ export default function PracticasCitaciones() {
     setPersonAsistencia(person.asistencia === 'COMISIONADO' ? 'COMISIONADO' : person.asistencia === 'AUSENTE' ? 'AUSENTE' : 'PRESENTE');
   };
 
-  const savePersonEdit = async (idPlanilla: string, codigo: string) => {
+  const savePersonEdit = async (idPlanilla: string, identificador: string) => {
     await editarPersonMutation.mutateAsync({
       idPlanilla,
-      codigo,
+      identificador,
       nuevaAsistencia: personAsistencia,
     });
   };

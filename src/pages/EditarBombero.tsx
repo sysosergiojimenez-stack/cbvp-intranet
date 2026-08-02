@@ -5,7 +5,7 @@ import { usePermiso } from '@/hooks/usePermiso';
 import { Save, AlertTriangle, CheckCircle, ArrowLeft } from 'lucide-react';
 
 export default function EditarBombero() {
-  const { codigo } = useParams<{ codigo: string }>();
+  const { identificador } = useParams<{ identificador: string }>();
   const navigate = useNavigate();
   const { puedeVerPersonal } = usePermiso();
   const [form, setForm] = useState({
@@ -17,9 +17,9 @@ export default function EditarBombero() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  const { data, isLoading } = trpc.personal.obtenerPorCodigo.useQuery(
-    { codigo: codigo || '' },
-    { enabled: !!codigo, retry: 1 }
+  const { data, isLoading } = trpc.personal.obtenerPorIdentificador.useQuery(
+    { identificador: identificador || '' },
+    { enabled: !!identificador, retry: 1 }
   );
 
   useEffect(() => {
@@ -80,7 +80,7 @@ export default function EditarBombero() {
     if (!form.codigo || !form.anioJuramento || !form.primerNombre || !form.primerApellido) {
       setError('Complete los campos obligatorios'); return;
     }
-    editarMutation.mutate({ codigoOriginal: codigo || '', ...form });
+    editarMutation.mutate({ identificador: identificador || '', ...form });
   };
 
   const field = (label: string, key: keyof typeof form, opts?: { type?: string; placeholder?: string; required?: boolean }) => (
