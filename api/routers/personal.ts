@@ -12,7 +12,7 @@ function extractNumber(code: string): string {
 
 export const personalRouter = createRouter({
   list: publicQuery.query(async () => {
-    const data = await readSheet(env.SHEET_USUARIOS_ID, "USUARIOS!A1:U");
+    const data = await readSheet(env.SHEET_USUARIOS_ID, "USUARIOS!A1:W");
     const personal: Array<{
       identificador: string;
       codigo: string;
@@ -27,6 +27,8 @@ export const personalRouter = createRouter({
       cuota: string;
       licenciaInicio: string;
       licenciaDias: string;
+      exencion: string;
+      comisionadoDesde: string;
     }> = [];
 
     for (let i = 1; i < data.length; i++) {
@@ -56,6 +58,8 @@ export const personalRouter = createRouter({
         cuota: String(fila[18] || ""),
         licenciaInicio: normalizarFechaISO(String(fila[19] || "")),
         licenciaDias: String(fila[20] || ""),
+        exencion: String(fila[21] || ""),
+        comisionadoDesde: normalizarFechaISO(String(fila[22] || "")),
       });
     }
 
@@ -147,6 +151,8 @@ export const personalRouter = createRouter({
         cuota: z.string().optional().or(z.literal('')),
         licenciaInicio: z.string().optional().or(z.literal('')),
         licenciaDias: z.string().optional().or(z.literal('')),
+        exencion: z.string().optional().or(z.literal('')),
+        comisionadoDesde: z.string().optional().or(z.literal('')),
       })
     )
     .mutation(async ({ input }) => {
@@ -172,6 +178,8 @@ export const personalRouter = createRouter({
         input.cuota || "",
         input.licenciaInicio || "",
         input.licenciaDias || "",
+        input.exencion || "",
+        input.comisionadoDesde || "",
       ]);
       return { exito: true as const, mensaje: "Bombero registrado correctamente" };
     }),
@@ -179,7 +187,7 @@ export const personalRouter = createRouter({
   obtenerPorCodigo: publicQuery
     .input(z.object({ codigo: z.string() }))
     .query(async ({ input }) => {
-      const data = await readSheet(env.SHEET_USUARIOS_ID, "USUARIOS!A1:U");
+      const data = await readSheet(env.SHEET_USUARIOS_ID, "USUARIOS!A1:W");
       const searchNum = extractNumber(input.codigo);
       for (let i = 1; i < data.length; i++) {
         const codigoFila = String(data[i][1] || "").trim();
@@ -208,6 +216,8 @@ export const personalRouter = createRouter({
               cuota: String(data[i][18] || ""),
               licenciaInicio: normalizarFechaISO(String(data[i][19] || "")),
               licenciaDias: String(data[i][20] || ""),
+              exencion: String(data[i][21] || ""),
+              comisionadoDesde: normalizarFechaISO(String(data[i][22] || "")),
             },
           };
         }
@@ -234,10 +244,12 @@ export const personalRouter = createRouter({
         cuota: z.string().optional().or(z.literal('')),
         licenciaInicio: z.string().optional().or(z.literal('')),
         licenciaDias: z.string().optional().or(z.literal('')),
+        exencion: z.string().optional().or(z.literal('')),
+        comisionadoDesde: z.string().optional().or(z.literal('')),
       })
     )
     .mutation(async ({ input }) => {
-      const data = await readSheet(env.SHEET_USUARIOS_ID, "USUARIOS!A1:U");
+      const data = await readSheet(env.SHEET_USUARIOS_ID, "USUARIOS!A1:W");
       const searchNum = extractNumber(input.codigoOriginal);
       let rowIndex = -1;
       let existingRow: string[] = [];
@@ -253,7 +265,7 @@ export const personalRouter = createRouter({
       if (rowIndex === -1) {
         return { exito: false as const, error: "Bombero no encontrado" };
       }
-      await updateRange(env.SHEET_USUARIOS_ID, `USUARIOS!A${rowIndex}:U${rowIndex}`, [[
+      await updateRange(env.SHEET_USUARIOS_ID, `USUARIOS!A${rowIndex}:W${rowIndex}`, [[
         "", // A: IDENTIFICADOR
         input.codigo,
         input.anioJuramento,
@@ -275,6 +287,8 @@ export const personalRouter = createRouter({
         input.cuota || "",
         input.licenciaInicio || "",
         input.licenciaDias || "",
+        input.exencion || "",
+        input.comisionadoDesde || "",
       ]]);
       return { exito: true as const, mensaje: "Bombero actualizado correctamente" };
     }),

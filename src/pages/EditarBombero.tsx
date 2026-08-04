@@ -13,6 +13,7 @@ export default function EditarBombero() {
     rango: 'Voluntario(a)', codigoRadial: '',
     primerNombre: '', segundoNombre: '', primerApellido: '', segundoApellido: '',
     nroDocId: '', fechaNacimiento: '', situ: 'RN', cuota: '', licenciaInicio: '', licenciaDias: '',
+    exencion: '', comisionadoDesde: '',
   });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -41,6 +42,8 @@ export default function EditarBombero() {
         cuota: b.cuota || '',
         licenciaInicio: b.licenciaInicio || '',
         licenciaDias: b.licenciaDias || '',
+        exencion: b.exencion || '',
+        comisionadoDesde: b.comisionadoDesde || '',
       });
     }
   }, [data]);
@@ -172,6 +175,23 @@ export default function EditarBombero() {
                   </div>
                 );
               })()}
+            </>
+          )}
+          {form.situ === 'CM' && (
+            <>
+              <div>
+                <label className="text-[10px] text-white/40 uppercase tracking-wider mb-1 block">Exencion</label>
+                <select value={form.exencion} onChange={e => setForm(f => ({ ...f, exencion: e.target.value }))} className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-cbvp-red/50">
+                  <option value="">Ninguna</option>
+                  <option value="GUARDIAS">Guardias</option>
+                  <option value="PRACTICAS">Practicas</option>
+                  <option value="AMBOS">Ambos</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-[10px] text-white/40 uppercase tracking-wider mb-1 block">Comisionado desde</label>
+                <input type="date" value={form.comisionadoDesde} onChange={e => setForm(f => ({ ...f, comisionadoDesde: e.target.value }))} className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-cbvp-red/50 [color-scheme:dark]" />
+              </div>
             </>
           )}
         </div>

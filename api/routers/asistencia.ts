@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { formatearNombreCompleto } from "../lib/nombres";
+import { normalizarFechaISO } from "../lib/fechas";
 import { createRouter, publicQuery } from "../middleware";
 import { readSheet, appendRow, updateRange, deleteRows, getSheetId } from "../services/sheets";
 import { env } from "../lib/env";
@@ -55,6 +56,29 @@ interface PersonalAsistencia {
   codigo: string;
   nombre: string;
   asistencia: string;
+}
+
+function esExentoAutomatico(
+  persona: { situ: string; exencion?: string; comisionadoDesde?: string },
+  fechaDia: Date,
+  tipo: 'GUARDIAS' | 'PRACTICAS'
+): boolean {
+  if (persona.situ !== 'CM') return false;
+  if (!persona.exencion || !persona.comisionadoDesde) return false;
+  const exencion = persona.exencion.toUpperCase();
+  const cubreTipo =
+    exencion === 'AMBOS' ||
+    (tipo === 'GUARDIAS' && exencion === 'GUARDIAS') ||
+    (tipo === 'PRACTICAS' && exencion === 'PRACTICAS');
+  if (!cubreTipo) return false;
+  const desdeISO = normalizarFechaISO(persona.comisionadoDesde);
+  if (!desdeISO) return false;
+  const [y, m, d] = desdeISO.split('-').map(Number);
+  const desde = new Date(y, m - 1, d);
+  desde.setHours(0, 0, 0, 0);
+  const dia = new Date(fechaDia);
+  dia.setHours(0, 0, 0, 0);
+  return dia >= desde;
 }
 
 export const asistenciaRouter = createRouter({
@@ -481,8 +505,8 @@ export const asistenciaRouter = createRouter({
   mensualDetallada: publicQuery
     .input(z.object({ mes: z.number().min(1).max(12), anio: z.number(), categoria: z.string() }))
     .query(async ({ input }) => {
-      const usuariosData = await readSheet(env.SHEET_USUARIOS_ID, "USUARIOS!A1:S");
-      const personasBase: Array<{ codigo: string; numero: string; nombre: string; situ: string }> = [];
+      const usuariosData = await readSheet(env.SHEET_USUARIOS_ID, "USUARIOS!A1:W");
+      const personasBase: Array<{ codigo: string; numero: string; nombre: string; situ: string; exencion: string; comisionadoDesde: string }> = [];
       for (let i = 1; i < usuariosData.length; i++) {
         const fila = usuariosData[i];
         const codigo = fila[1] ? String(fila[1]).trim() : "";
@@ -495,7 +519,14 @@ export const asistenciaRouter = createRouter({
         const nombre = formatearNombreCompleto(rango, categoria, primerNombre, primerApellido);
         const situ = String(fila[17] || "RN").trim() || "RN";
         const numero = (codigo.match(/\d+/) || [""])[0];
-        personasBase.push({ codigo, numero, nombre, situ });
+        personasBase.push({
+          codigo,
+          numero,
+          nombre,
+          situ,
+          exencion: String(fila[21] || ""),
+          comisionadoDesde: normalizarFechaISO(String(fila[22] || "")),
+        });
       }
       personasBase.sort((a, b) => (parseInt(a.numero) || 0) - (parseInt(b.numero) || 0));
 
@@ -533,10 +564,11 @@ export const asistenciaRouter = createRouter({
       }
       const fechasCitacion = Array.from(fechasCitacionSet).sort((a, b) => a - b);
 
-      function calcularParaFechas(p: { codigo: string; numero: string; nombre: string; situ: string }, fechasColumnas: number[], tipoBuscado: string) {
+      function calcularParaFechas(p: { codigo: string; numero: string; nombre: string; situ: string; exencion: string; comisionadoDesde: string }, fechasColumnas: number[], tipoBuscado: string) {
         const dias: string[] = new Array(fechasColumnas.length).fill("");
         let total = 0;
         let presentes = 0;
+        const diasConActividad = new Set<number>();
         for (let i = 1; i < persData.length; i++) {
           const fila = persData[i];
           const codigoFila = String(fila[6] || "").trim();
@@ -552,17 +584,32 @@ export const asistenciaRouter = createRouter({
           const mesFila = parseInt(partes[1], 10);
           const anioFila = parseInt(partes[2], 10);
           if (mesFila !== input.mes || anioFila !== input.anio) continue;
+          if (!dia || dia < 1 || dia > diasDelMes) continue;
           const idxCol = fechasColumnas.indexOf(dia);
           if (idxCol === -1) continue;
           const asistencia = String(fila[8] || "").trim().toUpperCase();
           const exencion = String(fila[11] || "").trim().toUpperCase();
           const esExentoPracticas = tipoBuscado === "PRACTICA" && asistencia === "COMISIONADO" && (exencion === "PRACTICAS" || exencion === "AMBOS");
+          diasConActividad.add(dia);
           total++;
           if (asistencia === "PRESENTE" || esExentoPracticas) {
             presentes++;
             dias[idxCol] = esExentoPracticas ? "E" : "P";
           } else {
             dias[idxCol] = "A";
+          }
+        }
+        // Aplicar exenciones automaticas del personal para practicas en fechas sin actividad cargada
+        if (tipoBuscado === "PRACTICA") {
+          for (const dia of fechasColumnas) {
+            if (diasConActividad.has(dia)) continue;
+            const fechaDia = new Date(input.anio, input.mes - 1, dia);
+            if (esExentoAutomatico(p, fechaDia, 'PRACTICAS')) {
+              presentes++;
+              total++;
+              const idxCol = fechasColumnas.indexOf(dia);
+              if (idxCol !== -1) dias[idxCol] = "E";
+            }
           }
         }
         const realPercent = total > 0 ? (presentes / total) * 100 : 0;

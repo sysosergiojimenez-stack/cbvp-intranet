@@ -42,6 +42,8 @@ export interface Personal {
   nombreCompleto: string;
   situ: string;
   cuota: string;
+  exencion?: string;
+  comisionadoDesde?: string;
 }
 
 export interface GuardiaPersonal {
