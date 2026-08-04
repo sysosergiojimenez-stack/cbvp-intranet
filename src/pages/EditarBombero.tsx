@@ -83,6 +83,9 @@ export default function EditarBombero() {
     if (!form.codigo || !form.anioJuramento || !form.primerNombre || !form.primerApellido) {
       setError('Complete los campos obligatorios'); return;
     }
+    if (form.situ === 'CM' && (!form.exencion || !form.comisionadoDesde)) {
+      setError('Complete la exencion y la fecha de comisionado'); return;
+    }
     editarMutation.mutate({ codigoOriginal: codigo || '', ...form });
   };
 
@@ -132,6 +135,10 @@ export default function EditarBombero() {
           </div>
           {field('Codigo Radial', 'codigoRadial')}
           <div>
+            <label className="text-[10px] text-white/40 uppercase tracking-wider mb-1 block">Cuota al dia hasta</label>
+            <input type="month" value={form.cuota} onChange={e => setForm(f => ({ ...f, cuota: e.target.value }))} className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-cbvp-red/50 [color-scheme:dark]" />
+          </div>
+          <div>
             <label className="text-[10px] text-white/40 uppercase tracking-wider mb-1 block">Situacion (SITU)</label>
             <select value={form.situ} onChange={e => setForm(f => ({ ...f, situ: e.target.value }))} className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-cbvp-red/50">
               <option value="RN">RN - Regimen Normal</option>
@@ -146,10 +153,6 @@ export default function EditarBombero() {
               <option value="B15A">B15A - Beneficios 15 años</option>
               <option value="B20A">B20A - Beneficios 20 años</option>
             </select>
-          </div>
-          <div>
-            <label className="text-[10px] text-white/40 uppercase tracking-wider mb-1 block">Cuota al dia hasta</label>
-            <input type="month" value={form.cuota} onChange={e => setForm(f => ({ ...f, cuota: e.target.value }))} className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-cbvp-red/50 [color-scheme:dark]" />
           </div>
           {(form.situ === 'LC' || form.situ === 'LM') && (
             <>
@@ -180,7 +183,7 @@ export default function EditarBombero() {
           {form.situ === 'CM' && (
             <>
               <div>
-                <label className="text-[10px] text-white/40 uppercase tracking-wider mb-1 block">Exencion</label>
+                <label className="text-[10px] text-white/40 uppercase tracking-wider mb-1 block">Exencion *</label>
                 <select value={form.exencion} onChange={e => setForm(f => ({ ...f, exencion: e.target.value }))} className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-cbvp-red/50">
                   <option value="">Ninguna</option>
                   <option value="GUARDIAS">Guardias</option>
@@ -189,7 +192,7 @@ export default function EditarBombero() {
                 </select>
               </div>
               <div>
-                <label className="text-[10px] text-white/40 uppercase tracking-wider mb-1 block">Comisionado desde</label>
+                <label className="text-[10px] text-white/40 uppercase tracking-wider mb-1 block">Comisionado desde *</label>
                 <input type="date" value={form.comisionadoDesde} onChange={e => setForm(f => ({ ...f, comisionadoDesde: e.target.value }))} className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-cbvp-red/50 [color-scheme:dark]" />
               </div>
             </>
