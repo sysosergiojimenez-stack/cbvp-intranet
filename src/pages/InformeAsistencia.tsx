@@ -133,7 +133,7 @@ function TablaTotalAcumulado({ filas, categoria }: { filas: FilaTotal[]; categor
                   <td className="px-2 py-1.5 text-center text-white/70">{p.citacionesPercent === null ? '-' : `${p.citacionesPercent}%`}</td>
                   <td className={`px-2 py-1.5 text-center font-semibold ${esTexto ? 'text-cbvp-orange' : 'text-white'}`}>{esTexto ? p.acumulado : `${p.acumulado}%`}</td>
                   <td className="px-2 py-1.5 text-center text-white/50">{p.cuota || '-'}</td>
-                  <td className={`px-2 py-1.5 text-center font-semibold ${p.enCuadro ? 'text-cbvp-green' : 'text-cbvp-red'}`}>{p.enCuadro ? 'Y' : 'N'}</td>
+                  <td className={`px-2 py-1.5 text-center font-semibold ${p.enCuadro ? 'text-cbvp-green' : 'text-cbvp-red'}`}>{p.enCuadro ? 'EN CUADRO' : 'FUERA DE CUADRO'}</td>
                 </tr>
               );
             })}
