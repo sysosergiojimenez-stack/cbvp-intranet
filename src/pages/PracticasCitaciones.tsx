@@ -2,6 +2,7 @@ import { useState, useCallback, Fragment } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { usePermiso } from '@/hooks/usePermiso';
 import DocumentScanModal from '@/components/DocumentScanModal';
+import PersonalAutocomplete from '@/components/PersonalAutocomplete';
 import { trpc } from '@/providers/trpc';
 import type { AsistenciaEncabezado, AsistenciaPersonal } from '@/types';
 import {
@@ -499,7 +500,18 @@ export default function PracticasCitaciones() {
                 {extraccion.personal.map((p, idx) => (
                   <div key={idx} className="grid grid-cols-12 gap-2 items-center bg-white/[0.03] rounded-lg p-2">
                     <input type="text" value={p.codigo} onChange={e => updatePersonalField(idx, 'codigo', e.target.value)} placeholder="Codigo" className="col-span-2 bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-white focus:border-cbvp-red/50 focus:outline-none" />
-                    <input type="text" value={p.nombre} onChange={e => updatePersonalField(idx, 'nombre', e.target.value)} placeholder="Nombre" className="col-span-6 bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-white focus:border-cbvp-red/50 focus:outline-none" />
+                    <div className="col-span-6">
+                      <PersonalAutocomplete
+                        value={p.nombre}
+                        onChange={valor => updatePersonalField(idx, 'nombre', valor)}
+                        onSelect={persona => {
+                          updatePersonalField(idx, 'codigo', persona.codigo);
+                          updatePersonalField(idx, 'nombre', persona.nombre);
+                        }}
+                        placeholder="Nombre"
+                        inputClassName="py-1"
+                      />
+                    </div>
                     <select value={p.asistencia} onChange={e => updatePersonalField(idx, 'asistencia', e.target.value)} className="col-span-3 bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-white focus:border-cbvp-red/50 focus:outline-none">
                       <option value="PRESENTE">Presente</option>
                       <option value="AUSENTE">Ausente</option>

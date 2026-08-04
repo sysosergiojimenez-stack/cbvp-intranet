@@ -5,6 +5,7 @@ import { compressImage } from "@/lib/imageCompress";
 import { useAuth } from "@/context/AuthContext";
 import { trpc } from "@/providers/trpc";
 import type { GuardiaPersonal, PlanillaEncabezado } from "@/types";
+import PersonalAutocomplete from "@/components/PersonalAutocomplete";
 import {
   Upload, FileText, Zap, CheckCircle, AlertTriangle,
   X, Clock, Calendar, User, Users, Shield,
@@ -378,7 +379,18 @@ export default function Planillas() {
                 {extraccion.personal.map((p, idx) => (
                   <div key={idx} className="grid grid-cols-12 gap-2 items-center bg-white/[0.03] rounded-lg p-2">
                     <input type="text" value={p.codigo} onChange={e => updateListField("personal", idx, "codigo", e.target.value)} placeholder="Codigo" className="col-span-2 bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-white focus:border-cbvp-red/50 focus:outline-none" />
-                    <input type="text" value={p.nombre} onChange={e => updateListField("personal", idx, "nombre", e.target.value)} placeholder="Nombre" className="col-span-3 bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-white focus:border-cbvp-red/50 focus:outline-none" />
+                    <div className="col-span-3">
+                      <PersonalAutocomplete
+                        value={p.nombre}
+                        onChange={valor => updateListField("personal", idx, "nombre", valor)}
+                        onSelect={persona => {
+                          updateListField("personal", idx, "codigo", persona.codigo);
+                          updateListField("personal", idx, "nombre", persona.nombre);
+                        }}
+                        placeholder="Nombre"
+                        inputClassName="py-1"
+                      />
+                    </div>
                     <input type="text" value={p.asignacion} onChange={e => updateListField("personal", idx, "asignacion", e.target.value)} placeholder="Asignacion" className="col-span-3 bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-white focus:border-cbvp-red/50 focus:outline-none" />
                     <select value={p.asistencia} onChange={e => updateListField("personal", idx, "asistencia", e.target.value)} className="col-span-3 bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-white focus:border-cbvp-red/50 focus:outline-none">
                       <option value="PRESENTE">Presente</option>
@@ -400,7 +412,18 @@ export default function Planillas() {
                 {extraccion.guardiasEspeciales.map((p, idx) => (
                   <div key={idx} className="grid grid-cols-12 gap-2 items-center bg-white/[0.03] rounded-lg p-2">
                     <input type="text" value={p.codigo} onChange={e => updateListField("guardiasEspeciales", idx, "codigo", e.target.value)} placeholder="Codigo" className="col-span-3 bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-white focus:border-cbvp-red/50 focus:outline-none" />
-                    <input type="text" value={p.nombre} onChange={e => updateListField("guardiasEspeciales", idx, "nombre", e.target.value)} placeholder="Nombre" className="col-span-4 bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-white focus:border-cbvp-red/50 focus:outline-none" />
+                    <div className="col-span-4">
+                      <PersonalAutocomplete
+                        value={p.nombre}
+                        onChange={valor => updateListField("guardiasEspeciales", idx, "nombre", valor)}
+                        onSelect={persona => {
+                          updateListField("guardiasEspeciales", idx, "codigo", persona.codigo);
+                          updateListField("guardiasEspeciales", idx, "nombre", persona.nombre);
+                        }}
+                        placeholder="Nombre"
+                        inputClassName="py-1"
+                      />
+                    </div>
                     <input type="text" value={p.asignacion} onChange={e => updateListField("guardiasEspeciales", idx, "asignacion", e.target.value)} placeholder="Asignacion" className="col-span-4 bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-white focus:border-cbvp-red/50 focus:outline-none" />
                     <button onClick={() => quitarFilaLista("guardiasEspeciales", idx)} className="col-span-1 flex justify-center text-white/30 hover:text-cbvp-red transition-colors"><X className="w-3.5 h-3.5" /></button>
                   </div>
@@ -417,7 +440,18 @@ export default function Planillas() {
                 {extraccion.refuerzos.map((p, idx) => (
                   <div key={idx} className="grid grid-cols-12 gap-2 items-center bg-white/[0.03] rounded-lg p-2">
                     <input type="text" value={p.codigo} onChange={e => updateListField("refuerzos", idx, "codigo", e.target.value)} placeholder="Codigo" className="col-span-3 bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-white focus:border-cbvp-red/50 focus:outline-none" />
-                    <input type="text" value={p.nombre} onChange={e => updateListField("refuerzos", idx, "nombre", e.target.value)} placeholder="Nombre" className="col-span-4 bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-white focus:border-cbvp-red/50 focus:outline-none" />
+                    <div className="col-span-4">
+                      <PersonalAutocomplete
+                        value={p.nombre}
+                        onChange={valor => updateListField("refuerzos", idx, "nombre", valor)}
+                        onSelect={persona => {
+                          updateListField("refuerzos", idx, "codigo", persona.codigo);
+                          updateListField("refuerzos", idx, "nombre", persona.nombre);
+                        }}
+                        placeholder="Nombre"
+                        inputClassName="py-1"
+                      />
+                    </div>
                     <input type="text" value={p.asignacion} onChange={e => updateListField("refuerzos", idx, "asignacion", e.target.value)} placeholder="Asignacion" className="col-span-4 bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-white focus:border-cbvp-red/50 focus:outline-none" />
                     <button onClick={() => quitarFilaLista("refuerzos", idx)} className="col-span-1 flex justify-center text-white/30 hover:text-cbvp-red transition-colors"><X className="w-3.5 h-3.5" /></button>
                   </div>
