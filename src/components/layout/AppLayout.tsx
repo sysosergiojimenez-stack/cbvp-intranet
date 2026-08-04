@@ -30,10 +30,10 @@ const NAV_ITEMS: NavItem[] = [
     path: '/administracion', label: 'Segundo Oficial', icon: Shield,
     checkAccess: (p) => p.puedeVerInformes || p.puedeGestionarRolesGuardia || p.puedeVerPersonal || p.puedeCrearBombero,
     children: [
-      { path: '/informe-asistencia', label: 'Informes de Asistencia', icon: ClipboardCheck, checkAccess: p => p.puedeVerInformes },
-      { path: '/roles-guardia', label: 'Roles de Guardia', icon: Shield, checkAccess: p => p.puedeGestionarRolesGuardia },
-      { path: '/personal', label: 'Personal', icon: Users, checkAccess: p => p.puedeVerPersonal },
+      { path: '/personal', label: 'Listado de Personal', icon: Users, checkAccess: p => p.puedeVerPersonal },
       { path: '/agregar-bombero', label: 'Agregar Bombero', icon: UserPlus, checkAccess: p => p.puedeCrearBombero },
+      { path: '/roles-guardia', label: 'Roles de Guardia', icon: Shield, checkAccess: p => p.puedeGestionarRolesGuardia },
+      { path: '/informe-asistencia', label: 'Informe Mensual', icon: ClipboardCheck, checkAccess: p => p.puedeVerInformes },
     ],
   },
   { path: '/configuracion', label: 'Configuracion', icon: Settings, checkAccess: p => p.puedeConfiguracion },

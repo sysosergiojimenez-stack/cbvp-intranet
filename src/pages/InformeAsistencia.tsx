@@ -185,7 +185,7 @@ export default function InformesAsistencia() {
     <div className="animate-fade-in space-y-6">
       <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-6">
         <h2 className="text-sm font-semibold text-white/60 uppercase tracking-wider mb-4 flex items-center gap-2">
-          <ClipboardList className="w-4 h-4 text-cbvp-red" /> Informes de Asistencia
+          <ClipboardList className="w-4 h-4 text-cbvp-red" /> Informe Mensual
         </h2>
         <div className="flex flex-wrap gap-2 mb-4">
           <select value={mes} onChange={e => setMes(Number(e.target.value))} className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none">
