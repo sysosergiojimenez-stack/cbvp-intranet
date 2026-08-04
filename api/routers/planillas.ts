@@ -678,6 +678,10 @@ export const planillasRouter = createRouter({
       const diasDelMes = new Date(input.anio, input.mes, 0).getDate();
 
       function calcular(p: { codigo: string; numero: string; nombre: string; situ: string; exencion: string; comisionadoDesde: string }, tipoRequerido: string) {
+        if (p.situ === "LM") {
+          const dias = new Array(diasDelMes).fill("E");
+          return { codigo: p.codigo, nombre: p.nombre, situ: p.situ, dias, totalGuardias: diasDelMes, presentes: diasDelMes, porcentaje: 100 };
+        }
         const dias: string[] = new Array(diasDelMes).fill("");
         let totalGuardias = 0;
         let presentes = 0;
@@ -938,17 +942,20 @@ export const planillasRouter = createRouter({
 
       const filas = personasBase.map((p) => {
         const esGE = p.situ === "GE";
-        const guardiasPercent = esActivo
+        let guardiasPercent = esActivo
           ? calcularGuardias(p, "GUARDIA NORMAL")
           : calcularGuardias(p, esGE ? "GUARDIA ESPECIAL" : "GUARDIA NORMAL");
 
-        const practicasPercent = esActivo ? null : calcularPersAsistencia(p, "PRACTICA", sabadosSet);
-        const citacionesPercent = huboCitaciones ? calcularPersAsistencia(p, "CITACION", fechasCitacionSet) : null;
+        let practicasPercent = esActivo ? null : calcularPersAsistencia(p, "PRACTICA", sabadosSet);
+        let citacionesPercent = huboCitaciones ? calcularPersAsistencia(p, "CITACION", fechasCitacionSet) : null;
 
         let acumulado: number | string;
         if (p.situ === "SC") {
           acumulado = "SANCIONADO";
         } else if (p.situ === "LM") {
+          guardiasPercent = 100;
+          practicasPercent = esActivo ? null : 100;
+          citacionesPercent = huboCitaciones ? 100 : null;
           acumulado = 100;
         } else if (p.situ === "LC") {
           acumulado = 0;

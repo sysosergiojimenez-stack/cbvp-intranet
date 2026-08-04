@@ -562,6 +562,10 @@ export const asistenciaRouter = createRouter({
       const fechasCitacion = Array.from(fechasCitacionSet).sort((a, b) => a - b);
 
       function calcularParaFechas(p: { codigo: string; numero: string; nombre: string; situ: string; exencion: string; comisionadoDesde: string }, fechasColumnas: number[], tipoBuscado: string) {
+        if (p.situ === "LM") {
+          const dias = new Array(fechasColumnas.length).fill("E");
+          return { codigo: p.codigo, nombre: p.nombre, dias, total: fechasColumnas.length, presentes: fechasColumnas.length, porcentaje: 100 };
+        }
         const dias: string[] = new Array(fechasColumnas.length).fill("");
         let total = 0;
         let presentes = 0;
