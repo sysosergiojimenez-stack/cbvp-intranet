@@ -57,7 +57,6 @@ export default function PracticasCitaciones() {
   // Person edit inline
   const [editingPerson, setEditingPerson] = useState<{ codigo: string; nombre: string; asistencia: string } | null>(null);
   const [personAsistencia, setPersonAsistencia] = useState<'PRESENTE' | 'AUSENTE' | 'COMISIONADO'>('PRESENTE');
-  const [personExencion, setPersonExencion] = useState<string>('');
 
   const utils = trpc.useUtils();
   const extraerMutation = trpc.asistencia.extraer.useMutation();
@@ -342,7 +341,6 @@ export default function PracticasCitaciones() {
   const startEditPerson = (person: AsistenciaPersonal) => {
     setEditingPerson({ codigo: person.codigo, nombre: person.nombre, asistencia: person.asistencia });
     setPersonAsistencia(person.asistencia === 'COMISIONADO' ? 'COMISIONADO' : person.asistencia === 'AUSENTE' ? 'AUSENTE' : 'PRESENTE');
-    setPersonExencion(person.exencion || '');
   };
 
   const savePersonEdit = async (idPlanilla: string, codigo: string) => {
@@ -350,7 +348,6 @@ export default function PracticasCitaciones() {
       idPlanilla,
       codigo,
       nuevaAsistencia: personAsistencia,
-      exencion: personAsistencia === 'COMISIONADO' ? personExencion : '',
     });
   };
 
@@ -739,45 +736,32 @@ export default function PracticasCitaciones() {
                                           </div>
                                           <div className="flex items-center gap-1 shrink-0 ml-2">
                                             {isEditing ? (
-                                              <div className="flex flex-col items-end gap-1">
-                                                <div className="flex items-center gap-1">
-                                                  <select
-                                                    value={personAsistencia}
-                                                    onChange={e => setPersonAsistencia(e.target.value as 'PRESENTE' | 'AUSENTE' | 'COMISIONADO')}
-                                                    className="bg-white/5 border border-white/10 rounded text-[10px] text-white px-1 py-0.5 focus:border-cbvp-red/50 focus:outline-none"
-                                                  >
-                                                    <option value="PRESENTE">Presente</option>
-                                                    <option value="AUSENTE">Ausente</option>
-                                                    <option value="COMISIONADO">Comisionado</option>
-                                                  </select>
-                                                  <button
-                                                    onClick={() => savePersonEdit(selectedPlanilla!, person.codigo)}
-                                                    disabled={editarPersonMutation.isPending}
-                                                    className="p-1 rounded bg-cbvp-green/20 text-cbvp-green hover:bg-cbvp-green/30 transition-colors"
-                                                    title="Guardar"
-                                                  >
-                                                    <Check className="w-3 h-3" />
-                                                  </button>
-                                                  <button
-                                                    onClick={() => setEditingPerson(null)}
-                                                    className="p-1 rounded bg-white/5 text-white/40 hover:text-white transition-colors"
-                                                    title="Cancelar"
-                                                  >
-                                                    <X className="w-3 h-3" />
-                                                  </button>
-                                                </div>
-                                                {personAsistencia === 'COMISIONADO' && (
-                                                  <select
-                                                    value={personExencion}
-                                                    onChange={e => setPersonExencion(e.target.value)}
-                                                    className="bg-white/5 border border-white/10 rounded text-[10px] text-white px-1 py-0.5 focus:border-cbvp-red/50 focus:outline-none"
-                                                  >
-                                                    <option value="">No exento</option>
-                                                    <option value="PRACTICAS">Exento practicas</option>
-                                                    <option value="AMBOS">Exento ambos</option>
-                                                  </select>
-                                                )}
-                                              </div>
+                                              <>
+                                                <select
+                                                  value={personAsistencia}
+                                                  onChange={e => setPersonAsistencia(e.target.value as 'PRESENTE' | 'AUSENTE' | 'COMISIONADO')}
+                                                  className="bg-white/5 border border-white/10 rounded text-[10px] text-white px-1 py-0.5 focus:border-cbvp-red/50 focus:outline-none"
+                                                >
+                                                  <option value="PRESENTE">Presente</option>
+                                                  <option value="AUSENTE">Ausente</option>
+                                                  <option value="COMISIONADO">Comisionado</option>
+                                                </select>
+                                                <button
+                                                  onClick={() => savePersonEdit(selectedPlanilla!, person.codigo)}
+                                                  disabled={editarPersonMutation.isPending}
+                                                  className="p-1 rounded bg-cbvp-green/20 text-cbvp-green hover:bg-cbvp-green/30 transition-colors"
+                                                  title="Guardar"
+                                                >
+                                                  <Check className="w-3 h-3" />
+                                                </button>
+                                                <button
+                                                  onClick={() => setEditingPerson(null)}
+                                                  className="p-1 rounded bg-white/5 text-white/40 hover:text-white transition-colors"
+                                                  title="Cancelar"
+                                                >
+                                                  <X className="w-3 h-3" />
+                                                </button>
+                                              </>
                                             ) : (
                                               <>
                                                 <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${getAsistenciaBadge(person.asistencia)}`}>

@@ -437,20 +437,18 @@ export const planillasRouter = createRouter({
         idPlanilla: z.string(),
         codigo: z.string(),
         nuevaAsistencia: z.enum(["PRESENTE", "AUSENTE", "AUSENTE CON REEMPLAZO"]),
-        exencion: z.string().optional(),
       })
     )
     .mutation(async ({ input }) => {
-      const data = await readSheet(env.SHEET_GUARDIAS_ID, "Guardias_Personal!A1:M");
+      const data = await readSheet(env.SHEET_GUARDIAS_ID, "Guardias_Personal!A1:J");
       for (let i = 1; i < data.length; i++) {
         const rowIdPlanilla = String(data[i][1] || "").trim();
         const rowCodigo = String(data[i][6] || "").trim();
         if (rowIdPlanilla === input.idPlanilla.trim() && rowCodigo === input.codigo.trim()) {
-          const exencion = input.nuevaAsistencia === "COMISIONADO" ? (input.exencion || "") : "";
           await updateRange(
             env.SHEET_GUARDIAS_ID,
-            `Guardias_Personal!J${i + 1}:M${i + 1}`,
-            [[input.nuevaAsistencia, exencion]]
+            `Guardias_Personal!J${i + 1}`,
+            [[input.nuevaAsistencia]]
           );
           return { exito: true as const, mensaje: "Asistencia actualizada" };
         }
