@@ -300,7 +300,7 @@ export default function InformesAsistencia() {
                 {categoria === 'COMBATIENTE' && (
                   <TablaAsistencia titulo="Practicas (sabados del mes)" filas={dataPC.practicas} columnas={dataPC.sabados} />
                 )}
-                <TablaAsistencia titulo="Citaciones" filas={dataPC.citaciones} columnas={dataPC.fechasCitacion} />
+                <TablaAsistencia titulo={`Citaciones${dataPC.sinCitaciones ? ' (NO HUBO)' : ''}`} filas={dataPC.citaciones} columnas={dataPC.fechasCitacion} />
               </>
             )}
 
