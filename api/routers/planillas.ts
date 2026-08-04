@@ -761,7 +761,7 @@ export const planillasRouter = createRouter({
       const esActivo = input.categoria.toUpperCase() === "ACTIVO";
 
       const usuariosData = await readSheet(env.SHEET_USUARIOS_ID, "USUARIOS!A1:W");
-      const personasBase: Array<{ codigo: string; numero: string; nombre: string; situ: string; cuota: string; exencion: string; comisionadoDesde: string }> = [];
+      const personasBase: Array<{ codigo: string; numero: string; nombre: string; categoria: string; situ: string; cuota: string; exencion: string; comisionadoDesde: string }> = [];
       for (let i = 1; i < usuariosData.length; i++) {
         const fila = usuariosData[i];
         const codigo = fila[1] ? String(fila[1]).trim() : "";
@@ -779,6 +779,7 @@ export const planillasRouter = createRouter({
           codigo,
           numero,
           nombre,
+          categoria,
           situ,
           cuota,
           exencion: String(fila[21] || ""),
@@ -796,6 +797,21 @@ export const planillasRouter = createRouter({
         if (situ === "B15A") return Math.min(100, Math.round((realPercent / 25) * 100));
         if (situ === "B20A") return presentes >= 1 ? 100 : 0;
         return Math.round(realPercent);
+      }
+      function enCuadroDeServicio(p: { categoria: string; cuota: string; acumulado: number | string }, mes: number, anio: number): boolean {
+        const categoriasPermitidas = ["BOMBERO", "COMBATIENTE", "ACTIVO", "FUNDADOR"];
+        if (!categoriasPermitidas.includes(p.categoria)) return false;
+        const acumuladoNum = typeof p.acumulado === "string" ? 0 : p.acumulado;
+        if (acumuladoNum < 50) return false;
+        if (!p.cuota) return false;
+        let mesMinimo = mes - 2;
+        let anioMinimo = anio;
+        if (mesMinimo <= 0) {
+          anioMinimo--;
+          mesMinimo += 12;
+        }
+        const cuotaMinima = `${anioMinimo}-${String(mesMinimo).padStart(2, "0")}`;
+        return p.cuota >= cuotaMinima;
       }
       function calcularGuardias(p: { numero: string; situ: string; exencion: string; comisionadoDesde: string }, tipoRequerido: string) {
         let total = 0;
@@ -944,6 +960,8 @@ export const planillasRouter = createRouter({
           acumulado = Math.round(suma / valores.length);
         }
 
+        const enCuadro = enCuadroDeServicio({ categoria: p.categoria, cuota: p.cuota, acumulado }, input.mes, input.anio);
+
         return {
           codigo: p.codigo,
           nombre: p.nombre,
@@ -953,6 +971,7 @@ export const planillasRouter = createRouter({
           practicasPercent,
           citacionesPercent,
           acumulado,
+          enCuadro,
         };
       });
 
