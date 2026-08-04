@@ -374,18 +374,10 @@ export async function exportarInformeCombinado(params: {
   tablaDias(doc, 'Practicas (sabados del mes)', params.combatiente.practicas, params.combatiente.sabados, cursorY, false);
 
   // ---- 4. Citaciones Combatientes ----
-  doc.addPage('a4', 'portrait');
-  encabezado(doc, logo, subCombatiente, escudo);
-  cursorY = 42;
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'bold');
-  doc.text('Citaciones', 10, cursorY);
-  cursorY += 5;
-  if (params.combatiente.sinCitaciones) {
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9);
-    doc.text('-', 10, cursorY);
-  } else {
+  if (!params.combatiente.sinCitaciones) {
+    doc.addPage('a4', 'portrait');
+    encabezado(doc, logo, subCombatiente, escudo);
+    cursorY = 42;
     tablaDias(doc, 'Citaciones', params.combatiente.citaciones, params.combatiente.fechasCitacion, cursorY, false);
   }
 
@@ -403,18 +395,10 @@ export async function exportarInformeCombinado(params: {
   tablaDias(doc, 'Asistencia Activos', params.activo.guardiasNormales, diasArrActivo, cursorY, true);
 
   // ---- 7. Citaciones Activos ----
-  doc.addPage('a4', 'portrait');
-  encabezado(doc, logo, subActivo, escudo);
-  cursorY = 42;
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'bold');
-  doc.text('Citaciones', 10, cursorY);
-  cursorY += 5;
-  if (params.activo.sinCitaciones) {
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9);
-    doc.text('-', 10, cursorY);
-  } else {
+  if (!params.activo.sinCitaciones) {
+    doc.addPage('a4', 'portrait');
+    encabezado(doc, logo, subActivo, escudo);
+    cursorY = 42;
     tablaDias(doc, 'Citaciones', params.activo.citaciones, params.activo.fechasCitacion, cursorY, false);
   }
 
