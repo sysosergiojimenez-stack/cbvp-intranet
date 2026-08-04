@@ -1,9 +1,41 @@
 import { useState } from 'react';
 import { trpc } from '@/providers/trpc';
-import { ClipboardList, Download } from 'lucide-react';
+import { ClipboardList, Download, FileText } from 'lucide-react';
 import { exportarInformeCombinado } from '@/lib/exportarInformePdf';
 
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+
+function VistaEstadisticasServicios({ mes, anio }: { mes: number; anio: number }) {
+  const { data, isLoading } = trpc.salidaMovil.estadisticasServicios.useQuery({ mes, anio });
+
+  if (isLoading) return <div className="text-center py-6 text-white/40 text-sm">Cargando...</div>;
+  if (!data?.tipos || data.tipos.length === 0) return <div className="text-center py-6 text-white/40 text-sm">No hay salidas registradas ese mes.</div>;
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="bg-white/5 border-b border-white/10">
+            <th className="text-left px-3 py-2 font-medium text-white/50">Tipo de Servicio</th>
+            <th className="text-right px-3 py-2 font-medium text-white/50">Cantidad</th>
+          </tr>
+        </thead>
+        <tbody>
+          {data.tipos.map((t, idx) => (
+            <tr key={idx} className="border-b border-white/5">
+              <td className="px-3 py-2 text-white/80">{t.tipo}</td>
+              <td className="px-3 py-2 text-right text-white font-mono">{t.cantidad}</td>
+            </tr>
+          ))}
+          <tr className="bg-white/5 font-semibold">
+            <td className="px-3 py-2 text-white">Total</td>
+            <td className="px-3 py-2 text-right text-white font-mono">{data.total}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  );
+}
 
 type FilaAsistencia = {
   codigo: string;
@@ -113,13 +145,23 @@ export default function InformesAsistencia() {
   const hoy = new Date();
   const [mes, setMes] = useState(hoy.getMonth() + 1);
   const [anio, setAnio] = useState(hoy.getFullYear());
-  const [categoria, setCategoria] = useState<'COMBATIENTE' | 'ACTIVO'>('COMBATIENTE');
+  const [vista, setVista] = useState<'COMBATIENTE' | 'ACTIVO' | 'ESTADISTICAS'>('COMBATIENTE');
+  const categoria = vista === 'ESTADISTICAS' ? 'COMBATIENTE' : vista;
   const [exportando, setExportando] = useState(false);
 
   // Datos de la categoria que se esta viendo en pantalla
-  const { data, isLoading } = trpc.planillas.asistenciaMensualDetallada.useQuery({ mes, anio, categoria });
-  const { data: dataPC, isLoading: isLoadingPC } = trpc.asistencia.mensualDetallada.useQuery({ mes, anio, categoria });
-  const { data: dataTotal, isLoading: isLoadingTotal } = trpc.planillas.totalAcumulado.useQuery({ mes, anio, categoria });
+  const { data, isLoading } = trpc.planillas.asistenciaMensualDetallada.useQuery(
+    { mes, anio, categoria },
+    { enabled: vista !== 'ESTADISTICAS' }
+  );
+  const { data: dataPC, isLoading: isLoadingPC } = trpc.asistencia.mensualDetallada.useQuery(
+    { mes, anio, categoria },
+    { enabled: vista !== 'ESTADISTICAS' }
+  );
+  const { data: dataTotal, isLoading: isLoadingTotal } = trpc.planillas.totalAcumulado.useQuery(
+    { mes, anio, categoria },
+    { enabled: vista !== 'ESTADISTICAS' }
+  );
 
   // Datos de ambas categorias (para el PDF combinado) + resumen + estadisticas de servicios
   const { data: dataResumen } = trpc.personal.resumenCuadroServicio.useQuery();
@@ -199,42 +241,56 @@ export default function InformesAsistencia() {
             ))}
           </select>
           <div className="flex bg-white/5 border border-white/10 rounded-lg overflow-hidden">
-            <button onClick={() => setCategoria('COMBATIENTE')} className={`px-4 py-2 text-sm transition-colors ${categoria === 'COMBATIENTE' ? 'bg-cbvp-red text-white' : 'text-white/60 hover:text-white'}`}>Combatientes</button>
-            <button onClick={() => setCategoria('ACTIVO')} className={`px-4 py-2 text-sm transition-colors ${categoria === 'ACTIVO' ? 'bg-cbvp-red text-white' : 'text-white/60 hover:text-white'}`}>Activos</button>
+            <button onClick={() => setVista('COMBATIENTE')} className={`px-4 py-2 text-sm transition-colors ${vista === 'COMBATIENTE' ? 'bg-cbvp-red text-white' : 'text-white/60 hover:text-white'}`}>Combatientes</button>
+            <button onClick={() => setVista('ACTIVO')} className={`px-4 py-2 text-sm transition-colors ${vista === 'ACTIVO' ? 'bg-cbvp-red text-white' : 'text-white/60 hover:text-white'}`}>Activos</button>
+            <button onClick={() => setVista('ESTADISTICAS')} className={`px-4 py-2 text-sm transition-colors ${vista === 'ESTADISTICAS' ? 'bg-cbvp-red text-white' : 'text-white/60 hover:text-white'}`}>Estadisticas</button>
           </div>
-          <button onClick={handleExportar} disabled={exportando || !todoListo} className="ml-auto px-4 py-2 bg-cbvp-green/10 hover:bg-cbvp-green/20 disabled:opacity-50 text-cbvp-green rounded-lg text-sm flex items-center gap-2 transition-colors">
-            <Download className="w-4 h-4" /> {exportando ? 'Generando PDF...' : 'Exportar PDF Completo'}
-          </button>
+          {vista !== 'ESTADISTICAS' && (
+            <button onClick={handleExportar} disabled={exportando || !todoListo} className="ml-auto px-4 py-2 bg-cbvp-green/10 hover:bg-cbvp-green/20 disabled:opacity-50 text-cbvp-green rounded-lg text-sm flex items-center gap-2 transition-colors">
+              <Download className="w-4 h-4" /> {exportando ? 'Generando PDF...' : 'Exportar PDF Completo'}
+            </button>
+          )}
         </div>
 
-        {isLoading ? (
-          <div className="text-center py-6 text-white/40 text-sm">Cargando...</div>
-        ) : !data?.normales || data.normales.length === 0 ? (
-          <div className="text-center py-6 text-white/40 text-sm">No hay personal en esta categoria.</div>
-        ) : categoria === 'ACTIVO' ? (
-          <TablaAsistencia titulo="Asistencia Activos" filas={data.normales} columnas={Array.from({ length: data.diasDelMes }, (_, i) => i + 1)} mostrarSitu />
+        {vista === 'ESTADISTICAS' ? (
+          <>
+            <h3 className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-4 flex items-center gap-2">
+              <FileText className="w-4 h-4 text-cbvp-red" /> Estadisticas de Servicios
+            </h3>
+            <VistaEstadisticasServicios mes={mes} anio={anio} />
+          </>
         ) : (
           <>
-            <TablaAsistencia titulo="Guardias Normales" filas={data.normales} columnas={Array.from({ length: data.diasDelMes }, (_, i) => i + 1)} mostrarSitu />
-            <TablaAsistencia titulo="Guardias Especiales" filas={data.especiales} columnas={Array.from({ length: data.diasDelMes }, (_, i) => i + 1)} mostrarSitu />
-          </>
-        )}
-
-        {isLoadingPC ? (
-          <div className="text-center py-6 text-white/40 text-sm">Cargando practicas y citaciones...</div>
-        ) : dataPC && (
-          <>
-            {categoria === 'COMBATIENTE' && (
-              <TablaAsistencia titulo="Practicas (sabados del mes)" filas={dataPC.practicas} columnas={dataPC.sabados} />
+            {isLoading ? (
+              <div className="text-center py-6 text-white/40 text-sm">Cargando...</div>
+            ) : !data?.normales || data.normales.length === 0 ? (
+              <div className="text-center py-6 text-white/40 text-sm">No hay personal en esta categoria.</div>
+            ) : categoria === 'ACTIVO' ? (
+              <TablaAsistencia titulo="Asistencia Activos" filas={data.normales} columnas={Array.from({ length: data.diasDelMes }, (_, i) => i + 1)} mostrarSitu />
+            ) : (
+              <>
+                <TablaAsistencia titulo="Guardias Normales" filas={data.normales} columnas={Array.from({ length: data.diasDelMes }, (_, i) => i + 1)} mostrarSitu />
+                <TablaAsistencia titulo="Guardias Especiales" filas={data.especiales} columnas={Array.from({ length: data.diasDelMes }, (_, i) => i + 1)} mostrarSitu />
+              </>
             )}
-            <TablaAsistencia titulo={`Citaciones${dataPC.sinCitaciones ? ' (NO HUBO)' : ''}`} filas={dataPC.citaciones} columnas={dataPC.fechasCitacion} />
-          </>
-        )}
 
-        {isLoadingTotal ? (
-          <div className="text-center py-6 text-white/40 text-sm">Cargando total acumulado...</div>
-        ) : dataTotal?.filas && dataTotal.filas.length > 0 && (
-          <TablaTotalAcumulado filas={dataTotal.filas} categoria={categoria} />
+            {isLoadingPC ? (
+              <div className="text-center py-6 text-white/40 text-sm">Cargando practicas y citaciones...</div>
+            ) : dataPC && (
+              <>
+                {categoria === 'COMBATIENTE' && (
+                  <TablaAsistencia titulo="Practicas (sabados del mes)" filas={dataPC.practicas} columnas={dataPC.sabados} />
+                )}
+                <TablaAsistencia titulo={`Citaciones${dataPC.sinCitaciones ? ' (NO HUBO)' : ''}`} filas={dataPC.citaciones} columnas={dataPC.fechasCitacion} />
+              </>
+            )}
+
+            {isLoadingTotal ? (
+              <div className="text-center py-6 text-white/40 text-sm">Cargando total acumulado...</div>
+            ) : dataTotal?.filas && dataTotal.filas.length > 0 && (
+              <TablaTotalAcumulado filas={dataTotal.filas} categoria={categoria} />
+            )}
+          </>
         )}
       </div>
     </div>
