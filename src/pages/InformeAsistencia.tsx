@@ -176,8 +176,7 @@ export default function InformesAsistencia() {
     { enabled: vista !== 'ESTADISTICAS' }
   );
 
-  // Datos de ambas categorias (para el PDF combinado) + resumen + estadisticas de servicios
-  const { data: dataResumen } = trpc.personal.resumenCuadroServicio.useQuery();
+  // Datos de ambas categorias (para el PDF combinado) + estadisticas de servicios
   const { data: dataCombatiente } = trpc.planillas.asistenciaMensualDetallada.useQuery({ mes, anio, categoria: 'COMBATIENTE' });
   const { data: dataActivo } = trpc.planillas.asistenciaMensualDetallada.useQuery({ mes, anio, categoria: 'ACTIVO' });
   const { data: dataPCCombatiente } = trpc.asistencia.mensualDetallada.useQuery({ mes, anio, categoria: 'COMBATIENTE' });
@@ -185,6 +184,24 @@ export default function InformesAsistencia() {
   const { data: dataTotalCombatiente } = trpc.planillas.totalAcumulado.useQuery({ mes, anio, categoria: 'COMBATIENTE' });
   const { data: dataTotalActivo } = trpc.planillas.totalAcumulado.useQuery({ mes, anio, categoria: 'ACTIVO' });
   const { data: dataEstadisticas } = trpc.salidaMovil.estadisticasServicios.useQuery({ mes, anio });
+
+  const resumen = useMemo(() => {
+    const filas = [
+      ...(dataTotalCombatiente?.filas || []),
+      ...(dataTotalActivo?.filas || []),
+    ];
+    const regimenNormal = filas.filter(p => p.situ === 'RN' && p.enCuadro).length;
+    const regimenEspecial = filas.filter(p => p.situ === 'GE' && p.enCuadro).length;
+    const b10a = filas.filter(p => p.situ === 'B10A' && p.enCuadro).length;
+    const b15a = filas.filter(p => p.situ === 'B15A' && p.enCuadro).length;
+    const b20a = filas.filter(p => p.situ === 'B20A' && p.enCuadro).length;
+    const comisionados = filas.filter(p => p.situ === 'CM').length;
+    const enCuadro = filas.filter(p => p.enCuadro).length;
+    const licencia = filas.filter(p => p.situ === 'LC' || p.situ === 'LM').length;
+    const fueraDeCuadro = filas.filter(p => !p.enCuadro).length;
+    const total = filas.length;
+    return { regimenNormal, regimenEspecial, b10a, b15a, b20a, comisionados, enCuadro, licencia, fueraDeCuadro, total };
+  }, [dataTotalCombatiente, dataTotalActivo]);
 
   const todoListo = dataCombatiente?.normales && dataActivo?.normales && dataPCCombatiente && dataPCActivo && dataTotalCombatiente && dataTotalActivo && dataEstadisticas;
 
@@ -194,18 +211,7 @@ export default function InformesAsistencia() {
     try {
       await exportarInformeCombinado({
         mes, anio,
-        resumen: dataResumen ? {
-          regimenNormal: dataResumen.regimenNormal,
-          regimenEspecial: dataResumen.regimenEspecial,
-          b10a: dataResumen.b10a,
-          b15a: dataResumen.b15a,
-          b20a: dataResumen.b20a,
-          comisionados: dataResumen.comisionados,
-          enCuadro: dataResumen.enCuadro,
-          licencia: dataResumen.licencia,
-          fueraDeCuadro: dataResumen.fueraDeCuadro,
-          total: dataResumen.total,
-        } : null,
+        resumen,
         combatiente: {
           guardiasNormales: dataCombatiente.normales,
           guardiasEspeciales: dataCombatiente.especiales,

@@ -151,6 +151,7 @@ interface FilaTotal {
   practicasPercent: number | null;
   citacionesPercent: number | null;
   acumulado: number | string;
+  enCuadro: boolean;
 }
 
 function tablaTotalAcumulado(doc: jsPDF, filas: FilaTotal[], startY: number, esActivo: boolean): number {
@@ -164,7 +165,7 @@ function tablaTotalAcumulado(doc: jsPDF, filas: FilaTotal[], startY: number, esA
       'Cod.', 'Nombre', 'SITU',
       esActivo ? 'Asistencia' : 'Guardias',
       ...(esActivo ? [] : ['Practicas']),
-      'Citaciones', 'Acumulado', 'Cuota',
+      'Citaciones', 'Acumulado', 'Cuota', 'Cuadro de Servicio',
     ]],
     body: filas.map((f) => [
       f.codigo,
@@ -175,6 +176,7 @@ function tablaTotalAcumulado(doc: jsPDF, filas: FilaTotal[], startY: number, esA
       f.citacionesPercent === null ? '-' : `${f.citacionesPercent}%`,
       typeof f.acumulado === 'string' ? f.acumulado : `${f.acumulado}%`,
       f.cuota || '-',
+      f.enCuadro ? 'EN CUADRO' : 'FUERA DE CUADRO',
     ]),
     theme: 'grid',
     styles: { fontSize: 7, cellPadding: 1.5 },
@@ -296,7 +298,6 @@ export async function exportarInformeCombinado(params: {
         ['Con Beneficios - 10 anios', String(params.resumen.b10a)],
         ['Con Beneficios - 15 anios', String(params.resumen.b15a)],
         ['Con Beneficios - 20 anios', String(params.resumen.b20a)],
-        ['Comisionados', String(params.resumen.comisionados)],
         ['TOTAL EN CUADRO DE SERVICIO', String(params.resumen.enCuadro)],
       ],
       theme: 'grid',
@@ -310,6 +311,7 @@ export async function exportarInformeCombinado(params: {
       startY: cursorY,
       head: [['Especificaciones', 'Cantidad']],
       body: [
+        ['Comisionados', String(params.resumen.comisionados)],
         ['Voluntarios con Licencia', String(params.resumen.licencia)],
         ['Voluntarios fuera del Cuadro de Servicio', String(params.resumen.fueraDeCuadro)],
       ],
