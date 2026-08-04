@@ -94,7 +94,7 @@ function tablaDias(doc: jsPDF, titulo: string, filas: FilaDias[], columnas: numb
     f.nombre,
     ...(mostrarSitu ? [f.situ || ''] : []),
     ...f.dias,
-    `${f.porcentaje}%`,
+    numDias === 0 ? '-' : `${f.porcentaje}%`,
   ]);
 
   const columnStyles: Record<number, { halign?: 'left' | 'center' | 'right'; cellWidth: number }> = {
@@ -374,12 +374,10 @@ export async function exportarInformeCombinado(params: {
   tablaDias(doc, 'Practicas (sabados del mes)', params.combatiente.practicas, params.combatiente.sabados, cursorY, false);
 
   // ---- 4. Citaciones Combatientes ----
-  if (!params.combatiente.sinCitaciones) {
-    doc.addPage('a4', 'portrait');
-    encabezado(doc, logo, subCombatiente, escudo);
-    cursorY = 42;
-    tablaDias(doc, 'Citaciones', params.combatiente.citaciones, params.combatiente.fechasCitacion, cursorY, false);
-  }
+  doc.addPage('a4', 'portrait');
+  encabezado(doc, logo, subCombatiente, escudo);
+  cursorY = 42;
+  tablaDias(doc, 'Citaciones', params.combatiente.citaciones, params.combatiente.fechasCitacion, cursorY, false);
 
   // ---- 5. Total Acumulado Combatientes ----
   doc.addPage('a4', 'portrait');
@@ -395,12 +393,10 @@ export async function exportarInformeCombinado(params: {
   tablaDias(doc, 'Asistencia Activos', params.activo.guardiasNormales, diasArrActivo, cursorY, true);
 
   // ---- 7. Citaciones Activos ----
-  if (!params.activo.sinCitaciones) {
-    doc.addPage('a4', 'portrait');
-    encabezado(doc, logo, subActivo, escudo);
-    cursorY = 42;
-    tablaDias(doc, 'Citaciones', params.activo.citaciones, params.activo.fechasCitacion, cursorY, false);
-  }
+  doc.addPage('a4', 'portrait');
+  encabezado(doc, logo, subActivo, escudo);
+  cursorY = 42;
+  tablaDias(doc, 'Citaciones', params.activo.citaciones, params.activo.fechasCitacion, cursorY, false);
 
   // ---- 8. Total Acumulado (resumen general) Activos ----
   doc.addPage('a4', 'portrait');

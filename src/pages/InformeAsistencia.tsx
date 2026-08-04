@@ -88,7 +88,7 @@ function TablaAsistencia({ titulo, filas, columnas, mostrarSitu }: { titulo: str
                     d === 'E' ? 'bg-cbvp-blue/20 text-cbvp-blue font-semibold' : ''
                   }`}>{d}</td>
                 ))}
-                <td className="px-2 py-1.5 text-center font-semibold text-white">{p.porcentaje}%</td>
+                <td className="px-2 py-1.5 text-center font-semibold text-white">{columnas.length === 0 ? '-' : `${p.porcentaje}%`}</td>
               </tr>
             ))}
           </tbody>
@@ -300,9 +300,7 @@ export default function InformesAsistencia() {
                 {categoria === 'COMBATIENTE' && (
                   <TablaAsistencia titulo="Practicas (sabados del mes)" filas={dataPC.practicas} columnas={dataPC.sabados} />
                 )}
-                {!dataPC.sinCitaciones && (
-                  <TablaAsistencia titulo="Citaciones" filas={dataPC.citaciones} columnas={dataPC.fechasCitacion} />
-                )}
+                <TablaAsistencia titulo="Citaciones" filas={dataPC.citaciones} columnas={dataPC.fechasCitacion} />
               </>
             )}
 
