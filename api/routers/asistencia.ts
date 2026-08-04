@@ -36,6 +36,21 @@ function parseImageUrls(value: string): string[] {
   return [value];
 }
 
+function parseDate(value: string): number {
+  if (!value) return 0;
+  const partes = value.split("/");
+  if (partes.length === 3) {
+    const dia = parseInt(partes[0], 10);
+    const mes = parseInt(partes[1], 10);
+    const anio = parseInt(partes[2], 10);
+    if (!isNaN(dia) && !isNaN(mes) && !isNaN(anio)) {
+      return new Date(anio, mes - 1, dia).getTime();
+    }
+  }
+  const ts = Date.parse(value);
+  return isNaN(ts) ? 0 : ts;
+}
+
 interface PersonalAsistencia {
   codigo: string;
   nombre: string;
@@ -499,7 +514,7 @@ export const asistenciaRouter = createRouter({
         const idPlanilla = String(fila[1] || "").trim();
         const tipo = tipoPorPlanilla.get(idPlanilla) || "";
         if (!tipo.includes("CITACION")) continue;
-        const fechaActividad = String(fila[3] | "").trim();
+        const fechaActividad = String(fila[3] || "").trim();
         const partes = fechaActividad.split("/");
         if (partes.length !== 3) continue;
         const dia = parseInt(partes[0], 10);
@@ -517,12 +532,12 @@ export const asistenciaRouter = createRouter({
         for (let i = 1; i < persData.length; i++) {
           const fila = persData[i];
           const codigoFila = String(fila[6] || "").trim();
-          const numeroFila = (codigoFila.match(/\d+/) | [""])[0];
+          const numeroFila = (codigoFila.match(/\d+/) || [""])[0];
           if (!numeroFila || numeroFila !== p.numero) continue;
-          const idPlanilla = String(fila[1] | "").trim();
+          const idPlanilla = String(fila[1] || "").trim();
           const tipo = tipoPorPlanilla.get(idPlanilla) || "";
           if (!tipo.includes(tipoBuscado)) continue;
-          const fechaActividad = String(fila[3] | "").trim();
+          const fechaActividad = String(fila[3] || "").trim();
           const partes = fechaActividad.split("/");
           if (partes.length !== 3) continue;
           const dia = parseInt(partes[0], 10);
@@ -531,7 +546,7 @@ export const asistenciaRouter = createRouter({
           if (mesFila !== input.mes || anioFila !== input.anio) continue;
           const idxCol = fechasColumnas.indexOf(dia);
           if (idxCol === -1) continue;
-          const asistencia = String(fila[8] | "").trim().toUpperCase();
+          const asistencia = String(fila[8] || "").trim().toUpperCase();
           total++;
           if (asistencia === "PRESENTE") {
             presentes++;
