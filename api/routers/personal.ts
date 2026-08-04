@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { formatearNombreCompleto } from "../lib/nombres";
-import { normalizarFechaISO } from "../lib/fechas";
+import { normalizarFechaISO, normalizarMesAnio } from "../lib/fechas";
 import { createRouter, publicQuery, adminProcedure } from "../middleware";
 import { readSheet, appendRow, updateRange, findRowIndex } from "../services/sheets";
 import { env } from "../lib/env";
@@ -55,7 +55,7 @@ export const personalRouter = createRouter({
         nombreCompleto,
         nivelPermiso: nivelRaw >= 1 && nivelRaw <= 5 ? nivelRaw : 1,
         situ: String(fila[17] || ""),
-        cuota: String(fila[18] || ""),
+        cuota: normalizarMesAnio(String(fila[18] || "")),
         licenciaInicio: normalizarFechaISO(String(fila[19] || "")),
         licenciaDias: String(fila[20] || ""),
         exencion: String(fila[21] || ""),
@@ -175,7 +175,7 @@ export const personalRouter = createRouter({
         input.nivelPermiso,
         input.descripcionPermiso,
         input.situ || "",
-        input.cuota || "",
+        normalizarMesAnio(input.cuota || ""),
         input.licenciaInicio || "",
         input.licenciaDias || "",
         input.exencion || "",
@@ -213,7 +213,7 @@ export const personalRouter = createRouter({
               nivelPermiso: String(data[i][15] || "1"),
               descripcionPermiso: String(data[i][16] || ""),
               situ: String(data[i][17] || ""),
-              cuota: String(data[i][18] || ""),
+              cuota: normalizarMesAnio(String(data[i][18] || "")),
               licenciaInicio: normalizarFechaISO(String(data[i][19] || "")),
               licenciaDias: String(data[i][20] || ""),
               exencion: String(data[i][21] || ""),
@@ -284,7 +284,7 @@ export const personalRouter = createRouter({
         existingRow[15] || "", // P: nivelPermiso (preserve existing)
         existingRow[16] || "", // Q: descripcionPermiso (preserve existing)
         input.situ || "",
-        input.cuota || "",
+        normalizarMesAnio(input.cuota || ""),
         input.licenciaInicio || "",
         input.licenciaDias || "",
         input.exencion || "",

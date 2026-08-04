@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { formatearNombreCompleto } from "../lib/nombres";
-import { normalizarFechaISO } from "../lib/fechas";
+import { normalizarFechaISO, normalizarMesAnio } from "../lib/fechas";
 import { createRouter, publicQuery } from "../middleware";
 import { readSheet, appendRow, updateRange, findRowIndex, deleteRows, getSheetId } from "../services/sheets";
 import { extractGuardiaData } from "../services/gemini";
@@ -773,7 +773,7 @@ export const planillasRouter = createRouter({
         const rango = fila[5] ? String(fila[5]).trim() : "";
         const nombre = formatearNombreCompleto(rango, categoria, primerNombre, primerApellido);
         const situ = String(fila[17] || "RN").trim() || "RN";
-        const cuota = String(fila[18] || "").trim();
+        const cuota = normalizarMesAnio(String(fila[18] || "").trim());
         const numero = (codigo.match(/\d+/) || [""])[0];
         personasBase.push({
           codigo,
