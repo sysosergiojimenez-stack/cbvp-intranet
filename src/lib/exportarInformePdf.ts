@@ -377,8 +377,17 @@ export async function exportarInformeCombinado(params: {
   doc.addPage('a4', 'portrait');
   encabezado(doc, logo, subCombatiente, escudo);
   cursorY = 42;
-  const tituloCitCombatiente = `Citaciones${params.combatiente.sinCitaciones ? ' (NO HUBO)' : ''}`;
-  tablaDias(doc, tituloCitCombatiente, params.combatiente.citaciones, params.combatiente.fechasCitacion, cursorY, false);
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Citaciones', 10, cursorY);
+  cursorY += 5;
+  if (params.combatiente.sinCitaciones) {
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.text('-', 10, cursorY);
+  } else {
+    tablaDias(doc, 'Citaciones', params.combatiente.citaciones, params.combatiente.fechasCitacion, cursorY, false);
+  }
 
   // ---- 5. Total Acumulado Combatientes ----
   doc.addPage('a4', 'portrait');
@@ -397,8 +406,17 @@ export async function exportarInformeCombinado(params: {
   doc.addPage('a4', 'portrait');
   encabezado(doc, logo, subActivo, escudo);
   cursorY = 42;
-  const tituloCitActivo = `Citaciones${params.activo.sinCitaciones ? ' (NO HUBO)' : ''}`;
-  tablaDias(doc, tituloCitActivo, params.activo.citaciones, params.activo.fechasCitacion, cursorY, false);
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Citaciones', 10, cursorY);
+  cursorY += 5;
+  if (params.activo.sinCitaciones) {
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.text('-', 10, cursorY);
+  } else {
+    tablaDias(doc, 'Citaciones', params.activo.citaciones, params.activo.fechasCitacion, cursorY, false);
+  }
 
   // ---- 8. Total Acumulado (resumen general) Activos ----
   doc.addPage('a4', 'portrait');
