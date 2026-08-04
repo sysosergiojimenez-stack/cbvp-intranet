@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { trpc } from '@/providers/trpc';
 import { ClipboardList, Download, FileText } from 'lucide-react';
 import { exportarInformeCombinado } from '@/lib/exportarInformePdf';
