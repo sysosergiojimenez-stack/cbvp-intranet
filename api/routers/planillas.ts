@@ -89,7 +89,7 @@ export const planillasRouter = createRouter({
     .query(async ({ input }) => {
       const data = await readSheet(
         env.SHEET_GUARDIAS_ID,
-        "Guardias_Personal!A1:L"
+        "Guardias_Personal!A1:M"
       );
       const personal = [];
 
@@ -106,6 +106,7 @@ export const planillasRouter = createRouter({
             nombre: String(data[i][7] || ""),
             asignacion: String(data[i][8] || ""),
             asistencia: String(data[i][9] || ""),
+            exencion: String(data[i][12] || ""),
             idCargador: String(data[i][10] || ""),
             nombreCargador: String(data[i][11] || ""),
           });
@@ -173,6 +174,7 @@ export const planillasRouter = createRouter({
                 nombre: z.string().optional(),
                 asignacion: z.string().optional(),
                 asistencia: z.string().optional(),
+                exencion: z.string().optional(),
               })
             )
             .optional(),
@@ -253,6 +255,7 @@ export const planillasRouter = createRouter({
             String(p.asistencia || ""),
             input.user.identificador,
             input.user.nombreCompleto,
+            p.exencion || "",
           ]);
           filaIdx++;
         }
@@ -410,18 +413,20 @@ export const planillasRouter = createRouter({
         idPlanilla: z.string(),
         codigo: z.string(),
         nuevaAsistencia: z.enum(["PRESENTE", "AUSENTE", "AUSENTE CON REEMPLAZO"]),
+        exencion: z.string().optional(),
       })
     )
     .mutation(async ({ input }) => {
-      const data = await readSheet(env.SHEET_GUARDIAS_ID, "Guardias_Personal!A1:L");
+      const data = await readSheet(env.SHEET_GUARDIAS_ID, "Guardias_Personal!A1:M");
       for (let i = 1; i < data.length; i++) {
         const rowIdPlanilla = String(data[i][1] || "").trim();
         const rowCodigo = String(data[i][6] || "").trim();
         if (rowIdPlanilla === input.idPlanilla.trim() && rowCodigo === input.codigo.trim()) {
+          const exencion = input.nuevaAsistencia === "COMISIONADO" ? (input.exencion || "") : "";
           await updateRange(
             env.SHEET_GUARDIAS_ID,
-            `Guardias_Personal!J${i + 1}:J${i + 1}`,
-            [[input.nuevaAsistencia]]
+            `Guardias_Personal!J${i + 1}:M${i + 1}`,
+            [[input.nuevaAsistencia, exencion]]
           );
           return { exito: true as const, mensaje: "Asistencia actualizada" };
         }
@@ -640,7 +645,7 @@ export const planillasRouter = createRouter({
       }
       personasBase.sort((a, b) => (parseInt(a.numero) || 0) - (parseInt(b.numero) || 0));
 
-      const guardiasData = await readSheet(env.SHEET_GUARDIAS_ID, "Guardias_Personal!A1:L");
+      const guardiasData = await readSheet(env.SHEET_GUARDIAS_ID, "Guardias_Personal!A1:M");
       const diasDelMes = new Date(input.anio, input.mes, 0).getDate();
 
       function calcular(p: { codigo: string; numero: string; nombre: string; situ: string }, tipoRequerido: string) {
@@ -663,10 +668,12 @@ export const planillasRouter = createRouter({
           if (mesFila !== input.mes || anioFila !== input.anio) continue;
           if (!dia || dia < 1 || dia > diasDelMes) continue;
           const asistencia = String(fila[9] || "").trim().toUpperCase();
+          const exencion = String(fila[12] || "").trim().toUpperCase();
+          const esExentoGuardias = asistencia === "COMISIONADO" && (exencion === "GUARDIAS" || exencion === "AMBOS");
           totalGuardias++;
-          if (asistencia === "PRESENTE" || asistencia === "AUSENTE CON REEMPLAZO") {
+          if (asistencia === "PRESENTE" || asistencia === "AUSENTE CON REEMPLAZO" || esExentoGuardias) {
             presentes++;
-            dias[dia - 1] = "P";
+            dias[dia - 1] = esExentoGuardias ? "E" : "P";
           } else {
             dias[dia - 1] = "A";
           }
@@ -732,7 +739,7 @@ export const planillasRouter = createRouter({
       const diasDelMes = new Date(input.anio, input.mes, 0).getDate();
 
       // --- Guardias ---
-      const guardiasData = await readSheet(env.SHEET_GUARDIAS_ID, "Guardias_Personal!A1:L");
+      const guardiasData = await readSheet(env.SHEET_GUARDIAS_ID, "Guardias_Personal!A1:M");
       function porcentajeConSitu(realPercent: number, presentes: number, situ: string): number {
         if (situ === "B10A") return Math.min(100, Math.round((realPercent / 50) * 100));
         if (situ === "B15A") return Math.min(100, Math.round((realPercent / 25) * 100));
@@ -756,8 +763,10 @@ export const planillasRouter = createRouter({
           const anioFila = parseInt(partes[2], 10);
           if (mesFila !== input.mes || anioFila !== input.anio) continue;
           const asistencia = String(fila[9] || "").trim().toUpperCase();
+          const exencion = String(fila[12] || "").trim().toUpperCase();
+          const esExentoGuardias = asistencia === "COMISIONADO" && (exencion === "GUARDIAS" || exencion === "AMBOS");
           total++;
-          if (asistencia === "PRESENTE" || asistencia === "AUSENTE CON REEMPLAZO") presentes++;
+          if (asistencia === "PRESENTE" || asistencia === "AUSENTE CON REEMPLAZO" || esExentoGuardias) presentes++;
         }
         const realPercent = total > 0 ? (presentes / total) * 100 : 0;
         return porcentajeConSitu(realPercent, presentes, p.situ);
@@ -771,7 +780,7 @@ export const planillasRouter = createRouter({
         const tipo = String(encData[i][3] || "").trim().toUpperCase();
         if (idPlanilla) tipoPorPlanilla.set(idPlanilla, tipo);
       }
-      const persData = await readSheet(env.SHEET_GUARDIAS_ID, "Asistencia_Personal!A1:K");
+      const persData = await readSheet(env.SHEET_GUARDIAS_ID, "Asistencia_Personal!A1:L");
 
       const sabados: number[] = [];
       for (let d = 1; d <= diasDelMes; d++) {
@@ -816,8 +825,10 @@ export const planillasRouter = createRouter({
           if (mesFila !== input.mes || anioFila !== input.anio) continue;
           if (fechasPermitidas && !fechasPermitidas.has(dia)) continue;
           const asistencia = String(fila[8] || "").trim().toUpperCase();
+          const exencion = String(fila[11] || "").trim().toUpperCase();
+          const esExentoPracticas = tipoBuscado === "PRACTICA" && asistencia === "COMISIONADO" && (exencion === "PRACTICAS" || exencion === "AMBOS");
           total++;
-          if (asistencia === "PRESENTE") presentes++;
+          if (asistencia === "PRESENTE" || esExentoPracticas) presentes++;
         }
         const realPercent = total > 0 ? (presentes / total) * 100 : 0;
         return porcentajeConSitu(realPercent, presentes, p.situ);

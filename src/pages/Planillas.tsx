@@ -48,6 +48,7 @@ export default function Planillas() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [editingPerson, setEditingPerson] = useState<{ codigo: string; nombre: string; asistencia: string } | null>(null);
   const [personAsistencia, setPersonAsistencia] = useState<"PRESENTE" | "AUSENTE" | "AUSENTE CON REEMPLAZO">("PRESENTE");
+  const [personExencion, setPersonExencion] = useState<string>("");
 
   const utils = trpc.useUtils();
   const extraerMutation = trpc.planillas.extraer.useMutation();
@@ -264,9 +265,15 @@ export default function Planillas() {
   const startEditPerson = (person: GuardiaPersonal) => {
     setEditingPerson({ codigo: person.codigo, nombre: person.nombre, asistencia: person.asistencia });
     setPersonAsistencia((person.asistencia === "AUSENTE" || person.asistencia === "AUSENTE CON REEMPLAZO") ? person.asistencia as "PRESENTE" | "AUSENTE" | "AUSENTE CON REEMPLAZO" : "PRESENTE");
+    setPersonExencion(person.exencion || "");
   };
   const savePersonEdit = async (idPlanilla: string, codigo: string) => {
-    await editarPersonMutation.mutateAsync({ idPlanilla, codigo, nuevaAsistencia: personAsistencia });
+    await editarPersonMutation.mutateAsync({
+      idPlanilla,
+      codigo,
+      nuevaAsistencia: personAsistencia,
+      exencion: personAsistencia === "COMISIONADO" ? personExencion : "",
+    });
   };
 
   const getAsistenciaBadge = (a: string) => {
@@ -584,17 +591,27 @@ export default function Planillas() {
                                                 </div>
                                                 <div className="flex items-center gap-1 shrink-0 ml-2">
                                                   {isEditing ? (
-                                                    <>
-                                                      <select value={personAsistencia} onChange={e => setPersonAsistencia(e.target.value as "PRESENTE" | "AUSENTE" | "AUSENTE CON REEMPLAZO")}
-                                                        className="bg-white/5 border border-white/10 rounded text-[10px] text-white px-1 py-0.5 focus:border-cbvp-red/50 focus:outline-none">
-                                                        <option value="PRESENTE">Presente</option>
-                                                        <option value="AUSENTE">Ausente</option>
-                                                        <option value="AUSENTE CON REEMPLAZO">Ausente con reemplazo</option>
-                                                      </select>
-                                                      <button onClick={() => savePersonEdit(selectedPlanilla!, person.codigo)} disabled={editarPersonMutation.isPending}
-                                                        className="p-1 rounded bg-cbvp-green/20 text-cbvp-green hover:bg-cbvp-green/30 transition-colors" title="Guardar"><Check className="w-3 h-3" /></button>
-                                                      <button onClick={() => setEditingPerson(null)} className="p-1 rounded bg-white/5 text-white/40 hover:text-white transition-colors" title="Cancelar"><X className="w-3 h-3" /></button>
-                                                    </>
+                                                    <div className="flex flex-col items-end gap-1">
+                                                      <div className="flex items-center gap-1">
+                                                        <select value={personAsistencia} onChange={e => setPersonAsistencia(e.target.value as "PRESENTE" | "AUSENTE" | "AUSENTE CON REEMPLAZO")}
+                                                          className="bg-white/5 border border-white/10 rounded text-[10px] text-white px-1 py-0.5 focus:border-cbvp-red/50 focus:outline-none">
+                                                          <option value="PRESENTE">Presente</option>
+                                                          <option value="AUSENTE">Ausente</option>
+                                                          <option value="AUSENTE CON REEMPLAZO">Ausente con reemplazo</option>
+                                                        </select>
+                                                        <button onClick={() => savePersonEdit(selectedPlanilla!, person.codigo)} disabled={editarPersonMutation.isPending}
+                                                          className="p-1 rounded bg-cbvp-green/20 text-cbvp-green hover:bg-cbvp-green/30 transition-colors" title="Guardar"><Check className="w-3 h-3" /></button>
+                                                        <button onClick={() => setEditingPerson(null)} className="p-1 rounded bg-white/5 text-white/40 hover:text-white transition-colors" title="Cancelar"><X className="w-3 h-3" /></button>
+                                                      </div>
+                                                      {personAsistencia === "COMISIONADO" && (
+                                                        <select value={personExencion} onChange={e => setPersonExencion(e.target.value)}
+                                                          className="bg-white/5 border border-white/10 rounded text-[10px] text-white px-1 py-0.5 focus:border-cbvp-red/50 focus:outline-none">
+                                                          <option value="">No exento</option>
+                                                          <option value="GUARDIAS">Exento guardias</option>
+                                                          <option value="AMBOS">Exento ambos</option>
+                                                        </select>
+                                                      )}
+                                                    </div>
                                                   ) : (
                                                     <>
                                                       {person.asignacion && <span className="text-[10px] text-white/30 bg-white/5 px-1.5 py-0.5 rounded">{person.asignacion}</span>}

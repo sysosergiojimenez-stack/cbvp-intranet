@@ -55,6 +55,7 @@ export interface GuardiaPersonal {
   nombre: string;
   asignacion: string;
   asistencia: string;
+  exencion?: string;
   idCargador: string;
   nombreCargador: string;
 }
@@ -170,6 +171,7 @@ export interface AsistenciaPersonal {
   codigo: string;
   nombre: string;
   asistencia: string;
+  exencion?: string;
   cargadoPorId: string;
   cargadoPorNombre: string;
 }

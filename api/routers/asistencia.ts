@@ -177,6 +177,7 @@ export const asistenciaRouter = createRouter({
               codigo: z.string(),
               nombre: z.string(),
               asistencia: z.string(),
+              exencion: z.string().optional(),
             })
           ),
         }),
@@ -214,6 +215,7 @@ export const asistenciaRouter = createRouter({
           p.asistencia,
           input.usuarioId,
           input.usuarioNombre,
+          p.exencion || "",
         ]);
       }
 
@@ -287,7 +289,7 @@ export const asistenciaRouter = createRouter({
   detalle: publicQuery
     .input(z.object({ idPlanilla: z.string() }))
     .query(async ({ input }) => {
-      const data = await readSheet(env.SHEET_GUARDIAS_ID, "Asistencia_Personal!A1:K");
+      const data = await readSheet(env.SHEET_GUARDIAS_ID, "Asistencia_Personal!A1:L");
       const personal: Array<{
         idFila: string;
         idPlanilla: string;
@@ -296,6 +298,7 @@ export const asistenciaRouter = createRouter({
         codigo: string;
         nombre: string;
         asistencia: string;
+        exencion: string;
         cargadoPorId: string;
         cargadoPorNombre: string;
       }> = [];
@@ -310,6 +313,7 @@ export const asistenciaRouter = createRouter({
             codigo: String(data[i][6] || ""),
             nombre: String(data[i][7] || ""),
             asistencia: String(data[i][8] || ""),
+            exencion: String(data[i][11] || ""),
             cargadoPorId: String(data[i][9] || ""),
             cargadoPorNombre: String(data[i][10] || ""),
           });
@@ -325,20 +329,22 @@ export const asistenciaRouter = createRouter({
         idPlanilla: z.string(),
         codigo: z.string(),
         nuevaAsistencia: z.enum(["PRESENTE", "AUSENTE", "COMISIONADO"]),
+        exencion: z.string().optional(),
       })
     )
     .mutation(async ({ input }) => {
-      const data = await readSheet(env.SHEET_GUARDIAS_ID, "Asistencia_Personal!A1:K");
+      const data = await readSheet(env.SHEET_GUARDIAS_ID, "Asistencia_Personal!A1:L");
 
       for (let i = 1; i < data.length; i++) {
         const rowIdPlanilla = String(data[i][1] || "").trim();
         const rowCodigo = String(data[i][6] || "").trim();
         if (rowIdPlanilla === input.idPlanilla.trim() && rowCodigo === input.codigo.trim()) {
-          // Update column I (index 8) = asistencia
+          const exencion = input.nuevaAsistencia === "COMISIONADO" ? (input.exencion || "") : "";
+          // Update columns I (asistencia) and L (exencion)
           await updateRange(
             env.SHEET_GUARDIAS_ID,
-            `Asistencia_Personal!I${i + 1}:I${i + 1}`,
-            [[input.nuevaAsistencia]]
+            `Asistencia_Personal!I${i + 1}:L${i + 1}`,
+            [[input.nuevaAsistencia, exencion]]
           );
           return { exito: true as const, mensaje: "Asistencia actualizada" };
         }
@@ -351,11 +357,12 @@ export const asistenciaRouter = createRouter({
     .input(z.object({ codigo: z.string() }))
     .query(async ({ input }) => {
       const searchCode = extractNumber(input.codigo);
-      const data = await readSheet(env.SHEET_GUARDIAS_ID, "Asistencia_Personal!A1:K");
+      const data = await readSheet(env.SHEET_GUARDIAS_ID, "Asistencia_Personal!A1:L");
       const asistencias: Array<{
         idPlanilla: string;
         fechaActividad: string;
         asistencia: string;
+        exencion: string;
       }> = [];
 
       for (let i = 1; i < data.length; i++) {
@@ -366,6 +373,7 @@ export const asistenciaRouter = createRouter({
             idPlanilla: String(data[i][1] || ""),
             fechaActividad: String(data[i][3] || ""),
             asistencia: String(data[i][8] || ""),
+            exencion: String(data[i][11] || ""),
           });
         }
       }
@@ -499,7 +507,7 @@ export const asistenciaRouter = createRouter({
         if (idPlanilla) tipoPorPlanilla.set(idPlanilla, tipo);
       }
 
-      const persData = await readSheet(env.SHEET_GUARDIAS_ID, "Asistencia_Personal!A1:K");
+      const persData = await readSheet(env.SHEET_GUARDIAS_ID, "Asistencia_Personal!A1:L");
       const diasDelMes = new Date(input.anio, input.mes, 0).getDate();
 
       const sabados: number[] = [];
@@ -547,10 +555,12 @@ export const asistenciaRouter = createRouter({
           const idxCol = fechasColumnas.indexOf(dia);
           if (idxCol === -1) continue;
           const asistencia = String(fila[8] || "").trim().toUpperCase();
+          const exencion = String(fila[11] || "").trim().toUpperCase();
+          const esExentoPracticas = tipoBuscado === "PRACTICA" && asistencia === "COMISIONADO" && (exencion === "PRACTICAS" || exencion === "AMBOS");
           total++;
-          if (asistencia === "PRESENTE") {
+          if (asistencia === "PRESENTE" || esExentoPracticas) {
             presentes++;
-            dias[idxCol] = "P";
+            dias[idxCol] = esExentoPracticas ? "E" : "P";
           } else {
             dias[idxCol] = "A";
           }

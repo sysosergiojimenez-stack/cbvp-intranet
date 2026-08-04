@@ -40,7 +40,11 @@ function TablaAsistencia({ titulo, filas, columnas, mostrarSitu }: { titulo: str
                 <td className="px-2 py-1.5 text-white/80 whitespace-nowrap sticky left-[70px] bg-[#14141c]">{p.nombre}</td>
                 {mostrarSitu && <td className="px-2 py-1.5 text-center text-white/50">{p.situ}</td>}
                 {p.dias.map((d, i) => (
-                  <td key={i} className={`text-center px-1.5 py-1.5 ${d === 'P' ? 'bg-cbvp-green/20 text-cbvp-green font-semibold' : d === 'A' ? 'bg-cbvp-red/20 text-cbvp-red font-semibold' : ''}`}>{d}</td>
+                  <td key={i} className={`text-center px-1.5 py-1.5 ${
+                    d === 'P' ? 'bg-cbvp-green/20 text-cbvp-green font-semibold' :
+                    d === 'A' ? 'bg-cbvp-red/20 text-cbvp-red font-semibold' :
+                    d === 'E' ? 'bg-cbvp-blue/20 text-cbvp-blue font-semibold' : ''
+                  }`}>{d}</td>
                 ))}
                 <td className="px-2 py-1.5 text-center font-semibold text-white">{p.porcentaje}%</td>
               </tr>
