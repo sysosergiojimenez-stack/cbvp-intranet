@@ -585,13 +585,19 @@ export const asistenciaRouter = createRouter({
           const idxCol = fechasColumnas.indexOf(dia);
           if (idxCol === -1) continue;
           const asistencia = String(fila[8] || "").trim().toUpperCase();
-          const exencion = String(fila[11] || "").trim().toUpperCase();
-          const esExentoPracticas = tipoBuscado === "PRACTICA" && asistencia === "COMISIONADO" && (exencion === "PRACTICAS" || exencion === "AMBOS");
           diasConActividad.add(dia);
           total++;
-          if (asistencia === "PRESENTE" || esExentoPracticas) {
+          if (asistencia === "PRESENTE") {
             presentes++;
-            dias[idxCol] = esExentoPracticas ? "E" : "P";
+            dias[idxCol] = "P";
+          } else if (tipoBuscado === "PRACTICA") {
+            const fechaDia = new Date(input.anio, input.mes - 1, dia);
+            if (esExentoAutomatico(p, fechaDia, 'PRACTICAS')) {
+              presentes++;
+              dias[idxCol] = "E";
+            } else {
+              dias[idxCol] = "A";
+            }
           } else {
             dias[idxCol] = "A";
           }

@@ -697,14 +697,18 @@ export const planillasRouter = createRouter({
           if (mesFila !== input.mes || anioFila !== input.anio) continue;
           if (!dia || dia < 1 || dia > diasDelMes) continue;
           const asistencia = String(fila[9] || "").trim().toUpperCase();
-          const exencionFila = String(fila[12] || "").trim().toUpperCase();
-          const esExentoGuardias = asistencia === "COMISIONADO" && (exencionFila === "GUARDIAS" || exencionFila === "AMBOS");
           totalGuardias++;
-          if (asistencia === "PRESENTE" || asistencia === "AUSENTE CON REEMPLAZO" || esExentoGuardias) {
+          if (asistencia === "PRESENTE" || asistencia === "AUSENTE CON REEMPLAZO") {
             presentes++;
-            dias[dia - 1] = esExentoGuardias ? "E" : "P";
+            dias[dia - 1] = "P";
           } else {
-            dias[dia - 1] = "A";
+            const fechaDia = new Date(input.anio, input.mes - 1, dia);
+            if (esExentoAutomatico(p, fechaDia, 'GUARDIAS')) {
+              presentes++;
+              dias[dia - 1] = "E";
+            } else {
+              dias[dia - 1] = "A";
+            }
           }
         }
         // Aplicar exenciones automaticas del personal para dias sin guardia cargada
@@ -813,11 +817,14 @@ export const planillasRouter = createRouter({
           if (mesFila !== input.mes || anioFila !== input.anio) continue;
           if (!dia || dia < 1 || dia > diasDelMes) continue;
           const asistencia = String(fila[9] || "").trim().toUpperCase();
-          const exencion = String(fila[12] || "").trim().toUpperCase();
-          const esExentoGuardias = asistencia === "COMISIONADO" && (exencion === "GUARDIAS" || exencion === "AMBOS");
           diasConGuardia.add(dia);
           total++;
-          if (asistencia === "PRESENTE" || asistencia === "AUSENTE CON REEMPLAZO" || esExentoGuardias) presentes++;
+          if (asistencia === "PRESENTE" || asistencia === "AUSENTE CON REEMPLAZO") {
+            presentes++;
+          } else {
+            const fechaDia = new Date(input.anio, input.mes - 1, dia);
+            if (esExentoAutomatico(p, fechaDia, 'GUARDIAS')) presentes++;
+          }
         }
         // Aplicar exenciones automaticas del personal para dias sin guardia cargada
         for (let dia = 1; dia <= diasDelMes; dia++) {
@@ -887,11 +894,14 @@ export const planillasRouter = createRouter({
           if (!dia || dia < 1 || dia > diasDelMes) continue;
           if (fechasPermitidas && !fechasPermitidas.has(dia)) continue;
           const asistencia = String(fila[8] || "").trim().toUpperCase();
-          const exencion = String(fila[11] || "").trim().toUpperCase();
-          const esExentoPracticas = tipoBuscado === "PRACTICA" && asistencia === "COMISIONADO" && (exencion === "PRACTICAS" || exencion === "AMBOS");
           diasConActividad.add(dia);
           total++;
-          if (asistencia === "PRESENTE" || esExentoPracticas) presentes++;
+          if (asistencia === "PRESENTE") {
+            presentes++;
+          } else if (tipoBuscado === "PRACTICA") {
+            const fechaDia = new Date(input.anio, input.mes - 1, dia);
+            if (esExentoAutomatico(p, fechaDia, 'PRACTICAS')) presentes++;
+          }
         }
         // Aplicar exenciones automaticas del personal para practicas en fechas permitidas sin actividad cargada
         if (tipoBuscado === "PRACTICA" && fechasPermitidas) {
