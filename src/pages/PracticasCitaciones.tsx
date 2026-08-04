@@ -9,7 +9,7 @@ import {
   Clock, Calendar, Users, MapPin, UserCheck,
   ChevronDown, ChevronUp, Eye, BookOpen, Zap,
   Edit3, Trash2, ExternalLink, Save, RotateCcw, Check,
-  Camera, Image as ImageIcon
+  Camera, Image as ImageIcon, Plus
 } from 'lucide-react';
 
 export default function PracticasCitaciones() {
@@ -271,6 +271,43 @@ export default function PracticasCitaciones() {
     setExtraccion({ ...extraccion, personal: nuevaLista });
   };
 
+  const puedeAgregarManual = (() => {
+    const cargo = (usuario?.cargo || '').trim().toUpperCase();
+    return cargo === 'SEGUNDO OFICIAL' || cargo === 'DESARROLLADOR';
+  })();
+
+  const iniciarPracticaManual = () => {
+    setError('');
+    setResult(null);
+    setFiles([]);
+    setExtraccion({
+      imageUrls: [],
+      tipoActividad: 'PRACTICA',
+      fechaActividad: '',
+      inicioActividad: '',
+      finalizaActividad: '',
+      acargoActividad: '',
+      detalles: '',
+      personal: [],
+    });
+  };
+
+  const agregarPersona = () => {
+    if (!extraccion) return;
+    setExtraccion({
+      ...extraccion,
+      personal: [...extraccion.personal, { codigo: '', nombre: '', asistencia: 'PRESENTE' }],
+    });
+  };
+
+  const quitarPersona = (idx: number) => {
+    if (!extraccion) return;
+    setExtraccion({
+      ...extraccion,
+      personal: extraccion.personal.filter((_, i) => i !== idx),
+    });
+  };
+
   const toggleRow = (p: AsistenciaEncabezado) => {
     if (selectedPlanilla === p.idPlanilla) {
       setSelectedPlanilla(null);
@@ -344,9 +381,16 @@ export default function PracticasCitaciones() {
     <div className="animate-fade-in space-y-6">
       {/* Upload Area */}
       <div className="bg-white/[0.03] border border-white/5 rounded-xl p-5">
-        <h2 className="text-sm font-semibold text-white/60 uppercase tracking-wider mb-4 flex items-center gap-2">
-          <Upload className="w-4 h-4 text-cbvp-red" /> Cargar Planilla de Asistencia
-        </h2>
+        <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+          <h2 className="text-sm font-semibold text-white/60 uppercase tracking-wider flex items-center gap-2">
+            <Upload className="w-4 h-4 text-cbvp-red" /> Cargar Planilla de Asistencia
+          </h2>
+          {puedeAgregarManual && !extraccion && (
+            <button onClick={iniciarPracticaManual} className="px-3 py-2 bg-cbvp-blue/10 hover:bg-cbvp-blue/20 text-cbvp-blue rounded-lg text-xs flex items-center gap-2 transition-colors">
+              <Plus className="w-3.5 h-3.5" /> Agregar Práctica Manual
+            </button>
+          )}
+        </div>
 
         <div
           onDragOver={handleDragOver}
@@ -455,14 +499,20 @@ export default function PracticasCitaciones() {
                 {extraccion.personal.map((p, idx) => (
                   <div key={idx} className="grid grid-cols-12 gap-2 items-center bg-white/[0.03] rounded-lg p-2">
                     <input type="text" value={p.codigo} onChange={e => updatePersonalField(idx, 'codigo', e.target.value)} placeholder="Codigo" className="col-span-2 bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-white focus:border-cbvp-red/50 focus:outline-none" />
-                    <input type="text" value={p.nombre} onChange={e => updatePersonalField(idx, 'nombre', e.target.value)} placeholder="Nombre" className="col-span-7 bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-white focus:border-cbvp-red/50 focus:outline-none" />
+                    <input type="text" value={p.nombre} onChange={e => updatePersonalField(idx, 'nombre', e.target.value)} placeholder="Nombre" className="col-span-6 bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-white focus:border-cbvp-red/50 focus:outline-none" />
                     <select value={p.asistencia} onChange={e => updatePersonalField(idx, 'asistencia', e.target.value)} className="col-span-3 bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-white focus:border-cbvp-red/50 focus:outline-none">
                       <option value="PRESENTE">Presente</option>
                       <option value="AUSENTE">Ausente</option>
                       <option value="COMISIONADO">Comisionado</option>
                     </select>
+                    <button onClick={() => quitarPersona(idx)} className="col-span-1 p-1.5 rounded-lg hover:bg-cbvp-red/20 text-white/40 hover:text-cbvp-red transition-colors flex items-center justify-center" title="Quitar persona">
+                      <X className="w-3.5 h-3.5" />
+                    </button>
                   </div>
                 ))}
+                <button onClick={agregarPersona} className="w-full py-2 bg-white/5 hover:bg-white/10 text-white/60 rounded-lg text-xs flex items-center justify-center gap-2 transition-colors">
+                  <Plus className="w-3.5 h-3.5" /> Agregar persona
+                </button>
               </div>
             </div>
 
