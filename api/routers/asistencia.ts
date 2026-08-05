@@ -374,6 +374,49 @@ export const asistenciaRouter = createRouter({
       return { exito: false as const, error: "Bombero no encontrado en la planilla" };
     }),
 
+  agregarPersonal: publicQuery
+    .input(
+      z.object({
+        idPlanilla: z.string(),
+        codigo: z.string(),
+        nombre: z.string(),
+        asistencia: z.enum(["PRESENTE", "AUSENTE", "COMISIONADO"]),
+        usuarioId: z.string(),
+        usuarioNombre: z.string(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const encData = await readSheet(env.SHEET_GUARDIAS_ID, "Asistencia_Encabezado!A1:I");
+      let fechaActividad = "";
+      for (let i = 1; i < encData.length; i++) {
+        if (String(encData[i][0] || "").trim() === input.idPlanilla.trim()) {
+          fechaActividad = String(encData[i][2] || "");
+          break;
+        }
+      }
+      if (!fechaActividad) {
+        return { exito: false as const, error: "Planilla no encontrada" };
+      }
+
+      const fechaCarga = new Date().toLocaleDateString("es-ES");
+      await appendRow(env.SHEET_GUARDIAS_ID, "Asistencia_Personal", [
+        "",
+        input.idPlanilla,
+        fechaCarga,
+        fechaActividad,
+        "",
+        "",
+        input.codigo,
+        input.nombre,
+        input.asistencia,
+        input.usuarioId,
+        input.usuarioNombre,
+        "",
+      ]);
+
+      return { exito: true as const, mensaje: "Bombero agregado correctamente" };
+    }),
+
   misMetricas: publicQuery
     .input(z.object({ codigo: z.string() }))
     .query(async ({ input }) => {

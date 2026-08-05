@@ -58,6 +58,12 @@ export default function PracticasCitaciones() {
   const [editingPerson, setEditingPerson] = useState<{ codigo: string; nombre: string; asistencia: string } | null>(null);
   const [personAsistencia, setPersonAsistencia] = useState<'PRESENTE' | 'AUSENTE' | 'COMISIONADO'>('PRESENTE');
 
+  // Add person to saved planilla
+  const [addingPerson, setAddingPerson] = useState(false);
+  const [newPersonCodigo, setNewPersonCodigo] = useState('');
+  const [newPersonNombre, setNewPersonNombre] = useState('');
+  const [newPersonAsistencia, setNewPersonAsistencia] = useState<'PRESENTE' | 'AUSENTE' | 'COMISIONADO'>('PRESENTE');
+
   const utils = trpc.useUtils();
   const extraerMutation = trpc.asistencia.extraer.useMutation();
   const guardarMutation = trpc.asistencia.guardar.useMutation();
@@ -89,6 +95,16 @@ export default function PracticasCitaciones() {
     onSuccess: () => {
       utils.asistencia.detalle.invalidate();
       setEditingPerson(null);
+    },
+  });
+
+  const agregarPersonMutation = trpc.asistencia.agregarPersonal.useMutation({
+    onSuccess: () => {
+      utils.asistencia.detalle.invalidate();
+      setAddingPerson(false);
+      setNewPersonCodigo('');
+      setNewPersonNombre('');
+      setNewPersonAsistencia('PRESENTE');
     },
   });
 
@@ -348,6 +364,18 @@ export default function PracticasCitaciones() {
       idPlanilla,
       codigo,
       nuevaAsistencia: personAsistencia,
+    });
+  };
+
+  const saveNewPerson = async (idPlanilla: string) => {
+    if (!newPersonCodigo || !newPersonNombre || !usuario) return;
+    await agregarPersonMutation.mutateAsync({
+      idPlanilla,
+      codigo: newPersonCodigo,
+      nombre: newPersonNombre,
+      asistencia: newPersonAsistencia,
+      usuarioId: usuario.codigo,
+      usuarioNombre: usuario.nombreCompleto,
     });
   };
 
@@ -718,9 +746,72 @@ export default function PracticasCitaciones() {
                                   </div>
                                 )}
 
-                                <h3 className="text-sm font-semibold text-white flex items-center gap-2 mb-3">
-                                  <Users className="w-4 h-4 text-cbvp-red" /> Personal
-                                </h3>
+                                <div className="flex items-center justify-between mb-3">
+                                  <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+                                    <Users className="w-4 h-4 text-cbvp-red" /> Personal
+                                  </h3>
+                                  {!esVoluntario && !addingPerson && (
+                                    <button
+                                      onClick={() => setAddingPerson(true)}
+                                      className="px-2.5 py-1.5 bg-cbvp-green/10 hover:bg-cbvp-green/20 text-cbvp-green rounded-lg text-xs flex items-center gap-1.5 transition-colors"
+                                    >
+                                      <Plus className="w-3.5 h-3.5" /> Agregar bombero
+                                    </button>
+                                  )}
+                                </div>
+
+                                {addingPerson && (
+                                  <div className="bg-white/[0.05] border border-white/10 rounded-lg p-3 mb-3">
+                                    <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-end">
+                                      <div className="sm:col-span-5">
+                                        <label className="text-xs text-white/40 mb-1 block">Bombero</label>
+                                        <PersonalAutocomplete
+                                          value={newPersonNombre}
+                                          onChange={setNewPersonNombre}
+                                          onSelect={persona => {
+                                            setNewPersonCodigo(persona.codigo);
+                                            setNewPersonNombre(persona.nombre);
+                                          }}
+                                          placeholder="Buscar bombero..."
+                                          inputClassName="py-2"
+                                        />
+                                      </div>
+                                      <div className="sm:col-span-3">
+                                        <label className="text-xs text-white/40 mb-1 block">Asistencia</label>
+                                        <select
+                                          value={newPersonAsistencia}
+                                          onChange={e => setNewPersonAsistencia(e.target.value as 'PRESENTE' | 'AUSENTE' | 'COMISIONADO')}
+                                          className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:border-cbvp-red/50 focus:outline-none"
+                                        >
+                                          <option value="PRESENTE">Presente</option>
+                                          <option value="AUSENTE">Ausente</option>
+                                          <option value="COMISIONADO">Comisionado</option>
+                                        </select>
+                                      </div>
+                                      <div className="sm:col-span-4 flex gap-2">
+                                        <button
+                                          onClick={() => saveNewPerson(selectedPlanilla!)}
+                                          disabled={!newPersonCodigo || !newPersonNombre || agregarPersonMutation.isPending}
+                                          className="flex-1 py-2 bg-cbvp-green hover:bg-cbvp-green/80 disabled:opacity-50 text-white text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5"
+                                        >
+                                          {agregarPersonMutation.isPending ? <><Clock className="w-3 h-3 animate-spin" /> Guardando...</> : <><Check className="w-3 h-3" /> Guardar</>}
+                                        </button>
+                                        <button
+                                          onClick={() => {
+                                            setAddingPerson(false);
+                                            setNewPersonCodigo('');
+                                            setNewPersonNombre('');
+                                            setNewPersonAsistencia('PRESENTE');
+                                          }}
+                                          className="flex-1 py-2 bg-white/5 hover:bg-white/10 text-white/60 text-xs rounded-lg transition-colors"
+                                        >
+                                          Cancelar
+                                        </button>
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-80 overflow-y-auto">
                                   {detalleData.personal.map((person: AsistenciaPersonal, idx: number) => {
                                     const isEditing = editingPerson?.codigo === person.codigo;
