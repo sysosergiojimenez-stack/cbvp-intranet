@@ -895,7 +895,7 @@ export const planillasRouter = createRouter({
       function calcularPersAsistencia(p: { numero: string; situ: string; exencion: string; comisionadoDesde: string }, tipoBuscado: string, fechasPermitidas: Set<number> | null) {
         let total = 0;
         let presentes = 0;
-        const diasConActividad = new Set<number>();
+        const diasConActividadBombero = new Set<number>();
         for (let i = 1; i < persData.length; i++) {
           const fila = persData[i];
           const codigoFila = String(fila[6] || "").trim();
@@ -914,7 +914,7 @@ export const planillasRouter = createRouter({
           if (!dia || dia < 1 || dia > diasDelMes) continue;
           if (fechasPermitidas && !fechasPermitidas.has(dia)) continue;
           const asistencia = String(fila[8] || "").trim().toUpperCase();
-          diasConActividad.add(dia);
+          diasConActividadBombero.add(dia);
           total++;
           if (asistencia === "PRESENTE") {
             presentes++;
@@ -923,14 +923,19 @@ export const planillasRouter = createRouter({
             if (esExentoAutomatico(p, fechaDia, 'PRACTICAS')) presentes++;
           }
         }
-        // Aplicar exenciones automaticas del personal para practicas en fechas permitidas sin actividad cargada
+        // Completar practicas: ausente si no figura y no es exento; exento si aplica.
+        // Fechas futuras se ignoran para no afectar el porcentaje antes de que pasen.
         if (tipoBuscado === "PRACTICA" && fechasPermitidas) {
+          const hoy = new Date();
+          hoy.setHours(0, 0, 0, 0);
           for (const dia of fechasPermitidas) {
-            if (diasConActividad.has(dia)) continue;
+            if (diasConActividadBombero.has(dia)) continue;
             const fechaDia = new Date(input.anio, input.mes - 1, dia);
+            fechaDia.setHours(0, 0, 0, 0);
+            if (fechaDia > hoy) continue;
+            total++;
             if (esExentoAutomatico(p, fechaDia, 'PRACTICAS')) {
               presentes++;
-              total++;
             }
           }
         }
