@@ -649,16 +649,23 @@ export const asistenciaRouter = createRouter({
             dias[idxCol] = "A";
           }
         }
-        // Aplicar exenciones automaticas del personal para practicas en fechas sin actividad cargada
+        // Completar practicas: ausente (A) si no figura y no es exento; exento (E) si aplica.
+        // Las fechas futuras se dejan vacias para no afectar el porcentaje antes de que pasen.
         if (tipoBuscado === "PRACTICA") {
-          for (const dia of fechasColumnas) {
-            if (diasConActividad.has(dia)) continue;
+          const hoy = new Date();
+          hoy.setHours(0, 0, 0, 0);
+          for (let idxCol = 0; idxCol < fechasColumnas.length; idxCol++) {
+            if (dias[idxCol]) continue;
+            const dia = fechasColumnas[idxCol];
             const fechaDia = new Date(input.anio, input.mes - 1, dia);
+            fechaDia.setHours(0, 0, 0, 0);
+            if (fechaDia > hoy) continue;
+            total++;
             if (esExentoAutomatico(p, fechaDia, 'PRACTICAS')) {
               presentes++;
-              total++;
-              const idxCol = fechasColumnas.indexOf(dia);
-              if (idxCol !== -1) dias[idxCol] = "E";
+              dias[idxCol] = "E";
+            } else {
+              dias[idxCol] = "A";
             }
           }
         }
