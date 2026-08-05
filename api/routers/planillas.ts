@@ -677,6 +677,16 @@ export const planillasRouter = createRouter({
       const guardiasData = await readSheet(env.SHEET_GUARDIAS_ID, "Guardias_Personal!A1:M");
       const diasDelMes = new Date(input.anio, input.mes, 0).getDate();
 
+      // Datos de practicas para la planilla de asistencia de activos
+      const encData = await readSheet(env.SHEET_GUARDIAS_ID, "Asistencia_Encabezado!A1:I");
+      const tipoPorPlanilla = new Map<string, string>();
+      for (let i = 1; i < encData.length; i++) {
+        const idPlanilla = String(encData[i][0] || "").trim();
+        const tipo = String(encData[i][3] || "").trim().toUpperCase();
+        if (idPlanilla) tipoPorPlanilla.set(idPlanilla, tipo);
+      }
+      const persData = await readSheet(env.SHEET_GUARDIAS_ID, "Asistencia_Personal!A1:L");
+
       function calcular(p: { codigo: string; numero: string; nombre: string; situ: string; exencion: string; comisionadoDesde: string }, tipoRequerido: string) {
         if (p.situ === "LM") {
           const dias = new Array(diasDelMes).fill("E");
@@ -745,8 +755,117 @@ export const planillasRouter = createRouter({
         };
       }
 
+      function calcularActivo(p: { codigo: string; numero: string; nombre: string; situ: string; exencion: string; comisionadoDesde: string }) {
+        if (p.situ === "LM") {
+          const dias = new Array(diasDelMes).fill("E");
+          return { codigo: p.codigo, nombre: p.nombre, situ: p.situ, dias, totalGuardias: diasDelMes, presentes: diasDelMes, porcentaje: 100 };
+        }
+
+        // 0=vacio, 1=A, 2=E, 3=P
+        const scores: number[] = new Array(diasDelMes).fill(0);
+        let total = 0;
+        let presentes = 0;
+
+        // Guardias normales
+        for (let i = 1; i < guardiasData.length; i++) {
+          const fila = guardiasData[i];
+          const codigoFila = String(fila[6] || "").trim();
+          const numeroFila = (codigoFila.match(/\d+/) || [""])[0];
+          if (!numeroFila || numeroFila !== p.numero) continue;
+          const tipoFila = String(fila[5] || "").trim().toUpperCase();
+          if (tipoFila !== "GUARDIA NORMAL") continue;
+          const fechaGuardia = String(fila[3] || "").trim();
+          const partes = fechaGuardia.split("/");
+          if (partes.length !== 3) continue;
+          const dia = parseInt(partes[0], 10);
+          const mesFila = parseInt(partes[1], 10);
+          const anioFila = parseInt(partes[2], 10);
+          if (mesFila !== input.mes || anioFila !== input.anio) continue;
+          if (!dia || dia < 1 || dia > diasDelMes) continue;
+          const asistencia = String(fila[9] || "").trim().toUpperCase();
+          let score = 1;
+          if (asistencia === "PRESENTE" || asistencia === "AUSENTE CON REEMPLAZO") {
+            score = 3;
+          } else {
+            const fechaDia = new Date(input.anio, input.mes - 1, dia);
+            if (esExentoAutomatico(p, fechaDia, 'GUARDIAS')) score = 2;
+          }
+          if (score > scores[dia - 1]) scores[dia - 1] = score;
+        }
+
+        // Practicas
+        for (let i = 1; i < persData.length; i++) {
+          const fila = persData[i];
+          const codigoFila = String(fila[6] || "").trim();
+          const numeroFila = (codigoFila.match(/\d+/) || [""])[0];
+          if (!numeroFila || numeroFila !== p.numero) continue;
+          const idPlanilla = String(fila[1] || "").trim();
+          const tipo = tipoPorPlanilla.get(idPlanilla) || "";
+          if (!tipo.includes("PRACTICA")) continue;
+          const fechaActividad = String(fila[3] || "").trim();
+          const partes = fechaActividad.split("/");
+          if (partes.length !== 3) continue;
+          const dia = parseInt(partes[0], 10);
+          const mesFila = parseInt(partes[1], 10);
+          const anioFila = parseInt(partes[2], 10);
+          if (mesFila !== input.mes || anioFila !== input.anio) continue;
+          if (!dia || dia < 1 || dia > diasDelMes) continue;
+          const asistencia = String(fila[8] || "").trim().toUpperCase();
+          let score = 1;
+          if (asistencia === "PRESENTE") {
+            score = 3;
+          } else {
+            const fechaDia = new Date(input.anio, input.mes - 1, dia);
+            if (esExentoAutomatico(p, fechaDia, 'PRACTICAS')) score = 2;
+          }
+          if (score > scores[dia - 1]) scores[dia - 1] = score;
+        }
+
+        // Exenciones automaticas para dias sin actividad cargada
+        for (let dia = 1; dia <= diasDelMes; dia++) {
+          if (scores[dia - 1]) continue;
+          const fechaDia = new Date(input.anio, input.mes - 1, dia);
+          if (esExentoAutomatico(p, fechaDia, 'GUARDIAS')) {
+            scores[dia - 1] = 2;
+          }
+        }
+
+        const dias = scores.map((s) => {
+          if (s === 3) return "P";
+          if (s === 2) return "E";
+          if (s === 1) return "A";
+          return "";
+        });
+
+        for (const s of scores) {
+          if (s === 0) continue;
+          total++;
+          if (s === 3 || s === 2) presentes++;
+        }
+
+        const realPercent = total > 0 ? (presentes / total) * 100 : 0;
+        let porcentaje = realPercent;
+        if (p.situ === "B10A") {
+          porcentaje = Math.min(100, (realPercent / 50) * 100);
+        } else if (p.situ === "B15A") {
+          porcentaje = Math.min(100, (realPercent / 25) * 100);
+        } else if (p.situ === "B20A") {
+          porcentaje = presentes >= 1 ? 100 : 0;
+        }
+
+        return {
+          codigo: p.codigo,
+          nombre: p.nombre,
+          situ: p.situ,
+          dias,
+          totalGuardias: total,
+          presentes,
+          porcentaje: Math.round(porcentaje),
+        };
+      }
+
       if (input.categoria.toUpperCase() === "ACTIVO") {
-        const asistencia = personasBase.map((p) => calcular(p, "GUARDIA NORMAL"));
+        const asistencia = personasBase.map((p) => calcularActivo(p));
         return { exito: true as const, diasDelMes, normales: asistencia, especiales: [] as ReturnType<typeof calcular>[] };
       }
 
@@ -945,96 +1064,10 @@ export const planillasRouter = createRouter({
 
       const sabadosSet = new Set(sabados);
 
-      function calcularAsistenciaActivo(p: { numero: string; situ: string; exencion: string; comisionadoDesde: string }) {
-        let total = 0;
-        let presentes = 0;
-
-        // Guardias normales
-        const diasConGuardia = new Set<number>();
-        for (let i = 1; i < guardiasData.length; i++) {
-          const fila = guardiasData[i];
-          const codigoFila = String(fila[6] || "").trim();
-          const numeroFila = (codigoFila.match(/\d+/) || [""])[0];
-          if (!numeroFila || numeroFila !== p.numero) continue;
-          const tipoFila = String(fila[5] || "").trim().toUpperCase();
-          if (tipoFila !== "GUARDIA NORMAL") continue;
-          const fechaGuardia = String(fila[3] || "").trim();
-          const partes = fechaGuardia.split("/");
-          if (partes.length !== 3) continue;
-          const dia = parseInt(partes[0], 10);
-          const mesFila = parseInt(partes[1], 10);
-          const anioFila = parseInt(partes[2], 10);
-          if (mesFila !== input.mes || anioFila !== input.anio) continue;
-          if (!dia || dia < 1 || dia > diasDelMes) continue;
-          const asistencia = String(fila[9] || "").trim().toUpperCase();
-          diasConGuardia.add(dia);
-          total++;
-          if (asistencia === "PRESENTE" || asistencia === "AUSENTE CON REEMPLAZO") {
-            presentes++;
-          } else {
-            const fechaDia = new Date(input.anio, input.mes - 1, dia);
-            if (esExentoAutomatico(p, fechaDia, 'GUARDIAS')) presentes++;
-          }
-        }
-        for (let dia = 1; dia <= diasDelMes; dia++) {
-          if (diasConGuardia.has(dia)) continue;
-          const fechaDia = new Date(input.anio, input.mes - 1, dia);
-          if (esExentoAutomatico(p, fechaDia, 'GUARDIAS')) {
-            presentes++;
-            total++;
-          }
-        }
-
-        // Practicas (sabados)
-        const diasConPractica = new Set<number>();
-        for (let i = 1; i < persData.length; i++) {
-          const fila = persData[i];
-          const codigoFila = String(fila[6] || "").trim();
-          const numeroFila = (codigoFila.match(/\d+/) || [""])[0];
-          if (!numeroFila || numeroFila !== p.numero) continue;
-          const idPlanilla = String(fila[1] || "").trim();
-          const tipo = tipoPorPlanilla.get(idPlanilla) || "";
-          if (!tipo.includes("PRACTICA")) continue;
-          const fechaActividad = String(fila[3] || "").trim();
-          const partes = fechaActividad.split("/");
-          if (partes.length !== 3) continue;
-          const dia = parseInt(partes[0], 10);
-          const mesFila = parseInt(partes[1], 10);
-          const anioFila = parseInt(partes[2], 10);
-          if (mesFila !== input.mes || anioFila !== input.anio) continue;
-          if (!dia || dia < 1 || dia > diasDelMes) continue;
-          if (!sabadosSet.has(dia)) continue;
-          const asistencia = String(fila[8] || "").trim().toUpperCase();
-          diasConPractica.add(dia);
-          total++;
-          if (asistencia === "PRESENTE") {
-            presentes++;
-          } else {
-            const fechaDia = new Date(input.anio, input.mes - 1, dia);
-            if (esExentoAutomatico(p, fechaDia, 'PRACTICAS')) presentes++;
-          }
-        }
-        const hoy = new Date();
-        hoy.setHours(0, 0, 0, 0);
-        for (const dia of sabadosSet) {
-          if (diasConPractica.has(dia)) continue;
-          const fechaDia = new Date(input.anio, input.mes - 1, dia);
-          fechaDia.setHours(0, 0, 0, 0);
-          if (fechaDia > hoy) continue;
-          total++;
-          if (esExentoAutomatico(p, fechaDia, 'PRACTICAS')) {
-            presentes++;
-          }
-        }
-
-        const realPercent = total > 0 ? (presentes / total) * 100 : 0;
-        return porcentajeConSitu(realPercent, presentes, p.situ);
-      }
-
       const filas = personasBase.map((p) => {
         const esGE = p.situ === "GE";
         let guardiasPercent = esActivo
-          ? calcularAsistenciaActivo(p)
+          ? calcularGuardias(p, "GUARDIA NORMAL")
           : calcularGuardias(p, esGE ? "GUARDIA ESPECIAL" : "GUARDIA NORMAL");
 
         let practicasPercent = esActivo ? null : calcularPersAsistencia(p, "PRACTICA", sabadosSet);
