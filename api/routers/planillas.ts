@@ -1065,11 +1065,12 @@ export const planillasRouter = createRouter({
       const sabadosSet = new Set(sabados);
 
       function calcularAsistenciaActivo(p: { numero: string; situ: string; exencion: string; comisionadoDesde: string }) {
-        let total = 0;
-        let presentes = 0;
+        // Mismo computo que calcularActivo en asistenciaMensualDetallada:
+        // un score por dia del mes, tomando el mejor resultado entre guardia y practica.
+        // 0=vacio, 1=A, 2=E, 3=P
+        const scores: number[] = new Array(diasDelMes).fill(0);
 
         // Guardias normales
-        const diasConGuardia = new Set<number>();
         for (let i = 1; i < guardiasData.length; i++) {
           const fila = guardiasData[i];
           const codigoFila = String(fila[6] || "").trim();
@@ -1086,26 +1087,17 @@ export const planillasRouter = createRouter({
           if (mesFila !== input.mes || anioFila !== input.anio) continue;
           if (!dia || dia < 1 || dia > diasDelMes) continue;
           const asistencia = String(fila[9] || "").trim().toUpperCase();
-          diasConGuardia.add(dia);
-          total++;
+          let score = 1;
           if (asistencia === "PRESENTE" || asistencia === "AUSENTE CON REEMPLAZO") {
-            presentes++;
+            score = 3;
           } else {
             const fechaDia = new Date(input.anio, input.mes - 1, dia);
-            if (esExentoAutomatico(p, fechaDia, 'GUARDIAS')) presentes++;
+            if (esExentoAutomatico(p, fechaDia, 'GUARDIAS')) score = 2;
           }
-        }
-        for (let dia = 1; dia <= diasDelMes; dia++) {
-          if (diasConGuardia.has(dia)) continue;
-          const fechaDia = new Date(input.anio, input.mes - 1, dia);
-          if (esExentoAutomatico(p, fechaDia, 'GUARDIAS')) {
-            presentes++;
-            total++;
-          }
+          if (score > scores[dia - 1]) scores[dia - 1] = score;
         }
 
-        // Practicas (sabados)
-        const diasConPractica = new Set<number>();
+        // Practicas
         for (let i = 1; i < persData.length; i++) {
           const fila = persData[i];
           const codigoFila = String(fila[6] || "").trim();
@@ -1122,28 +1114,32 @@ export const planillasRouter = createRouter({
           const anioFila = parseInt(partes[2], 10);
           if (mesFila !== input.mes || anioFila !== input.anio) continue;
           if (!dia || dia < 1 || dia > diasDelMes) continue;
-          if (!sabadosSet.has(dia)) continue;
           const asistencia = String(fila[8] || "").trim().toUpperCase();
-          diasConPractica.add(dia);
-          total++;
+          let score = 1;
           if (asistencia === "PRESENTE") {
-            presentes++;
+            score = 3;
           } else {
             const fechaDia = new Date(input.anio, input.mes - 1, dia);
-            if (esExentoAutomatico(p, fechaDia, 'PRACTICAS')) presentes++;
+            if (esExentoAutomatico(p, fechaDia, 'PRACTICAS')) score = 2;
+          }
+          if (score > scores[dia - 1]) scores[dia - 1] = score;
+        }
+
+        // Exenciones automaticas para dias sin actividad cargada
+        for (let dia = 1; dia <= diasDelMes; dia++) {
+          if (scores[dia - 1]) continue;
+          const fechaDia = new Date(input.anio, input.mes - 1, dia);
+          if (esExentoAutomatico(p, fechaDia, 'GUARDIAS')) {
+            scores[dia - 1] = 2;
           }
         }
-        const hoy = new Date();
-        hoy.setHours(0, 0, 0, 0);
-        for (const dia of sabadosSet) {
-          if (diasConPractica.has(dia)) continue;
-          const fechaDia = new Date(input.anio, input.mes - 1, dia);
-          fechaDia.setHours(0, 0, 0, 0);
-          if (fechaDia > hoy) continue;
+
+        let total = 0;
+        let presentes = 0;
+        for (const s of scores) {
+          if (s === 0) continue;
           total++;
-          if (esExentoAutomatico(p, fechaDia, 'PRACTICAS')) {
-            presentes++;
-          }
+          if (s === 3 || s === 2) presentes++;
         }
 
         const realPercent = total > 0 ? (presentes / total) * 100 : 0;
