@@ -148,7 +148,7 @@ INSTRUCCION FINAL: Analiza la imagen y extrae TODOS los datos. Devolve SOLO el J
 }
 
 const GEMINI_API_URL =
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent";
+  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
 
 interface GeminiPart {
   text?: string;
