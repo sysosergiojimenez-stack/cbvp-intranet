@@ -327,14 +327,20 @@ export const personalRouter = createRouter({
   actualizarRolPermiso: adminProcedure
     .input(
       z.object({
-        identificador: z.string().min(1),
+        codigo: z.string().min(1).optional(),
+        identificador: z.string().min(1).optional(),
         cargo: z.string().min(1),
         nivelPermiso: z.number().min(1).max(5),
+      }).refine((data) => !!data.codigo || !!data.identificador, {
+        message: "Se requiere codigo o identificador",
+        path: ["codigo"],
       })
     )
     .mutation(async ({ input }) => {
-      const { porIdentificador } = await leerUsuariosBase();
-      const u = porIdentificador.get(input.identificador.trim());
+      const { porIdentificador, porCodigo } = await leerUsuariosBase();
+      const u = input.identificador
+        ? porIdentificador.get(input.identificador.trim())
+        : porCodigo.get(input.codigo!.trim());
       if (!u) {
         return { exito: false as const, error: "Bombero no encontrado" };
       }
