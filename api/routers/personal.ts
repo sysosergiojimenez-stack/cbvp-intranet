@@ -11,6 +11,14 @@ function extractNumber(code: string): string {
   return match ? match[0] : "";
 }
 
+const NIVEL_LABELS: Record<number, string> = {
+  1: "Basico",
+  2: "Operativo",
+  3: "Supervisor",
+  4: "Administrador",
+  5: "Total",
+};
+
 export const personalRouter = createRouter({
   list: publicQuery.query(async () => {
     const { usuarios } = await leerUsuariosBase();
@@ -345,7 +353,7 @@ export const personalRouter = createRouter({
         return { exito: false as const, error: "Bombero no encontrado" };
       }
       await updateRange(env.SHEET_USUARIOS_ID, `USUARIOS!E${u.rowIndex}`, [[input.cargo]]);
-      await updateRange(env.SHEET_USUARIOS_ID, `USUARIOS!P${u.rowIndex}`, [[input.nivelPermiso]]);
+      await updateRange(env.SHEET_USUARIOS_ID, `USUARIOS!P${u.rowIndex}:Q${u.rowIndex}`, [[input.nivelPermiso, NIVEL_LABELS[input.nivelPermiso] || ""]]);
       return { exito: true as const };
     }),
 });
