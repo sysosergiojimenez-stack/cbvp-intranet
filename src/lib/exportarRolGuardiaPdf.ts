@@ -24,19 +24,8 @@ async function cargarLogoBase64(): Promise<string | null> {
   return cargarImagenBase64('/insignia.png');
 }
 
-async function cargarEscudoBase64(): Promise<string | null> {
-  return cargarImagenBase64('/escudo-cbvp.png');
-}
-
-function encabezado(doc: jsPDF, logo: string | null, escudo: string | null, subtitulo: string) {
+function encabezado(doc: jsPDF, logo: string | null, subtitulo: string) {
   const pageWidth = doc.internal.pageSize.getWidth();
-  if (escudo) {
-    try {
-      doc.addImage(escudo, 'PNG', 10, 6, 16, 18);
-    } catch {
-      /* ignore */
-    }
-  }
   if (logo) {
     try {
       doc.addImage(logo, 'PNG', pageWidth - 10 - 18, 6, 18, 18);
@@ -219,20 +208,19 @@ export async function exportarRolGuardiaPdf(params: {
   activos: ListaItem[];
 }) {
   const logo = await cargarLogoBase64();
-  const escudo = await cargarEscudoBase64();
   const subtitulo = `ROL DE GUARDIA - ${MESES[params.mesInicio - 1]} ${params.anioInicio} / ${MESES[params.mesFin - 1]} ${params.anioFin}`;
 
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const pageHeight = doc.internal.pageSize.getHeight();
   let cursorY = 0;
 
-  encabezado(doc, logo, escudo, subtitulo);
+  encabezado(doc, logo, subtitulo);
   cursorY = 32;
 
   const asegurarEspacio = (alturaEstim: number) => {
     if (cursorY + alturaEstim > pageHeight - 10) {
       doc.addPage('a4', 'portrait');
-      encabezado(doc, logo, escudo, subtitulo);
+      encabezado(doc, logo, subtitulo);
       cursorY = 32;
     }
   };
