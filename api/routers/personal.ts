@@ -34,7 +34,7 @@ export const personalRouter = createRouter({
         rango: u.rango,
         codigoRadial: u.codigoRadial,
         nombreCompleto: u.nombreCompleto,
-        nivelPermiso: 1,
+        nivelPermiso: u.nivelPermiso,
         situ: u.situ,
         cuota: u.cuota,
         licenciaInicio: normalizarFechaISO(u.licenciaInicio),

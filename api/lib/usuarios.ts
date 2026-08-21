@@ -15,6 +15,7 @@ export interface UsuarioBase {
   primerNombre: string;
   primerApellido: string;
   nombreCompleto: string;
+  nivelPermiso: number;
   situ: string;
   cuota: string;
   licenciaInicio: string;
@@ -55,6 +56,7 @@ export async function leerUsuariosBase(
     const primerApellido = fila[9] ? String(fila[9]).trim() : "";
     const rango = fila[5] ? String(fila[5]).trim() : "";
     const categoria = fila[3] ? String(fila[3]).trim() : "";
+    const nivelRaw = parseInt(String(fila[15] || "1"), 10);
 
     usuarios.push({
       identificador,
@@ -67,6 +69,7 @@ export async function leerUsuariosBase(
       primerNombre,
       primerApellido,
       nombreCompleto: formatearNombreCompleto(rango, categoria, primerNombre, primerApellido),
+      nivelPermiso: nivelRaw >= 1 && nivelRaw <= 5 ? nivelRaw : 1,
       situ: String(fila[17] || "RN").trim().toUpperCase() || "RN",
       cuota: String(fila[18] || ""),
       licenciaInicio: String(fila[19] || ""),
@@ -84,6 +87,7 @@ export async function leerUsuariosBase(
       const primerApellido = fila[9] ? String(fila[9]).trim() : "";
       const rango = fila[5] ? String(fila[5]).trim() : "";
       const categoria = fila[3] ? String(fila[3]).trim() : "";
+      const nivelRaw = parseInt(String(fila[15] || "1"), 10);
       usuarios.push({
         identificador: id,
         codigo: fila[1] ? String(fila[1]).trim() : "",
@@ -95,6 +99,7 @@ export async function leerUsuariosBase(
         primerNombre: String(fila[7] || "").trim(),
         primerApellido,
         nombreCompleto: formatearNombreCompleto(rango, categoria, String(fila[7] || "").trim(), primerApellido),
+        nivelPermiso: nivelRaw >= 1 && nivelRaw <= 5 ? nivelRaw : 1,
         situ: String(fila[17] || "RN").trim().toUpperCase() || "RN",
         cuota: String(fila[18] || ""),
         licenciaInicio: String(fila[19] || ""),
