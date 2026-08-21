@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { trpc } from '@/providers/trpc';
-import { Shield, Plus, X } from 'lucide-react';
+import { Shield, Plus, X, Trash2 } from 'lucide-react';
 
 const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
@@ -24,9 +24,19 @@ export default function RolesGuardia() {
     onError: () => setCreando(false),
   });
 
+  const eliminarMutation = trpc.rolesGuardia.eliminarRol.useMutation({
+    onSuccess: () => utils.rolesGuardia.listar.invalidate(),
+  });
+
   const handleCrear = () => {
     setCreando(true);
     crearMutation.mutate({ mesInicio, anioInicio });
+  };
+
+  const handleEliminar = (e: React.MouseEvent, id: string, etiqueta: string) => {
+    e.stopPropagation();
+    if (!confirm(`¿Eliminar el Rol de Guardia "${etiqueta}"?\n\nEsta acción no se puede deshacer.`)) return;
+    eliminarMutation.mutate({ idRol: id });
   };
 
   return (
@@ -86,6 +96,14 @@ export default function RolesGuardia() {
                   <div className="text-white font-medium text-sm">{rol.etiqueta}</div>
                   <div className="text-white/40 text-xs">Creado el {rol.fechaCreacion}</div>
                 </div>
+                <button
+                  onClick={(e) => handleEliminar(e, rol.id, rol.etiqueta)}
+                  disabled={eliminarMutation.isPending}
+                  className="p-2 rounded-lg text-white/40 hover:text-cbvp-red hover:bg-cbvp-red/10 transition-colors disabled:opacity-30"
+                  title="Eliminar Rol de Guardia"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
               </div>
             ))}
           </div>

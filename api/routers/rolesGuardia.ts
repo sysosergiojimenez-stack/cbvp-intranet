@@ -433,4 +433,84 @@ export const rolesGuardiaRouter = createRouter({
       await deleteRows(env.SHEET_GUARDIAS_ID, sheetId, [rowIndex]);
       return { exito: true as const };
     }),
+
+  // Elimina un Rol de Guardia completo (cabecera, grupos, personal, calendarios y listas).
+  eliminarRol: publicQuery
+    .input(z.object({ idRol: z.string() }))
+    .mutation(async ({ input }) => {
+      const idRol = input.idRol.trim();
+
+      // Cabecera
+      const cabData = await readSheet(env.SHEET_GUARDIAS_ID, "RolesGuardia_Cabecera!A1:F");
+      const filasABorrar = new Map<string, number[]>();
+      for (let i = 1; i < cabData.length; i++) {
+        if (String(cabData[i][0] || "").trim() === idRol) {
+          filasABorrar.set("RolesGuardia_Cabecera", [i + 1]);
+          break;
+        }
+      }
+
+      // Grupos del rol
+      const gruposData = await readSheet(env.SHEET_GUARDIAS_ID, "RolesGuardia_Grupos!A1:D");
+      const idsGrupos = new Set<string>();
+      const filasGrupos: number[] = [];
+      for (let i = 1; i < gruposData.length; i++) {
+        if (String(gruposData[i][1] || "").trim() === idRol) {
+          idsGrupos.add(String(gruposData[i][0] || "").trim());
+          filasGrupos.push(i + 1);
+        }
+      }
+      if (filasGrupos.length > 0) filasABorrar.set("RolesGuardia_Grupos", filasGrupos);
+
+      // Personal de los grupos del rol
+      const personalData = await readSheet(env.SHEET_GUARDIAS_ID, "RolesGuardia_Personal!A1:G");
+      const filasPersonal: number[] = [];
+      for (let i = 1; i < personalData.length; i++) {
+        if (String(personalData[i][1] || "").trim() === idRol || idsGrupos.has(String(personalData[i][2] || "").trim())) {
+          filasPersonal.push(i + 1);
+        }
+      }
+      if (filasPersonal.length > 0) filasABorrar.set("RolesGuardia_Personal", filasPersonal);
+
+      // Calendarios de los grupos del rol
+      const calData = await readSheet(env.SHEET_GUARDIAS_ID, "RolesGuardia_Calendario!A1:E");
+      const filasCal: number[] = [];
+      for (let i = 1; i < calData.length; i++) {
+        if (idsGrupos.has(String(calData[i][1] || "").trim())) {
+          filasCal.push(i + 1);
+        }
+      }
+      if (filasCal.length > 0) filasABorrar.set("RolesGuardia_Calendario", filasCal);
+
+      // Especiales, Licencias y Activos del rol
+      const filasEspeciales: number[] = [];
+      const especialesData = await readSheet(env.SHEET_GUARDIAS_ID, "RolesGuardia_Especiales!A1:F");
+      for (let i = 1; i < especialesData.length; i++) {
+        if (String(especialesData[i][1] || "").trim() === idRol) filasEspeciales.push(i + 1);
+      }
+      if (filasEspeciales.length > 0) filasABorrar.set("RolesGuardia_Especiales", filasEspeciales);
+
+      const filasLicencias: number[] = [];
+      const licenciasData = await readSheet(env.SHEET_GUARDIAS_ID, "RolesGuardia_Licencias!A1:E");
+      for (let i = 1; i < licenciasData.length; i++) {
+        if (String(licenciasData[i][1] || "").trim() === idRol) filasLicencias.push(i + 1);
+      }
+      if (filasLicencias.length > 0) filasABorrar.set("RolesGuardia_Licencias", filasLicencias);
+
+      const filasActivos: number[] = [];
+      const activosData = await readSheet(env.SHEET_GUARDIAS_ID, "RolesGuardia_Activos!A1:F");
+      for (let i = 1; i < activosData.length; i++) {
+        if (String(activosData[i][1] || "").trim() === idRol) filasActivos.push(i + 1);
+      }
+      if (filasActivos.length > 0) filasABorrar.set("RolesGuardia_Activos", filasActivos);
+
+      // Borrar de abajo hacia arriba para mantener los indices validos
+      for (const [sheetName, filas] of filasABorrar) {
+        const ordenadas = filas.sort((a, b) => b - a);
+        const sheetId = await getSheetId(env.SHEET_GUARDIAS_ID, sheetName);
+        await deleteRows(env.SHEET_GUARDIAS_ID, sheetId, ordenadas);
+      }
+
+      return { exito: true as const };
+    }),
 });
