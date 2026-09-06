@@ -190,56 +190,98 @@ export const salidaMovilRouter = createRouter({
     return { exito: true as const, planillas };
   }),
 
-  listado: publicQuery.query(async () => {
-    const data = await readSheet(env.SHEET_GUARDIAS_ID, "SALIDAS_MOVIL!A1:P");
-    const registros: Array<{
-      id: string; rowIndex: number; movil: string; conductor: string; oficialACargo: string;
-      nroTripulantes: string; tipoServicio: string; fechaSalida: string; horaSalida: string;
-      kilometrajeSalida: string; direccion: string; fechaLlegada: string; horaLlegada: string;
-      kilometrajeLlegada: string; imageUrls: string[];
-    }> = [];
+  listado: publicQuery
+    .input(
+      z
+        .object({
+          fechaDesde: z.string().optional(),
+          fechaHasta: z.string().optional(),
+          movil: z.string().optional(),
+          tipoServicio: z.string().optional(),
+        })
+        .optional()
+    )
+    .query(async ({ input }) => {
+      const data = await readSheet(env.SHEET_GUARDIAS_ID, "SALIDAS_MOVIL!A1:P");
+      const registros: Array<{
+        id: string; rowIndex: number; movil: string; conductor: string; oficialACargo: string;
+        nroTripulantes: string; tipoServicio: string; fechaSalida: string; horaSalida: string;
+        kilometrajeSalida: string; direccion: string; fechaLlegada: string; horaLlegada: string;
+        kilometrajeLlegada: string; imageUrls: string[];
+      }> = [];
+      const movilesSet = new Set<string>();
+      const tiposServicioSet = new Set<string>();
 
-    for (let i = 1; i < data.length; i++) {
-      const row = data[i];
-      if (!row[1]) continue;
-      let imageUrls: string[] = [];
-      try {
-        const parsed = JSON.parse(String(row[15] || ""));
-        if (Array.isArray(parsed)) imageUrls = parsed;
-      } catch {
-        /* ignore */
+      const fechaISO = (fecha: string): string => {
+        const partes = fecha.split("/");
+        if (partes.length !== 3) return "";
+        const [d, m, y] = partes;
+        return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+      };
+
+      for (let i = 1; i < data.length; i++) {
+        const row = data[i];
+        if (!row[1]) continue;
+
+        const movil = String(row[3] || "").trim();
+        const tipoServicio = String(row[7] || "").trim();
+        const fechaSalida = String(row[8] || "");
+
+        if (movil) movilesSet.add(movil);
+        if (tipoServicio) tiposServicioSet.add(tipoServicio);
+
+        if (input?.movil && movil !== input.movil.trim()) continue;
+        if (input?.tipoServicio && tipoServicio !== input.tipoServicio.trim()) continue;
+        if (input?.fechaDesde || input?.fechaHasta) {
+          const fISO = fechaISO(fechaSalida);
+          if (!fISO) continue;
+          if (input.fechaDesde && fISO < input.fechaDesde) continue;
+          if (input.fechaHasta && fISO > input.fechaHasta) continue;
+        }
+
+        let imageUrls: string[] = [];
+        try {
+          const parsed = JSON.parse(String(row[15] || ""));
+          if (Array.isArray(parsed)) imageUrls = parsed;
+        } catch {
+          /* ignore */
+        }
+        registros.push({
+          id: String(row[0] || ""),
+          rowIndex: i + 1,
+          movil: String(row[3] || ""),
+          conductor: String(row[4] || ""),
+          oficialACargo: String(row[5] || ""),
+          nroTripulantes: String(row[6] || ""),
+          tipoServicio: String(row[7] || ""),
+          fechaSalida,
+          horaSalida: String(row[9] || ""),
+          kilometrajeSalida: String(row[10] || ""),
+          direccion: String(row[11] || ""),
+          fechaLlegada: String(row[12] || ""),
+          horaLlegada: String(row[13] || ""),
+          kilometrajeLlegada: String(row[14] || ""),
+          imageUrls,
+        });
       }
-      registros.push({
-        id: String(row[0] || ""),
-        rowIndex: i + 1,
-        movil: String(row[3] || ""),
-        conductor: String(row[4] || ""),
-        oficialACargo: String(row[5] || ""),
-        nroTripulantes: String(row[6] || ""),
-        tipoServicio: String(row[7] || ""),
-        fechaSalida: String(row[8] || ""),
-        horaSalida: String(row[9] || ""),
-        kilometrajeSalida: String(row[10] || ""),
-        direccion: String(row[11] || ""),
-        fechaLlegada: String(row[12] || ""),
-        horaLlegada: String(row[13] || ""),
-        kilometrajeLlegada: String(row[14] || ""),
-        imageUrls,
-      });
-    }
 
-    const claveOrden = (r: (typeof registros)[0]): string => {
-      const partes = r.fechaSalida.split("/");
-      if (partes.length !== 3) return "0000-00-00 00:00";
-      const [d, m, y] = partes;
-      const hora = r.horaSalida || "00:00";
-      return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")} ${hora}`;
-    };
+      const claveOrden = (r: (typeof registros)[0]): string => {
+        const partes = r.fechaSalida.split("/");
+        if (partes.length !== 3) return "0000-00-00 00:00";
+        const [d, m, y] = partes;
+        const hora = r.horaSalida || "00:00";
+        return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")} ${hora}`;
+      };
 
-    registros.sort((a, b) => claveOrden(b).localeCompare(claveOrden(a)));
+      registros.sort((a, b) => claveOrden(b).localeCompare(claveOrden(a)));
 
-    return { exito: true as const, registros };
-  }),
+      return {
+        exito: true as const,
+        registros,
+        moviles: Array.from(movilesSet).sort(),
+        tiposServicio: Array.from(tiposServicioSet).sort(),
+      };
+    }),
 
   editar: publicQuery
     .input(

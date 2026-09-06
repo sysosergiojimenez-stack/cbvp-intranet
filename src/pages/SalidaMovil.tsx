@@ -2,7 +2,7 @@ import { useState, Fragment } from 'react';
 import { trpc } from '@/providers/trpc';
 import { useAuth } from '@/context/AuthContext';
 import DocumentScanModal from '@/components/DocumentScanModal';
-import { Truck, Upload, X, FileText, Clock, Zap, AlertTriangle, CheckCircle, ExternalLink, Edit3, RotateCcw, Save, Trash2, Plus, Camera, Image as ImageIcon } from 'lucide-react';
+import { Truck, Upload, X, FileText, Clock, Zap, AlertTriangle, CheckCircle, ExternalLink, Edit3, RotateCcw, Save, Trash2, Plus, Camera, Image as ImageIcon, Filter } from 'lucide-react';
 
 function arrayBufferToBase64(buffer: ArrayBuffer): string {
   let binary = '';
@@ -42,7 +42,20 @@ export default function SalidaMovil() {
   const utils = trpc.useUtils();
   const extraerMutation = trpc.salidaMovil.extraer.useMutation();
   const guardarMutation = trpc.salidaMovil.guardar.useMutation();
-  const { data: listadoData, isLoading: listadoLoading } = trpc.salidaMovil.listado.useQuery();
+  const [filtroFechaDesde, setFiltroFechaDesde] = useState('');
+  const [filtroFechaHasta, setFiltroFechaHasta] = useState('');
+  const [filtroMovil, setFiltroMovil] = useState('');
+  const [filtroTipoServicio, setFiltroTipoServicio] = useState('');
+  const hayFiltrosActivos = !!(filtroFechaDesde || filtroFechaHasta || filtroMovil || filtroTipoServicio);
+  const limpiarFiltros = () => {
+    setFiltroFechaDesde(''); setFiltroFechaHasta(''); setFiltroMovil(''); setFiltroTipoServicio('');
+  };
+  const { data: listadoData, isLoading: listadoLoading } = trpc.salidaMovil.listado.useQuery({
+    fechaDesde: filtroFechaDesde || undefined,
+    fechaHasta: filtroFechaHasta || undefined,
+    movil: filtroMovil || undefined,
+    tipoServicio: filtroTipoServicio || undefined,
+  });
   const editarMutation = trpc.salidaMovil.editar.useMutation();
   const eliminarMutation = trpc.salidaMovil.eliminar.useMutation();
   const puedeAgregarManual = (() => {
@@ -411,10 +424,69 @@ export default function SalidaMovil() {
         <div className="px-4 py-3 border-b border-white/10">
           <h3 className="text-sm font-semibold text-white">Registro de Salidas (mas reciente primero)</h3>
         </div>
+        <div className="px-4 py-3 border-b border-white/10 bg-white/[0.02]">
+          <div className="flex items-center gap-2 mb-3 text-xs font-medium text-white/40 uppercase tracking-wider">
+            <Filter className="w-3.5 h-3.5" /> Filtros
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div>
+              <label className="text-xs text-white/40 mb-1 block">Desde</label>
+              <input
+                type="date"
+                value={filtroFechaDesde}
+                onChange={e => setFiltroFechaDesde(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-cbvp-red/50 [color-scheme:dark]"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-white/40 mb-1 block">Hasta</label>
+              <input
+                type="date"
+                value={filtroFechaHasta}
+                onChange={e => setFiltroFechaHasta(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-cbvp-red/50 [color-scheme:dark]"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-white/40 mb-1 block">Movil</label>
+              <select
+                value={filtroMovil}
+                onChange={e => setFiltroMovil(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-cbvp-red/50"
+              >
+                <option value="">Todos</option>
+                {(listadoData?.moviles || []).map(m => (
+                  <option key={m} value={m}>{m}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-white/40 mb-1 block">Tipo Servicio</label>
+              <select
+                value={filtroTipoServicio}
+                onChange={e => setFiltroTipoServicio(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-cbvp-red/50"
+              >
+                <option value="">Todos</option>
+                {(listadoData?.tiposServicio || []).map(t => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          {hayFiltrosActivos && (
+            <button
+              onClick={limpiarFiltros}
+              className="mt-3 text-xs text-white/40 hover:text-white flex items-center gap-1 transition-colors"
+            >
+              <X className="w-3 h-3" /> Limpiar filtros
+            </button>
+          )}
+        </div>
         {listadoLoading ? (
           <div className="p-4 text-sm text-white/40">Cargando...</div>
         ) : !listadoData?.registros || listadoData.registros.length === 0 ? (
-          <div className="p-4 text-sm text-white/40">No hay registros todavia</div>
+          <div className="p-4 text-sm text-white/40">{hayFiltrosActivos ? 'No hay registros que coincidan con los filtros' : 'No hay registros todavia'}</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm block sm:table">
