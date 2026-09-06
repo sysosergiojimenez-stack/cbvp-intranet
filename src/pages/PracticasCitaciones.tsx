@@ -53,6 +53,7 @@ export default function PracticasCitaciones() {
 
   // Delete confirmation
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deletingPerson, setDeletingPerson] = useState<{ idPlanilla: string; codigo: string; nombre: string } | null>(null);
 
   // Person edit inline
   const [editingPerson, setEditingPerson] = useState<{ codigo: string; nombre: string; asistencia: string } | null>(null);
@@ -95,6 +96,13 @@ export default function PracticasCitaciones() {
     onSuccess: () => {
       utils.asistencia.detalle.invalidate();
       setEditingPerson(null);
+    },
+  });
+
+  const eliminarPersonMutation = trpc.asistencia.eliminarPersonal.useMutation({
+    onSuccess: () => {
+      utils.asistencia.detalle.invalidate();
+      setDeletingPerson(null);
     },
   });
 
@@ -364,6 +372,14 @@ export default function PracticasCitaciones() {
       idPlanilla,
       codigo,
       nuevaAsistencia: personAsistencia,
+    });
+  };
+
+  const confirmDeletePerson = async () => {
+    if (!deletingPerson) return;
+    await eliminarPersonMutation.mutateAsync({
+      idPlanilla: deletingPerson.idPlanilla,
+      codigo: deletingPerson.codigo,
     });
   };
 
@@ -859,13 +875,22 @@ export default function PracticasCitaciones() {
                                                   {person.asistencia}
                                                 </span>
                                                 {!esVoluntario && (
-                                                  <button
-                                                    onClick={() => startEditPerson(person)}
-                                                    className="p-1 rounded hover:bg-cbvp-yellow/20 text-white/30 hover:text-cbvp-yellow transition-colors"
-                                                    title="Editar asistencia"
-                                                  >
-                                                    <Edit3 className="w-3 h-3" />
-                                                  </button>
+                                                  <>
+                                                    <button
+                                                      onClick={() => startEditPerson(person)}
+                                                      className="p-1 rounded hover:bg-cbvp-yellow/20 text-white/30 hover:text-cbvp-yellow transition-colors"
+                                                      title="Editar asistencia"
+                                                    >
+                                                      <Edit3 className="w-3 h-3" />
+                                                    </button>
+                                                    <button
+                                                      onClick={() => setDeletingPerson({ idPlanilla: selectedPlanilla!, codigo: person.codigo, nombre: person.nombre })}
+                                                      className="p-1 rounded hover:bg-cbvp-red/20 text-white/30 hover:text-cbvp-red transition-colors"
+                                                      title="Eliminar asistencia"
+                                                    >
+                                                      <Trash2 className="w-3 h-3" />
+                                                    </button>
+                                                  </>
                                                 )}
                                               </>
                                             )}
@@ -931,6 +956,41 @@ export default function PracticasCitaciones() {
                 className="flex-1 py-2.5 bg-cbvp-red hover:bg-cbvp-red/80 disabled:opacity-50 text-white font-semibold rounded-lg transition-all text-sm flex items-center justify-center gap-2"
               >
                 {eliminarMutation.isPending ? (
+                  <><Clock className="w-4 h-4 animate-spin" /> Eliminando...</>
+                ) : (
+                  <><Trash2 className="w-4 h-4" /> Eliminar</>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deletingPerson && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-[#1a1a24] border border-white/10 rounded-xl w-full max-w-sm p-5">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-cbvp-red/10 rounded-full">
+                <Trash2 className="w-5 h-5 text-cbvp-red" />
+              </div>
+              <div>
+                <h3 className="text-white font-semibold text-sm">Eliminar Asistencia</h3>
+                <p className="text-white/40 text-xs">Se eliminara el registro de {deletingPerson.nombre}. Esta accion no se puede deshacer.</p>
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setDeletingPerson(null)}
+                className="flex-1 py-2.5 bg-white/5 hover:bg-white/10 text-white/60 rounded-lg transition-colors text-sm"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={confirmDeletePerson}
+                disabled={eliminarPersonMutation.isPending}
+                className="flex-1 py-2.5 bg-cbvp-red hover:bg-cbvp-red/80 disabled:opacity-50 text-white font-semibold rounded-lg transition-all text-sm flex items-center justify-center gap-2"
+              >
+                {eliminarPersonMutation.isPending ? (
                   <><Clock className="w-4 h-4 animate-spin" /> Eliminando...</>
                 ) : (
                   <><Trash2 className="w-4 h-4" /> Eliminar</>

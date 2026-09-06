@@ -374,6 +374,36 @@ export const asistenciaRouter = createRouter({
       return { exito: false as const, error: "Bombero no encontrado en la planilla" };
     }),
 
+  eliminarPersonal: publicQuery
+    .input(
+      z.object({
+        idPlanilla: z.string(),
+        codigo: z.string(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const data = await readSheet(env.SHEET_GUARDIAS_ID, "Asistencia_Personal!A1:L");
+
+      let rowIndex = -1;
+      for (let i = 1; i < data.length; i++) {
+        const rowIdPlanilla = String(data[i][1] || "").trim();
+        const rowCodigo = String(data[i][6] || "").trim();
+        if (rowIdPlanilla === input.idPlanilla.trim() && rowCodigo === input.codigo.trim()) {
+          rowIndex = i;
+          break;
+        }
+      }
+
+      if (rowIndex === -1) {
+        return { exito: false as const, error: "Bombero no encontrado en la planilla" };
+      }
+
+      const persSheetId = await getSheetId(env.SHEET_GUARDIAS_ID, "Asistencia_Personal");
+      await deleteRows(env.SHEET_GUARDIAS_ID, persSheetId, [rowIndex + 1]);
+
+      return { exito: true as const, mensaje: "Asistencia eliminada correctamente" };
+    }),
+
   agregarPersonal: publicQuery
     .input(
       z.object({
