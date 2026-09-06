@@ -4,6 +4,7 @@ import { readSheet, appendRow, updateRange, deleteRows, getSheetId } from "../se
 import { env } from "../lib/env";
 import { extractSalidaMovilData } from "../services/gemini";
 import { uploadFile as uploadToGCS } from "../services/storage";
+import { MOVILES_VALIDOS, normalizarMovil } from "@contracts/moviles";
 
 function generateId(): string {
   const now = new Date();
@@ -55,7 +56,7 @@ export const salidaMovilRouter = createRouter({
       const registros: RegistroMovil[] = registrosRaw
         .filter((r: any) => r && typeof r === "object")
         .map((r: any) => ({
-          movil: String(r.movil || "").trim(),
+          movil: normalizarMovil(String(r.movil || "")),
           conductor: String(r.conductor || "").trim(),
           oficialACargo: String(r.oficialACargo || "").trim(),
           nroTripulantes: String(r.nroTripulantes || "").trim(),
@@ -106,7 +107,7 @@ export const salidaMovilRouter = createRouter({
         imageUrls: z.array(z.string()),
         registros: z.array(
           z.object({
-            movil: z.string(),
+            movil: z.enum(MOVILES_VALIDOS),
             conductor: z.string(),
             oficialACargo: z.string(),
             nroTripulantes: z.string(),
@@ -287,7 +288,7 @@ export const salidaMovilRouter = createRouter({
     .input(
       z.object({
         rowIndex: z.number(),
-        movil: z.string(),
+        movil: z.enum(MOVILES_VALIDOS),
         conductor: z.string(),
         oficialACargo: z.string(),
         nroTripulantes: z.string(),

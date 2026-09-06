@@ -3,6 +3,7 @@ import { trpc } from '@/providers/trpc';
 import { useAuth } from '@/context/AuthContext';
 import DocumentScanModal from '@/components/DocumentScanModal';
 import { Truck, Upload, X, FileText, Clock, Zap, AlertTriangle, CheckCircle, ExternalLink, Edit3, RotateCcw, Save, Trash2, Plus, Camera, Image as ImageIcon, Filter } from 'lucide-react';
+import { MOVILES_VALIDOS, type MovilValido } from '@contracts/moviles';
 
 function arrayBufferToBase64(buffer: ArrayBuffer): string {
   let binary = '';
@@ -15,7 +16,7 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
 }
 
 interface RegistroMovil {
-  movil: string;
+  movil: MovilValido;
   conductor: string;
   oficialACargo: string;
   nroTripulantes: string;
@@ -30,7 +31,7 @@ interface RegistroMovil {
 }
 
 const registroVacio: RegistroMovil = {
-  movil: '', conductor: '', oficialACargo: '', nroTripulantes: '', tipoServicio: '',
+  movil: MOVILES_VALIDOS[0], conductor: '', oficialACargo: '', nroTripulantes: '', tipoServicio: '',
   fechaSalida: '', horaSalida: '', kilometrajeSalida: '', direccion: '',
   fechaLlegada: '', horaLlegada: '', kilometrajeLlegada: '',
 };
@@ -71,7 +72,7 @@ export default function SalidaMovil() {
   const iniciarEdicion = (r: NonNullable<typeof listadoData>['registros'][number]) => {
     setEditandoRowIndex(r.rowIndex);
     setEditForm({
-      movil: r.movil, conductor: r.conductor, oficialACargo: r.oficialACargo,
+      movil: r.movil as MovilValido, conductor: r.conductor, oficialACargo: r.oficialACargo,
       nroTripulantes: r.nroTripulantes, tipoServicio: r.tipoServicio,
       fechaSalida: r.fechaSalida, horaSalida: r.horaSalida, kilometrajeSalida: r.kilometrajeSalida,
       direccion: r.direccion, fechaLlegada: r.fechaLlegada, horaLlegada: r.horaLlegada,
@@ -363,7 +364,7 @@ export default function SalidaMovil() {
                     <button onClick={() => eliminarRegistro(idx)} className="p-2.5 sm:p-1.5 rounded-lg hover:bg-cbvp-red/20 text-white/40 hover:text-cbvp-red transition-colors"><Trash2 className="w-4 h-4" /></button>
                   </div>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    <div><label className="text-xs text-white/40 mb-1 block">Movil</label><input type="text" value={r.movil} onChange={e => actualizarRegistro(idx, 'movil', e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
+                    <div><label className="text-xs text-white/40 mb-1 block">Movil</label><select value={r.movil} onChange={e => actualizarRegistro(idx, 'movil', e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none">{MOVILES_VALIDOS.map(m => <option key={m} value={m}>{m}</option>)}</select></div>
                     <div><label className="text-xs text-white/40 mb-1 block">Conductor</label><input type="text" value={r.conductor} onChange={e => actualizarRegistro(idx, 'conductor', e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
                     <div><label className="text-xs text-white/40 mb-1 block">Oficial a Cargo</label><input type="text" value={r.oficialACargo} onChange={e => actualizarRegistro(idx, 'oficialACargo', e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
                     <div><label className="text-xs text-white/40 mb-1 block">Nro Tripulantes</label><input type="text" value={r.nroTripulantes} onChange={e => actualizarRegistro(idx, 'nroTripulantes', e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
@@ -455,7 +456,7 @@ export default function SalidaMovil() {
                 className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-cbvp-red/50"
               >
                 <option value="">Todos</option>
-                {(listadoData?.moviles || []).map(m => (
+                {MOVILES_VALIDOS.map(m => (
                   <option key={m} value={m}>{m}</option>
                 ))}
               </select>
@@ -526,7 +527,7 @@ export default function SalidaMovil() {
                       <tr className="border-b border-white/5 bg-white/[0.02]">
                         <td colSpan={8} className="px-3 py-4">
                           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
-                            <div><label className="text-xs text-white/40 mb-1 block">Movil</label><input type="text" value={editForm.movil} onChange={e => setEditForm({ ...editForm, movil: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
+                            <div><label className="text-xs text-white/40 mb-1 block">Movil</label><select value={editForm.movil} onChange={e => setEditForm({ ...editForm, movil: e.target.value as MovilValido })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none">{!(MOVILES_VALIDOS as readonly string[]).includes(editForm.movil) && editForm.movil && <option value={editForm.movil}>{editForm.movil} (anterior)</option>}{MOVILES_VALIDOS.map(m => <option key={m} value={m}>{m}</option>)}</select></div>
                             <div><label className="text-xs text-white/40 mb-1 block">Conductor</label><input type="text" value={editForm.conductor} onChange={e => setEditForm({ ...editForm, conductor: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
                             <div><label className="text-xs text-white/40 mb-1 block">A Cargo</label><input type="text" value={editForm.oficialACargo} onChange={e => setEditForm({ ...editForm, oficialACargo: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
                             <div><label className="text-xs text-white/40 mb-1 block">Tripulantes</label><input type="text" value={editForm.nroTripulantes} onChange={e => setEditForm({ ...editForm, nroTripulantes: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>

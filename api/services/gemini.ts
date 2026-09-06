@@ -1,5 +1,6 @@
 import { env } from "../lib/env";
 import { ORGANIZACION } from "../lib/organizacion";
+import { MOVILES_VALIDOS } from "@contracts/moviles";
 
 export async function extractAsistenciaData(
   images: Array<{ base64Content: string; mimeType: string }>
@@ -325,8 +326,10 @@ export async function extractSalidaMovilData(
 
 La planilla tiene hasta 5 registros numerados (1 a 5), cada uno correspondiente a un movil distinto. No todos los registros estan necesariamente llenos - ignora completamente los que no tengan ningun dato escrito.
 
+Los unicos moviles que existen son: ${MOVILES_VALIDOS.join(", ")}. Cualquier codigo que leas debe corresponder a uno de estos dos (por ejemplo, si el numero escrito contiene "203" es "${MOVILES_VALIDOS[0]}", si contiene "202" es "${MOVILES_VALIDOS[1]}"). Nunca devuelvas un codigo distinto a estos dos.
+
 Para cada registro numerado CON DATOS, extrae:
-- movil: codigo o nombre del movil, escrito junto a "MOVIL:"
+- movil: SIEMPRE uno de estos valores exactos: ${MOVILES_VALIDOS.join(" o ")}. Nunca inventes ni devuelvas otro codigo.
 - conductor: texto escrito junto a "10:30:" (codigo de radio que significa "conductor")
 - oficialACargo: texto escrito junto a "10:31:" (codigo de radio que significa "oficial o a cargo")
 - nroTripulantes: numero escrito junto a "10:32:" (codigo de radio que significa "numero de tripulantes")
