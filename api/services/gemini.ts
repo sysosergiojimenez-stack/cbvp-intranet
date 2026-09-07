@@ -1,6 +1,7 @@
 import { env } from "../lib/env";
 import { ORGANIZACION } from "../lib/organizacion";
 import { MOVILES_VALIDOS } from "@contracts/moviles";
+import { TIPOS_SERVICIO_VALIDOS } from "@contracts/tiposServicio";
 
 export async function extractAsistenciaData(
   images: Array<{ base64Content: string; mimeType: string }>
@@ -324,16 +325,20 @@ export async function extractSalidaMovilData(
 
   const prompt = `Sos un sistema experto en leer planillas de "Registro de Salidas de Moviles" del ${ORGANIZACION.nombreCompleto} (${ORGANIZACION.nombreCorto}). La planilla puede contener VARIAS paginas o imagenes; analiza TODAS en conjunto, sin duplicar registros que aparezcan repetidos.
 
-La planilla tiene hasta 5 registros numerados (1 a 5), cada uno correspondiente a un movil distinto. No todos los registros estan necesariamente llenos - ignora completamente los que no tengan ningun dato escrito.
+El encabezado de la planilla dice "PLANILLA PARA EL REGISTRO DE SALIDAS DE MOVIL: ........" con el codigo del movil escrito a mano UNA SOLA VEZ para TODA la hoja. Ese mismo movil aplica a TODOS los registros numerados de esa hoja/imagen (no cambia entre registros).
 
-Los unicos moviles que existen son: ${MOVILES_VALIDOS.join(", ")}. Cualquier codigo que leas debe corresponder a uno de estos dos (por ejemplo, si el numero escrito contiene "203" es "${MOVILES_VALIDOS[0]}", si contiene "202" es "${MOVILES_VALIDOS[1]}"). Nunca devuelvas un codigo distinto a estos dos.
+Los unicos moviles que existen son: ${MOVILES_VALIDOS.join(", ")}. El codigo escrito en el encabezado debe corresponder a uno de estos dos (por ejemplo, si contiene "203" es "${MOVILES_VALIDOS[0]}", si contiene "202" es "${MOVILES_VALIDOS[1]}"). Nunca devuelvas un codigo distinto a estos dos.
+
+Debajo del encabezado, la planilla tiene hasta 4 registros numerados (1 a 4), cada uno con sus propios datos de salida y llegada del mismo movil. No todos los registros estan necesariamente llenos - ignora completamente los que no tengan ningun dato escrito.
 
 Para cada registro numerado CON DATOS, extrae:
-- movil: SIEMPRE uno de estos valores exactos: ${MOVILES_VALIDOS.join(" o ")}. Nunca inventes ni devuelvas otro codigo.
+- movil: SIEMPRE el codigo leido en el encabezado de la hoja, uno de estos valores exactos: ${MOVILES_VALIDOS.join(" o ")}. Es el mismo para todos los registros de la misma hoja.
 - conductor: texto escrito junto a "10:30:" (codigo de radio que significa "conductor")
 - oficialACargo: texto escrito junto a "10:31:" (codigo de radio que significa "oficial o a cargo")
 - nroTripulantes: numero escrito junto a "10:32:" (codigo de radio que significa "numero de tripulantes")
-- tipoServicio: texto escrito junto a "TIPO DE SERVICIO:"
+- tipoServicio: la seccion "TIPO DE SERVICIO" es una lista de casilleros (checkboxes) con codigo de radio + nombre. Identifica CUAL casillero esta marcado/tildado y devuelve su texto EXACTO tal como aparece impreso (codigo y nombre juntos). Los unicos valores posibles son:
+${TIPOS_SERVICIO_VALIDOS.map(t => `  - "${t}"`).join("\n")}
+  Si ningun casillero esta marcado o no se puede determinar cual, usa string vacio "". Nunca inventes un valor que no este en esta lista.
 - fechaSalida: fecha en la fila "DATOS DE SALIDA", columna FECHA. Formato DD/MM/YYYY.
 - horaSalida: hora en la fila "DATOS DE SALIDA", columna HORA.
 - kilometrajeSalida: numero en la fila "DATOS DE SALIDA", columna KILOMETRAJE.
@@ -353,7 +358,7 @@ Responde UNICAMENTE en formato JSON con esta estructura exacta:
       "conductor": "C-4852/14",
       "oficialACargo": "C-2009/05",
       "nroTripulantes": "3",
-      "tipoServicio": "Traslado",
+      "tipoServicio": "10:51 ASISTENCIAS",
       "fechaSalida": "15/03/2026",
       "horaSalida": "10:30",
       "kilometrajeSalida": "73696",

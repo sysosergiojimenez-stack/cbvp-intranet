@@ -5,6 +5,7 @@ import { env } from "../lib/env";
 import { extractSalidaMovilData } from "../services/gemini";
 import { uploadFile as uploadToGCS } from "../services/storage";
 import { MOVILES_VALIDOS, normalizarMovil } from "@contracts/moviles";
+import { TIPOS_SERVICIO_VALIDOS, normalizarTipoServicio } from "@contracts/tiposServicio";
 
 function generateId(): string {
   const now = new Date();
@@ -60,7 +61,7 @@ export const salidaMovilRouter = createRouter({
           conductor: String(r.conductor || "").trim(),
           oficialACargo: String(r.oficialACargo || "").trim(),
           nroTripulantes: String(r.nroTripulantes || "").trim(),
-          tipoServicio: String(r.tipoServicio || "").trim(),
+          tipoServicio: normalizarTipoServicio(String(r.tipoServicio || "")),
           fechaSalida: String(r.fechaSalida || "").trim(),
           horaSalida: String(r.horaSalida || "").trim(),
           kilometrajeSalida: String(r.kilometrajeSalida || "").trim(),
@@ -111,7 +112,7 @@ export const salidaMovilRouter = createRouter({
             conductor: z.string(),
             oficialACargo: z.string(),
             nroTripulantes: z.string(),
-            tipoServicio: z.string(),
+            tipoServicio: z.enum(TIPOS_SERVICIO_VALIDOS),
             fechaSalida: z.string(),
             horaSalida: z.string(),
             kilometrajeSalida: z.string(),
@@ -292,7 +293,7 @@ export const salidaMovilRouter = createRouter({
         conductor: z.string(),
         oficialACargo: z.string(),
         nroTripulantes: z.string(),
-        tipoServicio: z.string(),
+        tipoServicio: z.enum(TIPOS_SERVICIO_VALIDOS),
         fechaSalida: z.string(),
         horaSalida: z.string(),
         kilometrajeSalida: z.string(),

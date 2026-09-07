@@ -4,6 +4,7 @@ import { useAuth } from '@/context/AuthContext';
 import DocumentScanModal from '@/components/DocumentScanModal';
 import { Truck, Upload, X, FileText, Clock, Zap, AlertTriangle, CheckCircle, ExternalLink, Edit3, RotateCcw, Save, Trash2, Plus, Camera, Image as ImageIcon, Filter } from 'lucide-react';
 import { MOVILES_VALIDOS, type MovilValido } from '@contracts/moviles';
+import { TIPOS_SERVICIO_VALIDOS, type TipoServicioValido } from '@contracts/tiposServicio';
 
 function arrayBufferToBase64(buffer: ArrayBuffer): string {
   let binary = '';
@@ -20,7 +21,7 @@ interface RegistroMovil {
   conductor: string;
   oficialACargo: string;
   nroTripulantes: string;
-  tipoServicio: string;
+  tipoServicio: TipoServicioValido | '';
   fechaSalida: string;
   horaSalida: string;
   kilometrajeSalida: string;
@@ -73,7 +74,7 @@ export default function SalidaMovil() {
     setEditandoRowIndex(r.rowIndex);
     setEditForm({
       movil: r.movil as MovilValido, conductor: r.conductor, oficialACargo: r.oficialACargo,
-      nroTripulantes: r.nroTripulantes, tipoServicio: r.tipoServicio,
+      nroTripulantes: r.nroTripulantes, tipoServicio: r.tipoServicio as TipoServicioValido,
       fechaSalida: r.fechaSalida, horaSalida: r.horaSalida, kilometrajeSalida: r.kilometrajeSalida,
       direccion: r.direccion, fechaLlegada: r.fechaLlegada, horaLlegada: r.horaLlegada,
       kilometrajeLlegada: r.kilometrajeLlegada,
@@ -82,8 +83,12 @@ export default function SalidaMovil() {
 
   const guardarEdicion = async () => {
     if (editandoRowIndex === null) return;
+    if (!editForm.tipoServicio) {
+      alert('Selecciona el tipo de servicio antes de guardar.');
+      return;
+    }
     try {
-      const resp = await editarMutation.mutateAsync({ rowIndex: editandoRowIndex, ...editForm });
+      const resp = await editarMutation.mutateAsync({ rowIndex: editandoRowIndex, ...editForm, tipoServicio: editForm.tipoServicio });
       if (!resp.exito) throw new Error('Error al guardar');
       setEditandoRowIndex(null);
       utils.salidaMovil.listado.invalidate();
@@ -233,11 +238,15 @@ export default function SalidaMovil() {
       setError('Agrega al menos un registro antes de guardar.');
       return;
     }
+    if (extraccion.registros.some(r => !r.tipoServicio)) {
+      setError('Selecciona el tipo de servicio en todos los registros antes de guardar.');
+      return;
+    }
     setIsProcessing(true); setError('');
     try {
       const resp = await guardarMutation.mutateAsync({
         imageUrls: extraccion.imageUrls,
-        registros: extraccion.registros,
+        registros: extraccion.registros as (RegistroMovil & { tipoServicio: TipoServicioValido })[],
       });
       if (resp.exito) {
         setResult({ idPlanilla: resp.idPlanilla, totalRegistros: resp.totalRegistros, imageUrls: extraccion.imageUrls });
@@ -369,7 +378,7 @@ export default function SalidaMovil() {
                     <div><label className="text-xs text-white/40 mb-1 block">Oficial a Cargo</label><input type="text" value={r.oficialACargo} onChange={e => actualizarRegistro(idx, 'oficialACargo', e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
                     <div><label className="text-xs text-white/40 mb-1 block">Nro Tripulantes</label><input type="text" value={r.nroTripulantes} onChange={e => actualizarRegistro(idx, 'nroTripulantes', e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
                   </div>
-                  <div><label className="text-xs text-white/40 mb-1 block">Tipo de Servicio</label><input type="text" value={r.tipoServicio} onChange={e => actualizarRegistro(idx, 'tipoServicio', e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
+                  <div><label className="text-xs text-white/40 mb-1 block">Tipo de Servicio</label><select value={r.tipoServicio} onChange={e => actualizarRegistro(idx, 'tipoServicio', e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none"><option value="">-- Seleccionar --</option>{TIPOS_SERVICIO_VALIDOS.map(t => <option key={t} value={t}>{t}</option>)}</select></div>
 
                   <div className="border-t border-white/5 pt-3">
                     <p className="text-xs font-semibold text-white/30 uppercase mb-2">Datos de Salida</p>
@@ -469,7 +478,7 @@ export default function SalidaMovil() {
                 className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-cbvp-red/50"
               >
                 <option value="">Todos</option>
-                {(listadoData?.tiposServicio || []).map(t => (
+                {TIPOS_SERVICIO_VALIDOS.map(t => (
                   <option key={t} value={t}>{t}</option>
                 ))}
               </select>
@@ -531,7 +540,7 @@ export default function SalidaMovil() {
                             <div><label className="text-xs text-white/40 mb-1 block">Conductor</label><input type="text" value={editForm.conductor} onChange={e => setEditForm({ ...editForm, conductor: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
                             <div><label className="text-xs text-white/40 mb-1 block">A Cargo</label><input type="text" value={editForm.oficialACargo} onChange={e => setEditForm({ ...editForm, oficialACargo: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
                             <div><label className="text-xs text-white/40 mb-1 block">Tripulantes</label><input type="text" value={editForm.nroTripulantes} onChange={e => setEditForm({ ...editForm, nroTripulantes: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
-                            <div className="col-span-2 md:col-span-4"><label className="text-xs text-white/40 mb-1 block">Tipo Servicio</label><input type="text" value={editForm.tipoServicio} onChange={e => setEditForm({ ...editForm, tipoServicio: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
+                            <div className="col-span-2 md:col-span-4"><label className="text-xs text-white/40 mb-1 block">Tipo Servicio</label><select value={editForm.tipoServicio} onChange={e => setEditForm({ ...editForm, tipoServicio: e.target.value as TipoServicioValido })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none"><option value="">-- Seleccionar --</option>{!(TIPOS_SERVICIO_VALIDOS as readonly string[]).includes(editForm.tipoServicio) && editForm.tipoServicio && <option value={editForm.tipoServicio}>{editForm.tipoServicio} (anterior)</option>}{TIPOS_SERVICIO_VALIDOS.map(t => <option key={t} value={t}>{t}</option>)}</select></div>
                             <div><label className="text-xs text-white/40 mb-1 block">Fecha Salida</label><input type="text" value={editForm.fechaSalida} onChange={e => setEditForm({ ...editForm, fechaSalida: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
                             <div><label className="text-xs text-white/40 mb-1 block">Hora Salida</label><input type="text" value={editForm.horaSalida} onChange={e => setEditForm({ ...editForm, horaSalida: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
                             <div><label className="text-xs text-white/40 mb-1 block">Km Salida</label><input type="text" value={editForm.kilometrajeSalida} onChange={e => setEditForm({ ...editForm, kilometrajeSalida: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
