@@ -1,22 +1,13 @@
 import { z } from "zod";
+import { Firestore } from "@google-cloud/firestore";
 import { formatearNombreCompleto } from "../lib/nombres";
 import { normalizarFechaISO, normalizarMesAnio } from "../lib/fechas";
 import { createRouter, publicQuery } from "../middleware";
-import { readSheet, appendRow, updateRange, findRowIndex, deleteRows, getSheetId } from "../services/sheets";
+import { readSheet } from "../services/sheets";
+import { getFirestoreClient } from "../services/firestore";
 import { extractGuardiaData } from "../services/gemini";
 import { uploadFile } from "../services/storage";
 import { env } from "../lib/env";
-
-// Convert Google Sheets serial time (fraction of day) to HH:MM
-function serialToTime(serial: unknown): string {
-  if (typeof serial === "number" && serial >= 0 && serial < 1) {
-    const totalMinutes = Math.round(serial * 24 * 60);
-    const hours = Math.floor(totalMinutes / 60);
-    const minutes = totalMinutes % 60;
-    return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
-  }
-  return String(serial || "");
-}
 
 function esExentoAutomatico(
   persona: { situ: string; exencion?: string; comisionadoDesde?: string },
@@ -41,69 +32,98 @@ function esExentoAutomatico(
   return dia >= desde;
 }
 
+const db = () => getFirestoreClient();
+const colEncabezado = () => db().collection("guardiasEncabezado");
+const colPersonal = () => db().collection("guardiasPersonal");
+
+// Trae todo Guardias_Personal reacomodado como filas posicionales (mismo
+// orden de columnas que tenia la pestana Sheets original), para poder
+// reusar sin cambios el calculo de asistencia/porcentajes de
+// asistenciaMensualDetallada y totalAcumulado (logica de negocio sensible,
+// se prefiere no tocarla al migrar el origen de datos).
+async function obtenerGuardiasPersonalComoFilas(): Promise<unknown[][]> {
+  const snapshot = await colPersonal().get();
+  const filas: unknown[][] = [[]]; // fila 0 = placeholder de encabezado (los loops arrancan en i=1)
+  snapshot.forEach((doc) => {
+    const f = doc.data();
+    filas.push([
+      doc.id,             // 0 idFila
+      f.idPlanilla,       // 1
+      f.fechaCarga,       // 2
+      f.fechaGuardia,     // 3
+      f.grupo,            // 4
+      f.tipo,             // 5
+      f.codigo,           // 6
+      f.nombre,           // 7
+      f.asignacion,       // 8
+      f.asistencia,       // 9
+      f.idCargador,       // 10
+      f.nombreCargador,   // 11
+      f.exencion,         // 12
+    ]);
+  });
+  return filas;
+}
+
 export const planillasRouter = createRouter({
   historial: publicQuery
     .input(z.object({ codigo: z.string().optional() }).optional())
     .query(async ({ input }) => {
-      const data = await readSheet(env.SHEET_GUARDIAS_ID, "Guardias_Encabezado!A1:K");
-      const planillas = [];
+      const encSnapshot = await colEncabezado().get();
+      const planillas: Array<{
+        idPlanilla: string; fechaCarga: string; fechaGuardia: string; grupo: string;
+        inicioGuardia: string; finalizaGuardia: string; directorSem: string;
+        comandanteSemana: string; oficialK20: string; novedades: string; urlImagen: string;
+      }> = [];
 
-      for (let i = 1; i < data.length; i++) {
+      encSnapshot.forEach((doc) => {
+        const fila = doc.data();
         planillas.push({
-          idPlanilla: String(data[i][0] || ""),
-          fechaCarga: String(data[i][1] || ""),
-          fechaGuardia: String(data[i][2] || ""),
-          grupo: String(data[i][3] || ""),
-          inicioGuardia: serialToTime(data[i][4]),
-          finalizaGuardia: serialToTime(data[i][5]),
-          directorSem: String(data[i][6] || ""),
-          comandanteSemana: String(data[i][7] || ""),
-          oficialK20: String(data[i][8] || ""),
-          novedades: String(data[i][9] || ""),
-          urlImagen: String(data[i][10] || ""),
+          idPlanilla: doc.id,
+          fechaCarga: String(fila.fechaCarga || ""),
+          fechaGuardia: String(fila.fechaGuardia || ""),
+          grupo: String(fila.grupo || ""),
+          inicioGuardia: String(fila.inicioGuardia || ""),
+          finalizaGuardia: String(fila.finalizaGuardia || ""),
+          directorSem: String(fila.directorSem || ""),
+          comandanteSemana: String(fila.comandanteSemana || ""),
+          oficialK20: String(fila.oficialK20 || ""),
+          novedades: String(fila.novedades || ""),
+          urlImagen: String(fila.urlImagen || ""),
         });
-      }
+      });
+
+      const parseFecha = (f: string) => {
+        try {
+          const parts = f.split(" ");
+          const [d, m, y] = parts[0].split("/");
+          return new Date(`${y}-${m}-${d}T${parts[1] || "00:00"}`).getTime();
+        } catch {
+          return 0;
+        }
+      };
 
       // If codigo provided (Voluntario), filter planillas where bombero appears
       const searchCode = input?.codigo;
       if (searchCode) {
-        const persData = await readSheet(env.SHEET_GUARDIAS_ID, "Guardias_Personal!A1:L");
+        const persSnapshot = await colPersonal().get();
         const numericSearch = (searchCode.match(/\d+/) || [searchCode])[0];
         const planillaIds = new Set<string>();
-        for (let i = 1; i < persData.length; i++) {
-          const codigoRaw = String(persData[i][6] || "").trim();
+        persSnapshot.forEach((doc) => {
+          const fila = doc.data();
+          const codigoRaw = String(fila.codigo || "").trim();
           const codigoMatch = codigoRaw.match(/\d+/);
           const codigo = codigoMatch ? codigoMatch[0] : codigoRaw;
           if (codigo === numericSearch) {
-            planillaIds.add(String(persData[i][1] || "").trim());
+            planillaIds.add(String(fila.idPlanilla || "").trim());
           }
-        }
-        const filtered = planillas.filter(p => planillaIds.has(p.idPlanilla));
-        filtered.sort((a, b) => {
-          const parseFecha = (f: string) => {
-            try {
-              const parts = f.split(" ");
-              const [d, m, y] = parts[0].split("/");
-              return new Date(`${y}-${m}-${d}T${parts[1] || "00:00"}`).getTime();
-            } catch { return 0; }
-          };
-          return parseFecha(b.fechaGuardia) - parseFecha(a.fechaGuardia);
         });
+        const filtered = planillas.filter(p => planillaIds.has(p.idPlanilla));
+        filtered.sort((a, b) => parseFecha(b.fechaGuardia) - parseFecha(a.fechaGuardia));
         return { exito: true as const, planillas: filtered };
       }
 
-      planillas.sort((a, b) => {
-        const parseFecha = (f: string) => {
-          try {
-            const parts = f.split(" ");
-            const [d, m, y] = parts[0].split("/");
-            return new Date(`${y}-${m}-${d}T${parts[1] || "00:00"}`).getTime();
-          } catch {
-            return 0;
-          }
-        };
-        return parseFecha(b.fechaGuardia) - parseFecha(a.fechaGuardia);
-      });
+      planillas.sort((a, b) => parseFecha(b.fechaGuardia) - parseFecha(a.fechaGuardia));
 
       return { exito: true as const, planillas };
     }),
@@ -111,31 +131,25 @@ export const planillasRouter = createRouter({
   detalle: publicQuery
     .input(z.object({ idPlanilla: z.string() }))
     .query(async ({ input }) => {
-      const data = await readSheet(
-        env.SHEET_GUARDIAS_ID,
-        "Guardias_Personal!A1:M"
-      );
-      const personal = [];
-
-      for (let i = 1; i < data.length; i++) {
-        if (data[i][1] && String(data[i][1]) === input.idPlanilla) {
-          personal.push({
-            idFila: String(data[i][0] || ""),
-            idPlanilla: String(data[i][1] || ""),
-            fechaCarga: String(data[i][2] || ""),
-            fechaGuardia: String(data[i][3] || ""),
-            grupo: String(data[i][4] || ""),
-            tipo: String(data[i][5] || ""),
-            codigo: String(data[i][6] || ""),
-            nombre: String(data[i][7] || ""),
-            asignacion: String(data[i][8] || ""),
-            asistencia: String(data[i][9] || ""),
-            exencion: String(data[i][12] || ""),
-            idCargador: String(data[i][10] || ""),
-            nombreCargador: String(data[i][11] || ""),
-          });
-        }
-      }
+      const snapshot = await colPersonal().where("idPlanilla", "==", input.idPlanilla).get();
+      const personal = snapshot.docs.map((doc) => {
+        const fila = doc.data();
+        return {
+          idFila: doc.id,
+          idPlanilla: String(fila.idPlanilla || ""),
+          fechaCarga: String(fila.fechaCarga || ""),
+          fechaGuardia: String(fila.fechaGuardia || ""),
+          grupo: String(fila.grupo || ""),
+          tipo: String(fila.tipo || ""),
+          codigo: String(fila.codigo || ""),
+          nombre: String(fila.nombre || ""),
+          asignacion: String(fila.asignacion || ""),
+          asistencia: String(fila.asistencia || ""),
+          exencion: String(fila.exencion || ""),
+          idCargador: String(fila.idCargador || ""),
+          nombreCargador: String(fila.nombreCargador || ""),
+        };
+      });
 
       return { exito: true as const, personal };
     }),
@@ -249,80 +263,80 @@ export const planillasRouter = createRouter({
           })
           .replace(/\//g, "/");
 
-        await appendRow(env.SHEET_GUARDIAS_ID, "Guardias_Encabezado", [
-          idPlanilla,
-          fechaCargaStr,
-          String(datosExtraidos.fechaGuardia || ""),
-          String(datosExtraidos.grupo || ""),
-          String(datosExtraidos.inicioGuardia || ""),
-          String(datosExtraidos.finalizaGuardia || ""),
-          String(datosExtraidos.directorSem || ""),
-          String(datosExtraidos.comandanteSemana || ""),
-          String(datosExtraidos.oficialK20 || ""),
-          String(datosExtraidos.novedades || ""),
+        const batch = db().batch();
+        batch.set(colEncabezado().doc(idPlanilla), {
+          fechaCarga: fechaCargaStr,
+          fechaGuardia: String(datosExtraidos.fechaGuardia || ""),
+          grupo: String(datosExtraidos.grupo || ""),
+          inicioGuardia: String(datosExtraidos.inicioGuardia || ""),
+          finalizaGuardia: String(datosExtraidos.finalizaGuardia || ""),
+          directorSem: String(datosExtraidos.directorSem || ""),
+          comandanteSemana: String(datosExtraidos.comandanteSemana || ""),
+          oficialK20: String(datosExtraidos.oficialK20 || ""),
+          novedades: String(datosExtraidos.novedades || ""),
           urlImagen,
-        ]);
+          creadoEn: Firestore.FieldValue.serverTimestamp(),
+        });
 
         let filaIdx = 1;
         const personal = datosExtraidos.personal || [];
         for (const p of personal) {
-          await appendRow(env.SHEET_GUARDIAS_ID, "Guardias_Personal", [
-            `${idPlanilla}-${filaIdx}`,
+          batch.set(colPersonal().doc(`${idPlanilla}-${filaIdx}`), {
             idPlanilla,
-            fechaCargaStr,
-            String(datosExtraidos.fechaGuardia || ""),
-            String(datosExtraidos.grupo || ""),
-            "GUARDIA NORMAL",
-            String(p.codigo || ""),
-            String(p.nombre || ""),
-            String(p.asignacion || ""),
-            String(p.asistencia || ""),
-            input.user.identificador,
-            input.user.nombreCompleto,
-            p.exencion || "",
-          ]);
+            fechaCarga: fechaCargaStr,
+            fechaGuardia: String(datosExtraidos.fechaGuardia || ""),
+            grupo: String(datosExtraidos.grupo || ""),
+            tipo: "GUARDIA NORMAL",
+            codigo: String(p.codigo || ""),
+            nombre: String(p.nombre || ""),
+            asignacion: String(p.asignacion || ""),
+            asistencia: String(p.asistencia || ""),
+            idCargador: input.user.identificador,
+            nombreCargador: input.user.nombreCompleto,
+            exencion: p.exencion || "",
+          });
           filaIdx++;
         }
         const guardiasEspeciales = datosExtraidos.guardiasEspeciales || [];
         for (const e of guardiasEspeciales) {
           if (e.codigo || e.nombre) {
-            await appendRow(env.SHEET_GUARDIAS_ID, "Guardias_Personal", [
-              `${idPlanilla}-${filaIdx}`,
+            batch.set(colPersonal().doc(`${idPlanilla}-${filaIdx}`), {
               idPlanilla,
-              fechaCargaStr,
-              String(datosExtraidos.fechaGuardia || ""),
-              String(datosExtraidos.grupo || ""),
-              "GUARDIA ESPECIAL",
-              String(e.codigo || ""),
-              String(e.nombre || ""),
-              String(e.asignacion || ""),
-              "",
-              input.user.identificador,
-              input.user.nombreCompleto,
-            ]);
+              fechaCarga: fechaCargaStr,
+              fechaGuardia: String(datosExtraidos.fechaGuardia || ""),
+              grupo: String(datosExtraidos.grupo || ""),
+              tipo: "GUARDIA ESPECIAL",
+              codigo: String(e.codigo || ""),
+              nombre: String(e.nombre || ""),
+              asignacion: String(e.asignacion || ""),
+              asistencia: "",
+              idCargador: input.user.identificador,
+              nombreCargador: input.user.nombreCompleto,
+            });
             filaIdx++;
           }
         }
         const refuerzos = datosExtraidos.refuerzos || [];
         for (const r of refuerzos) {
           if (r.codigo || r.nombre) {
-            await appendRow(env.SHEET_GUARDIAS_ID, "Guardias_Personal", [
-              `${idPlanilla}-${filaIdx}`,
+            batch.set(colPersonal().doc(`${idPlanilla}-${filaIdx}`), {
               idPlanilla,
-              fechaCargaStr,
-              String(datosExtraidos.fechaGuardia || ""),
-              String(datosExtraidos.grupo || ""),
-              "REFUERZO",
-              String(r.codigo || ""),
-              String(r.nombre || ""),
-              String(r.asignacion || ""),
-              "",
-              input.user.identificador,
-              input.user.nombreCompleto,
-            ]);
+              fechaCarga: fechaCargaStr,
+              fechaGuardia: String(datosExtraidos.fechaGuardia || ""),
+              grupo: String(datosExtraidos.grupo || ""),
+              tipo: "REFUERZO",
+              codigo: String(r.codigo || ""),
+              nombre: String(r.nombre || ""),
+              asignacion: String(r.asignacion || ""),
+              asistencia: "",
+              idCargador: input.user.identificador,
+              nombreCargador: input.user.nombreCompleto,
+            });
             filaIdx++;
           }
         }
+
+        await batch.commit();
 
         return {
           exito: true as const,
@@ -355,30 +369,22 @@ export const planillasRouter = createRouter({
     )
     .mutation(async ({ input }) => {
       try {
-        const rowIdx = await findRowIndex(
-          env.SHEET_GUARDIAS_ID,
-          "Guardias_Encabezado!A1:K",
-          0,
-          input.idPlanilla
-        );
-
-        if (rowIdx === -1) {
+        const doc = await colEncabezado().doc(input.idPlanilla).get();
+        if (!doc.exists) {
           return { exito: false as const, mensaje: "Planilla no encontrada" };
         }
 
         const d = input.datos;
-        await updateRange(env.SHEET_GUARDIAS_ID, `Guardias_Encabezado!C${rowIdx}:J${rowIdx}`, [
-          [
-            d.fechaGuardia || "",
-            d.grupo || "",
-            d.inicioGuardia || "",
-            d.finalizaGuardia || "",
-            d.directorSem || "",
-            d.comandanteSemana || "",
-            d.oficialK20 || "",
-            d.novedades || "",
-          ],
-        ]);
+        await colEncabezado().doc(input.idPlanilla).update({
+          fechaGuardia: d.fechaGuardia || "",
+          grupo: d.grupo || "",
+          inicioGuardia: d.inicioGuardia || "",
+          finalizaGuardia: d.finalizaGuardia || "",
+          directorSem: d.directorSem || "",
+          comandanteSemana: d.comandanteSemana || "",
+          oficialK20: d.oficialK20 || "",
+          novedades: d.novedades || "",
+        });
 
         return { exito: true as const, mensaje: "Encabezado actualizado" };
       } catch (error) {
@@ -403,30 +409,15 @@ export const planillasRouter = createRouter({
       })
     )
     .mutation(async ({ input }) => {
-      const persData = await readSheet(
-        env.SHEET_GUARDIAS_ID,
-        "Guardias_Personal!A1:L"
-      );
-
-      // Build a map of idFila -> rowIndex (1-based)
-      const rowMap = new Map<string, number>();
-      for (let i = 1; i < persData.length; i++) {
-        const idFila = persData[i][0] ? String(persData[i][0]).trim() : "";
-        if (idFila) rowMap.set(idFila, i + 1);
-      }
-
-      // Update each person
+      const batch = db().batch();
       for (const p of input.personal) {
-        const rowIdx = rowMap.get(p.idFila.trim());
-        if (!rowIdx) continue;
-
-        // Columns: I=Asignacion(8), J=Asistencia(9)
-        await updateRange(
-          env.SHEET_GUARDIAS_ID,
-          `Guardias_Personal!I${rowIdx}:J${rowIdx}`,
-          [[p.asignacion || "", p.asistencia || ""]]
+        batch.set(
+          colPersonal().doc(p.idFila.trim()),
+          { asignacion: p.asignacion || "", asistencia: p.asistencia || "" },
+          { merge: true }
         );
       }
+      await batch.commit();
 
       return { exito: true as const, mensaje: "Personal actualizado" };
     }),
@@ -440,16 +431,11 @@ export const planillasRouter = createRouter({
       })
     )
     .mutation(async ({ input }) => {
-      const data = await readSheet(env.SHEET_GUARDIAS_ID, "Guardias_Personal!A1:J");
-      for (let i = 1; i < data.length; i++) {
-        const rowIdPlanilla = String(data[i][1] || "").trim();
-        const rowCodigo = String(data[i][6] || "").trim();
-        if (rowIdPlanilla === input.idPlanilla.trim() && rowCodigo === input.codigo.trim()) {
-          await updateRange(
-            env.SHEET_GUARDIAS_ID,
-            `Guardias_Personal!J${i + 1}`,
-            [[input.nuevaAsistencia]]
-          );
+      const snapshot = await colPersonal().where("idPlanilla", "==", input.idPlanilla.trim()).get();
+      for (const doc of snapshot.docs) {
+        const rowCodigo = String(doc.data().codigo || "").trim();
+        if (rowCodigo === input.codigo.trim()) {
+          await colPersonal().doc(doc.id).update({ asistencia: input.nuevaAsistencia });
           return { exito: true as const, mensaje: "Asistencia actualizada" };
         }
       }
@@ -471,38 +457,23 @@ export const planillasRouter = createRouter({
       })
     )
     .mutation(async ({ input }) => {
-      const encData = await readSheet(env.SHEET_GUARDIAS_ID, "Guardias_Encabezado!A1:K");
-      let encRowIndex = -1;
-      for (let i = 1; i < encData.length; i++) {
-        if (String(encData[i][0] || "").trim() === input.idPlanilla.trim()) {
-          encRowIndex = i;
-          break;
-        }
-      }
-      if (encRowIndex === -1) {
+      const idPlanilla = input.idPlanilla.trim();
+      const doc = await colEncabezado().doc(idPlanilla).get();
+      if (!doc.exists) {
         return { exito: false as const, error: "Planilla no encontrada" };
       }
 
-      const existingRow = encData[encRowIndex];
-      const updatedRow = [
-        existingRow[0],
-        existingRow[1],
-        input.fechaGuardia ?? existingRow[2] ?? "",
-        input.grupo ?? existingRow[3] ?? "",
-        input.inicioGuardia ?? existingRow[4] ?? "",
-        input.finalizaGuardia ?? existingRow[5] ?? "",
-        input.directorSem ?? existingRow[6] ?? "",
-        input.comandanteSemana ?? existingRow[7] ?? "",
-        input.oficialK20 ?? existingRow[8] ?? "",
-        input.novedades ?? existingRow[9] ?? "",
-        existingRow[10] ?? "",
-      ];
+      const campos: Record<string, string> = {};
+      if (input.fechaGuardia !== undefined) campos.fechaGuardia = input.fechaGuardia;
+      if (input.grupo !== undefined) campos.grupo = input.grupo;
+      if (input.inicioGuardia !== undefined) campos.inicioGuardia = input.inicioGuardia;
+      if (input.finalizaGuardia !== undefined) campos.finalizaGuardia = input.finalizaGuardia;
+      if (input.directorSem !== undefined) campos.directorSem = input.directorSem;
+      if (input.comandanteSemana !== undefined) campos.comandanteSemana = input.comandanteSemana;
+      if (input.oficialK20 !== undefined) campos.oficialK20 = input.oficialK20;
+      if (input.novedades !== undefined) campos.novedades = input.novedades;
 
-      await updateRange(
-        env.SHEET_GUARDIAS_ID,
-        `Guardias_Encabezado!A${encRowIndex + 1}:K${encRowIndex + 1}`,
-        [updatedRow]
-      );
+      await colEncabezado().doc(idPlanilla).update(campos);
 
       return { exito: true as const, mensaje: "Planilla actualizada correctamente" };
     }),
@@ -510,40 +481,15 @@ export const planillasRouter = createRouter({
   eliminar: publicQuery
     .input(z.object({ idPlanilla: z.string() }))
     .mutation(async ({ input }) => {
-      // Delete from Encabezado
-      const encData = await readSheet(
-        env.SHEET_GUARDIAS_ID,
-        "Guardias_Encabezado!A1:K"
-      );
-      const encRowsToDelete: number[] = [];
+      const idPlanilla = input.idPlanilla.trim();
 
-      for (let i = encData.length - 1; i >= 1; i--) {
-        if (encData[i][0] && String(encData[i][0]).trim() === input.idPlanilla.trim()) {
-          encRowsToDelete.push(i + 1);
-        }
-      }
+      await colEncabezado().doc(idPlanilla).delete();
 
-      if (encRowsToDelete.length > 0) {
-        const encSheetId = await getSheetId(env.SHEET_GUARDIAS_ID, "Guardias_Encabezado");
-        await deleteRows(env.SHEET_GUARDIAS_ID, encSheetId, encRowsToDelete);
-      }
-
-      // Delete from Personal
-      const persData = await readSheet(
-        env.SHEET_GUARDIAS_ID,
-        "Guardias_Personal!A1:L"
-      );
-      const persRowsToDelete: number[] = [];
-
-      for (let i = persData.length - 1; i >= 1; i--) {
-        if (persData[i][1] && String(persData[i][1]).trim() === input.idPlanilla.trim()) {
-          persRowsToDelete.push(i + 1);
-        }
-      }
-
-      if (persRowsToDelete.length > 0) {
-        const persSheetId = await getSheetId(env.SHEET_GUARDIAS_ID, "Guardias_Personal");
-        await deleteRows(env.SHEET_GUARDIAS_ID, persSheetId, persRowsToDelete);
+      const persSnapshot = await colPersonal().where("idPlanilla", "==", idPlanilla).get();
+      if (!persSnapshot.empty) {
+        const batch = db().batch();
+        persSnapshot.forEach((doc) => batch.delete(doc.ref));
+        await batch.commit();
       }
 
       return { exito: true as const, mensaje: "Planilla eliminada" };
@@ -552,10 +498,7 @@ export const planillasRouter = createRouter({
   misMetricas: publicQuery
     .input(z.object({ codigo: z.string() }))
     .query(async ({ input }) => {
-      const persData = await readSheet(
-        env.SHEET_GUARDIAS_ID,
-        "Guardias_Personal!A1:J"
-      );
+      const snapshot = await colPersonal().get();
       const searchCodeMatch = input.codigo.match(/\d+/);
       const searchCode = searchCodeMatch ? searchCodeMatch[0] : input.codigo.trim();
 
@@ -564,22 +507,22 @@ export const planillasRouter = createRouter({
         tipo: string; asignacion: string; asistencia: string; fechaCarga: string;
       }> = [];
 
-      for (let i = 1; i < persData.length; i++) {
-        const row = persData[i];
-        const codigoRaw = String(row[6] || "").trim();
+      snapshot.forEach((doc) => {
+        const fila = doc.data();
+        const codigoRaw = String(fila.codigo || "").trim();
         const codigoMatch = codigoRaw.match(/\d+/);
         const codigo = codigoMatch ? codigoMatch[0] : codigoRaw;
-        if (codigo !== searchCode) continue;
+        if (codigo !== searchCode) return;
         guardias.push({
-          idPlanilla: String(row[1] || ""),
-          fechaCarga: String(row[2] || ""),
-          fechaGuardia: String(row[3] || ""),
-          grupo: String(row[4] || ""),
-          tipo: String(row[5] || "").trim().toUpperCase(),
-          asignacion: String(row[8] || ""),
-          asistencia: String(row[9] || "").trim().toUpperCase(),
+          idPlanilla: String(fila.idPlanilla || ""),
+          fechaCarga: String(fila.fechaCarga || ""),
+          fechaGuardia: String(fila.fechaGuardia || ""),
+          grupo: String(fila.grupo || ""),
+          tipo: String(fila.tipo || "").trim().toUpperCase(),
+          asignacion: String(fila.asignacion || ""),
+          asistencia: String(fila.asistencia || "").trim().toUpperCase(),
         });
-      }
+      });
 
       const parseFechaGuardia = (f: string) => {
         try {
@@ -602,56 +545,6 @@ export const planillasRouter = createRouter({
       };
 
       return { exito: true as const, guardias, stats };
-    }),
-
-  debugGuardiasPersonal: publicQuery
-    .query(async () => {
-      const persData = await readSheet(
-        env.SHEET_GUARDIAS_ID,
-        "Guardias_Personal!A1:J"
-      );
-      return {
-        exito: true as const,
-        rows: persData,
-        columns: ["A-idFila", "B-idPlanilla", "C-fechaCarga", "D-fechaGuardia", "E-grupo", "F-regimen", "G-codigo", "H-personal", "I-asignacion", "J-asistencia"],
-      };
-    }),
-
-  debugMisMetricas: publicQuery
-    .input(z.object({ codigo: z.string() }))
-    .query(async ({ input }) => {
-      const persData = await readSheet(
-        env.SHEET_GUARDIAS_ID,
-        "Guardias_Personal!A1:J"
-      );
-
-      const searchCode = input.codigo.trim().toUpperCase().replace(/\s+/g, ' ');
-      const matches: Array<{ row: number; codigo: string; regimen: string; asistencia: string; personal: string }> = [];
-      const allCodigos: string[] = [];
-
-      for (let i = 1; i < persData.length; i++) {
-        const row = persData[i];
-        const codigo = String(row[6] || "").trim().toUpperCase().replace(/\s+/g, ' ');
-        const regimen = String(row[5] || "").trim().toUpperCase();
-        const asistencia = String(row[9] || "").trim().toUpperCase();
-        const personal = String(row[7] || "").trim();
-
-        if (i <= 15) allCodigos.push(codigo);
-
-        if (codigo === searchCode) {
-          matches.push({ row: i + 1, codigo, regimen, asistencia, personal });
-        }
-      }
-
-      return {
-        exito: true as const,
-        searchCode,
-        originalInput: input.codigo,
-        totalRows: persData.length - 1,
-        matchesFound: matches.length,
-        firstCodigos: allCodigos.slice(0, 15),
-        matches,
-      };
     }),
 
   asistenciaMensualDetallada: publicQuery
@@ -682,7 +575,7 @@ export const planillasRouter = createRouter({
       }
       personasBase.sort((a, b) => (parseInt(a.numero) || 0) - (parseInt(b.numero) || 0));
 
-      const guardiasData = await readSheet(env.SHEET_GUARDIAS_ID, "Guardias_Personal!A1:M");
+      const guardiasData = await obtenerGuardiasPersonalComoFilas();
       const diasDelMes = new Date(input.anio, input.mes, 0).getDate();
 
       // Datos de practicas para la planilla de asistencia de activos
@@ -922,7 +815,7 @@ export const planillasRouter = createRouter({
       const diasDelMes = new Date(input.anio, input.mes, 0).getDate();
 
       // --- Guardias ---
-      const guardiasData = await readSheet(env.SHEET_GUARDIAS_ID, "Guardias_Personal!A1:M");
+      const guardiasData = await obtenerGuardiasPersonalComoFilas();
       function porcentajeConSitu(realPercent: number, presentes: number, situ: string): number {
         if (situ === "B10A") return Math.min(100, Math.round((realPercent / 50) * 100));
         if (situ === "B15A") return Math.min(100, Math.round((realPercent / 25) * 100));
