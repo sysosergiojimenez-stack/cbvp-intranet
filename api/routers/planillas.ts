@@ -581,7 +581,15 @@ export const planillasRouter = createRouter({
         });
       }
 
-      guardias.sort((a, b) => b.idPlanilla.localeCompare(a.idPlanilla));
+      const parseFechaGuardia = (f: string) => {
+        try {
+          const [d, m, y] = f.split(" ")[0].split("/");
+          return new Date(`${y}-${m}-${d}`).getTime();
+        } catch {
+          return 0;
+        }
+      };
+      guardias.sort((a, b) => parseFechaGuardia(b.fechaGuardia) - parseFechaGuardia(a.fechaGuardia));
 
       const stats = {
         totalGuardias: guardias.length,
