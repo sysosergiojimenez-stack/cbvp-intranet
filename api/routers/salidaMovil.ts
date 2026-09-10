@@ -1,11 +1,16 @@
 import { z } from "zod";
+import { Firestore } from "@google-cloud/firestore";
 import { createRouter, publicQuery } from "../middleware";
-import { readSheet, appendRow, updateRange, deleteRows, getSheetId } from "../services/sheets";
+import { getFirestoreClient } from "../services/firestore";
 import { env } from "../lib/env";
 import { extractSalidaMovilData } from "../services/gemini";
 import { uploadFile as uploadToGCS } from "../services/storage";
 import { MOVILES_VALIDOS, normalizarMovil } from "@contracts/moviles";
 import { TIPOS_SERVICIO_VALIDOS, normalizarTipoServicio } from "@contracts/tiposServicio";
+
+function salidasMovilCollection() {
+  return getFirestoreClient().collection("salidasMovil");
+}
 
 function generateId(): string {
   const now = new Date();
@@ -127,33 +132,20 @@ export const salidaMovilRouter = createRouter({
     .mutation(async ({ input }) => {
       const idPlanilla = generateId();
       const fechaCarga = new Date().toLocaleDateString("es-ES");
-      const urlImagenes = JSON.stringify(input.imageUrls);
 
-      for (let i = 0; i < input.registros.length; i++) {
-        const r = input.registros[i];
-        // Forzamos TODOS los campos como texto plano (anteponiendo un apostrofo),
-        // para que Google Sheets no los reinterprete como fecha/hora/numero
-        // segun el formato que ya tenga la columna.
-        const t = (valor: string) => (valor ? `'${valor}` : "");
-        await appendRow(env.SHEET_GUARDIAS_ID, "SALIDAS_MOVIL", [
-          `${idPlanilla}-${i + 1}`,
+      const db = getFirestoreClient();
+      const batch = db.batch();
+      const collection = salidasMovilCollection();
+      input.registros.forEach((r, i) => {
+        batch.set(collection.doc(`${idPlanilla}-${i + 1}`), {
           idPlanilla,
           fechaCarga,
-          t(r.movil),
-          t(r.conductor),
-          t(r.oficialACargo),
-          t(r.nroTripulantes),
-          t(r.tipoServicio),
-          t(r.fechaSalida),
-          t(r.horaSalida),
-          t(r.kilometrajeSalida),
-          t(r.direccion),
-          t(r.fechaLlegada),
-          t(r.horaLlegada),
-          t(r.kilometrajeLlegada),
-          urlImagenes,
-        ]);
-      }
+          ...r,
+          urlImagenes: input.imageUrls,
+          creadoEn: Firestore.FieldValue.serverTimestamp(),
+        });
+      });
+      await batch.commit();
 
       return {
         exito: true as const,
@@ -163,30 +155,24 @@ export const salidaMovilRouter = createRouter({
     }),
 
   historial: publicQuery.query(async () => {
-    const data = await readSheet(env.SHEET_GUARDIAS_ID, "SALIDAS_MOVIL!A1:P");
+    const snapshot = await salidasMovilCollection().get();
     const porPlanilla = new Map<
       string,
       { idPlanilla: string; fechaCarga: string; cantidadRegistros: number; urlImagenes: string[] }
     >();
 
-    for (let i = 1; i < data.length; i++) {
-      const row = data[i];
-      const idPlanilla = String(row[1] || "");
-      if (!idPlanilla) continue;
-      const fechaCarga = String(row[2] || "");
-      let urlImagenes: string[] = [];
-      try {
-        const parsed = JSON.parse(String(row[15] || ""));
-        if (Array.isArray(parsed)) urlImagenes = parsed;
-      } catch {
-        /* ignore */
-      }
+    snapshot.forEach((doc) => {
+      const row = doc.data();
+      const idPlanilla = String(row.idPlanilla || "");
+      if (!idPlanilla) return;
+      const fechaCarga = String(row.fechaCarga || "");
+      const urlImagenes: string[] = Array.isArray(row.urlImagenes) ? row.urlImagenes : [];
 
       if (!porPlanilla.has(idPlanilla)) {
         porPlanilla.set(idPlanilla, { idPlanilla, fechaCarga, cantidadRegistros: 0, urlImagenes });
       }
       porPlanilla.get(idPlanilla)!.cantidadRegistros++;
-    }
+    });
 
     const planillas = Array.from(porPlanilla.values()).sort((a, b) => b.idPlanilla.localeCompare(a.idPlanilla));
     return { exito: true as const, planillas };
@@ -204,9 +190,9 @@ export const salidaMovilRouter = createRouter({
         .optional()
     )
     .query(async ({ input }) => {
-      const data = await readSheet(env.SHEET_GUARDIAS_ID, "SALIDAS_MOVIL!A1:P");
+      const snapshot = await salidasMovilCollection().get();
       const registros: Array<{
-        id: string; rowIndex: number; movil: string; conductor: string; oficialACargo: string;
+        id: string; movil: string; conductor: string; oficialACargo: string;
         nroTripulantes: string; tipoServicio: string; fechaSalida: string; horaSalida: string;
         kilometrajeSalida: string; direccion: string; fechaLlegada: string; horaLlegada: string;
         kilometrajeLlegada: string; imageUrls: string[];
@@ -221,51 +207,44 @@ export const salidaMovilRouter = createRouter({
         return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
       };
 
-      for (let i = 1; i < data.length; i++) {
-        const row = data[i];
-        if (!row[1]) continue;
+      snapshot.forEach((doc) => {
+        const row = doc.data();
+        if (!row.idPlanilla) return;
 
-        const movil = String(row[3] || "").trim();
-        const tipoServicio = String(row[7] || "").trim();
-        const fechaSalida = String(row[8] || "");
+        const movil = String(row.movil || "").trim();
+        const tipoServicio = String(row.tipoServicio || "").trim();
+        const fechaSalida = String(row.fechaSalida || "");
 
         if (movil) movilesSet.add(movil);
         if (tipoServicio) tiposServicioSet.add(tipoServicio);
 
-        if (input?.movil && movil !== input.movil.trim()) continue;
-        if (input?.tipoServicio && tipoServicio !== input.tipoServicio.trim()) continue;
+        if (input?.movil && movil !== input.movil.trim()) return;
+        if (input?.tipoServicio && tipoServicio !== input.tipoServicio.trim()) return;
         if (input?.fechaDesde || input?.fechaHasta) {
           const fISO = fechaISO(fechaSalida);
-          if (!fISO) continue;
-          if (input.fechaDesde && fISO < input.fechaDesde) continue;
-          if (input.fechaHasta && fISO > input.fechaHasta) continue;
+          if (!fISO) return;
+          if (input.fechaDesde && fISO < input.fechaDesde) return;
+          if (input.fechaHasta && fISO > input.fechaHasta) return;
         }
 
-        let imageUrls: string[] = [];
-        try {
-          const parsed = JSON.parse(String(row[15] || ""));
-          if (Array.isArray(parsed)) imageUrls = parsed;
-        } catch {
-          /* ignore */
-        }
+        const imageUrls: string[] = Array.isArray(row.urlImagenes) ? row.urlImagenes : [];
         registros.push({
-          id: String(row[0] || ""),
-          rowIndex: i + 1,
-          movil: String(row[3] || ""),
-          conductor: String(row[4] || ""),
-          oficialACargo: String(row[5] || ""),
-          nroTripulantes: String(row[6] || ""),
-          tipoServicio: String(row[7] || ""),
+          id: doc.id,
+          movil: String(row.movil || ""),
+          conductor: String(row.conductor || ""),
+          oficialACargo: String(row.oficialACargo || ""),
+          nroTripulantes: String(row.nroTripulantes || ""),
+          tipoServicio: String(row.tipoServicio || ""),
           fechaSalida,
-          horaSalida: String(row[9] || ""),
-          kilometrajeSalida: String(row[10] || ""),
-          direccion: String(row[11] || ""),
-          fechaLlegada: String(row[12] || ""),
-          horaLlegada: String(row[13] || ""),
-          kilometrajeLlegada: String(row[14] || ""),
+          horaSalida: String(row.horaSalida || ""),
+          kilometrajeSalida: String(row.kilometrajeSalida || ""),
+          direccion: String(row.direccion || ""),
+          fechaLlegada: String(row.fechaLlegada || ""),
+          horaLlegada: String(row.horaLlegada || ""),
+          kilometrajeLlegada: String(row.kilometrajeLlegada || ""),
           imageUrls,
         });
-      }
+      });
 
       const claveOrden = (r: (typeof registros)[0]): string => {
         const partes = r.fechaSalida.split("/");
@@ -288,7 +267,7 @@ export const salidaMovilRouter = createRouter({
   editar: publicQuery
     .input(
       z.object({
-        rowIndex: z.number(),
+        id: z.string(),
         movil: z.enum(MOVILES_VALIDOS),
         conductor: z.string(),
         oficialACargo: z.string(),
@@ -304,71 +283,65 @@ export const salidaMovilRouter = createRouter({
       })
     )
     .mutation(async ({ input }) => {
-      const t = (valor: string) => (valor ? `'${valor}` : "");
-      await updateRange(env.SHEET_GUARDIAS_ID, `SALIDAS_MOVIL!D${input.rowIndex}:O${input.rowIndex}`, [[
-        t(input.movil), t(input.conductor), t(input.oficialACargo), t(input.nroTripulantes),
-        t(input.tipoServicio), t(input.fechaSalida), t(input.horaSalida), t(input.kilometrajeSalida),
-        t(input.direccion), t(input.fechaLlegada), t(input.horaLlegada), t(input.kilometrajeLlegada),
-      ]]);
+      const { id, ...campos } = input;
+      await salidasMovilCollection().doc(id).update(campos);
       return { exito: true as const, mensaje: "Registro actualizado" };
     }),
 
   eliminar: publicQuery
-    .input(z.object({ rowIndex: z.number() }))
+    .input(z.object({ id: z.string() }))
     .mutation(async ({ input }) => {
-      const sheetId = await getSheetId(env.SHEET_GUARDIAS_ID, "SALIDAS_MOVIL");
-      await deleteRows(env.SHEET_GUARDIAS_ID, sheetId, [input.rowIndex]);
+      await salidasMovilCollection().doc(input.id).delete();
       return { exito: true as const, mensaje: "Registro eliminado" };
     }),
 
   detalle: publicQuery
     .input(z.object({ idPlanilla: z.string() }))
     .query(async ({ input }) => {
-      const data = await readSheet(env.SHEET_GUARDIAS_ID, "SALIDAS_MOVIL!A1:P");
-      const registros = [];
-      for (let i = 1; i < data.length; i++) {
-        const row = data[i];
-        if (String(row[1] || "").trim() === input.idPlanilla.trim()) {
-          registros.push({
-            id: String(row[0] || ""),
-            movil: String(row[3] || ""),
-            conductor: String(row[4] || ""),
-            oficialACargo: String(row[5] || ""),
-            nroTripulantes: String(row[6] || ""),
-            tipoServicio: String(row[7] || ""),
-            fechaSalida: String(row[8] || ""),
-            horaSalida: String(row[9] || ""),
-            kilometrajeSalida: String(row[10] || ""),
-            direccion: String(row[11] || ""),
-            fechaLlegada: String(row[12] || ""),
-            horaLlegada: String(row[13] || ""),
-            kilometrajeLlegada: String(row[14] || ""),
-          });
-        }
-      }
+      const snapshot = await salidasMovilCollection()
+        .where("idPlanilla", "==", input.idPlanilla.trim())
+        .get();
+      const registros = snapshot.docs.map((doc) => {
+        const row = doc.data();
+        return {
+          id: doc.id,
+          movil: String(row.movil || ""),
+          conductor: String(row.conductor || ""),
+          oficialACargo: String(row.oficialACargo || ""),
+          nroTripulantes: String(row.nroTripulantes || ""),
+          tipoServicio: String(row.tipoServicio || ""),
+          fechaSalida: String(row.fechaSalida || ""),
+          horaSalida: String(row.horaSalida || ""),
+          kilometrajeSalida: String(row.kilometrajeSalida || ""),
+          direccion: String(row.direccion || ""),
+          fechaLlegada: String(row.fechaLlegada || ""),
+          horaLlegada: String(row.horaLlegada || ""),
+          kilometrajeLlegada: String(row.kilometrajeLlegada || ""),
+        };
+      });
       return { exito: true as const, registros };
     }),
 
   estadisticasServicios: publicQuery
     .input(z.object({ mes: z.number().min(1).max(12), anio: z.number() }))
     .query(async ({ input }) => {
-      const data = await readSheet(env.SHEET_GUARDIAS_ID, "SALIDAS_MOVIL!A1:P");
+      const snapshot = await salidasMovilCollection().get();
       const conteo = new Map<string, number>();
       let total = 0;
-      for (let i = 1; i < data.length; i++) {
-        const row = data[i];
-        if (!row[1]) continue;
-        const fechaSalida = String(row[8] || "").trim();
-        const tipoServicio = String(row[7] || "").trim();
-        if (!fechaSalida || !tipoServicio) continue;
+      snapshot.forEach((doc) => {
+        const row = doc.data();
+        if (!row.idPlanilla) return;
+        const fechaSalida = String(row.fechaSalida || "").trim();
+        const tipoServicio = String(row.tipoServicio || "").trim();
+        if (!fechaSalida || !tipoServicio) return;
         const partes = fechaSalida.split("/");
-        if (partes.length !== 3) continue;
+        if (partes.length !== 3) return;
         const mesFila = parseInt(partes[1], 10);
         const anioFila = parseInt(partes[2], 10);
-        if (mesFila !== input.mes || anioFila !== input.anio) continue;
+        if (mesFila !== input.mes || anioFila !== input.anio) return;
         conteo.set(tipoServicio, (conteo.get(tipoServicio) || 0) + 1);
         total++;
-      }
+      });
       const tipos = Array.from(conteo.entries())
         .map(([tipo, cantidad]) => ({ tipo, cantidad }))
         .sort((a, b) => b.cantidad - a.cantidad);

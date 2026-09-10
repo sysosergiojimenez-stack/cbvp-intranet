@@ -67,11 +67,11 @@ export default function SalidaMovil() {
   const iniciarSalidaManual = () => {
     setError(''); setExtraccion({ imageUrls: [], registros: [{ ...registroVacio }] });
   };
-  const [editandoRowIndex, setEditandoRowIndex] = useState<number | null>(null);
+  const [editandoId, setEditandoId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<RegistroMovil>({ ...registroVacio });
 
   const iniciarEdicion = (r: NonNullable<typeof listadoData>['registros'][number]) => {
-    setEditandoRowIndex(r.rowIndex);
+    setEditandoId(r.id);
     setEditForm({
       movil: r.movil as MovilValido, conductor: r.conductor, oficialACargo: r.oficialACargo,
       nroTripulantes: r.nroTripulantes, tipoServicio: r.tipoServicio as TipoServicioValido,
@@ -82,25 +82,25 @@ export default function SalidaMovil() {
   };
 
   const guardarEdicion = async () => {
-    if (editandoRowIndex === null) return;
+    if (editandoId === null) return;
     if (!editForm.tipoServicio) {
       alert('Selecciona el tipo de servicio antes de guardar.');
       return;
     }
     try {
-      const resp = await editarMutation.mutateAsync({ rowIndex: editandoRowIndex, ...editForm, tipoServicio: editForm.tipoServicio });
+      const resp = await editarMutation.mutateAsync({ id: editandoId, ...editForm, tipoServicio: editForm.tipoServicio });
       if (!resp.exito) throw new Error('Error al guardar');
-      setEditandoRowIndex(null);
+      setEditandoId(null);
       utils.salidaMovil.listado.invalidate();
     } catch (err: unknown) {
       alert('Error: ' + (err instanceof Error ? err.message : 'desconocido'));
     }
   };
 
-  const eliminarFila = async (rowIndex: number) => {
+  const eliminarFila = async (id: string) => {
     if (!confirm('Eliminar este registro?')) return;
     try {
-      const resp = await eliminarMutation.mutateAsync({ rowIndex });
+      const resp = await eliminarMutation.mutateAsync({ id });
       if (!resp.exito) throw new Error('Error al eliminar');
       utils.salidaMovil.listado.invalidate();
     } catch (err: unknown) {
@@ -525,14 +525,14 @@ export default function SalidaMovil() {
                       <td className="px-3 py-2 text-white/70 block sm:table-cell"><span className="text-white/30 sm:hidden">Km llegada: </span>{r.kilometrajeLlegada || '-'}</td>
                       <td className="px-3 py-2 block sm:table-cell" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center gap-2 pt-1.5 sm:pt-0 mt-1 sm:mt-0 border-t border-white/5 sm:border-0">
-                          <button onClick={() => eliminarFila(r.rowIndex)} className="p-2.5 sm:p-1.5 rounded-lg hover:bg-cbvp-red/20 text-white/40 hover:text-cbvp-red transition-colors" title="Eliminar"><Trash2 className="w-3.5 h-3.5" /></button>
+                          <button onClick={() => eliminarFila(r.id)} className="p-2.5 sm:p-1.5 rounded-lg hover:bg-cbvp-red/20 text-white/40 hover:text-cbvp-red transition-colors" title="Eliminar"><Trash2 className="w-3.5 h-3.5" /></button>
                           {r.imageUrls.length > 0 && (
                             <a href={r.imageUrls[0]} target="_blank" rel="noopener noreferrer" className="p-2.5 sm:p-1.5 rounded-lg hover:bg-white/10 text-white/40 hover:text-cbvp-blue transition-colors" title="Ver imagen"><ExternalLink className="w-3.5 h-3.5" /></a>
                           )}
                         </div>
                       </td>
                     </tr>
-                    {editandoRowIndex === r.rowIndex && (
+                    {editandoId === r.id && (
                       <tr className="border-b border-white/5 bg-white/[0.02]">
                         <td colSpan={8} className="px-3 py-4">
                           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
