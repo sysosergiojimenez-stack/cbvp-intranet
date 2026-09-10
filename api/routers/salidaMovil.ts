@@ -12,6 +12,13 @@ function salidasMovilCollection() {
   return getFirestoreClient().collection("salidasMovil");
 }
 
+// Algunos registros viejos tienen el anio de fechaSalida en 2 digitos ("26"
+// en vez de "2026"), lo que rompe tanto la comparacion lexicografica de
+// fechas como el filtro exacto por anio numerico si no se normaliza antes.
+function normalizarAnio(y: string): string {
+  return y.length === 2 ? `20${y}` : y;
+}
+
 function generateId(): string {
   const now = new Date();
   return now.getFullYear().toString() +
@@ -200,11 +207,6 @@ export const salidaMovilRouter = createRouter({
       const movilesSet = new Set<string>();
       const tiposServicioSet = new Set<string>();
 
-      // Algunos registros viejos tienen el anio en 2 digitos ("26" en vez de
-      // "2026"), lo que rompe la comparacion lexicografica de fechas si no
-      // se normaliza antes (ej. "26-09-06" ordena despues de "2026-09-07").
-      const normalizarAnio = (y: string): string => (y.length === 2 ? `20${y}` : y);
-
       const fechaISO = (fecha: string): string => {
         const partes = fecha.split("/");
         if (partes.length !== 3) return "";
@@ -342,7 +344,7 @@ export const salidaMovilRouter = createRouter({
         const partes = fechaSalida.split("/");
         if (partes.length !== 3) return;
         const mesFila = parseInt(partes[1], 10);
-        const anioFila = parseInt(partes[2], 10);
+        const anioFila = parseInt(normalizarAnio(partes[2]), 10);
         if (mesFila !== input.mes || anioFila !== input.anio) return;
         conteo.set(tipoServicio, (conteo.get(tipoServicio) || 0) + 1);
         total++;
