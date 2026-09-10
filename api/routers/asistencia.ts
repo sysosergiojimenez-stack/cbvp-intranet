@@ -2,7 +2,9 @@ import { z } from "zod";
 import { formatearNombreCompleto } from "../lib/nombres";
 import { normalizarFechaISO } from "../lib/fechas";
 import { createRouter, publicQuery } from "../middleware";
-import { readSheet, appendRow, updateRange, deleteRows, getSheetId } from "../services/sheets";
+import { readSheet } from "../services/sheets";
+import { colAsistenciaEncabezado, colAsistenciaPersonal, obtenerTipoPorPlanillaAsistencia, obtenerAsistenciaPersonalComoFilas } from "../services/asistenciaFirestore";
+import { getFirestoreClient } from "../services/firestore";
 import { env } from "../lib/env";
 import { extractAsistenciaData } from "../services/gemini";
 import { uploadFile as uploadToGCS } from "../services/storage";
@@ -24,17 +26,6 @@ function generateId(): string {
 
 function toTitleCase(str: string): string {
   return str.toLowerCase().split(" ").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
-}
-
-function parseImageUrls(value: string): string[] {
-  if (!value) return [];
-  try {
-    const parsed = JSON.parse(value);
-    if (Array.isArray(parsed)) return parsed.filter((x): x is string => typeof x === "string");
-  } catch {
-    // No es JSON, es el formato viejo (una sola URL como texto plano)
-  }
-  return [value];
 }
 
 function parseDate(value: string): number {
@@ -214,34 +205,33 @@ export const asistenciaRouter = createRouter({
       const fechaCarga = new Date().toLocaleDateString("es-ES");
       const d = input.datos;
 
-      await appendRow(env.SHEET_GUARDIAS_ID, "Asistencia_Encabezado", [
-        idPlanilla,
+      const db = getFirestoreClient();
+      const batch = db.batch();
+      batch.set(colAsistenciaEncabezado().doc(idPlanilla), {
         fechaCarga,
-        d.fechaActividad,
-        d.tipoActividad,
-        d.inicioActividad,
-        d.finalizaActividad,
-        d.acargoActividad,
-        d.detalles,
-        JSON.stringify(input.imageUrls),
-      ]);
+        fechaActividad: d.fechaActividad,
+        tipoActividad: d.tipoActividad,
+        inicioActividad: d.inicioActividad,
+        finalizaActividad: d.finalizaActividad,
+        acargoActividad: d.acargoActividad,
+        detalles: d.detalles,
+        urlImagenes: input.imageUrls,
+      });
 
       for (const p of d.personal) {
-        await appendRow(env.SHEET_GUARDIAS_ID, "Asistencia_Personal", [
-          "",
+        batch.set(colAsistenciaPersonal().doc(), {
           idPlanilla,
           fechaCarga,
-          d.fechaActividad,
-          "",
-          "",
-          p.codigo,
-          p.nombre,
-          p.asistencia,
-          input.usuarioId,
-          input.usuarioNombre,
-          p.exencion || "",
-        ]);
+          fechaActividad: d.fechaActividad,
+          codigo: p.codigo,
+          nombre: p.nombre,
+          asistencia: p.asistencia,
+          cargadoPorId: input.usuarioId,
+          cargadoPorNombre: input.usuarioNombre,
+          exencion: p.exencion || "",
+        });
       }
+      await batch.commit();
 
       return {
         exito: true as const,
@@ -260,7 +250,7 @@ export const asistenciaRouter = createRouter({
       })
     )
     .query(async ({ input }) => {
-      const data = await readSheet(env.SHEET_GUARDIAS_ID, "Asistencia_Encabezado!A1:I");
+      const snapshot = await colAsistenciaEncabezado().get();
       const planillas: Array<{
         idPlanilla: string;
         fechaCarga: string;
@@ -273,23 +263,23 @@ export const asistenciaRouter = createRouter({
         urlImagenes: string[];
       }> = [];
 
-      for (let i = 1; i < data.length; i++) {
-        const row = data[i];
-        const tipo = String(row[3] || "").trim();
-        if (input.tipo && !tipo.toUpperCase().includes(input.tipo.toUpperCase())) continue;
+      snapshot.forEach((doc) => {
+        const fila = doc.data();
+        const tipo = String(fila.tipoActividad || "").trim();
+        if (input.tipo && !tipo.toUpperCase().includes(input.tipo.toUpperCase())) return;
 
         planillas.push({
-          idPlanilla: String(row[0] || ""),
-          fechaCarga: String(row[1] || ""),
-          fechaActividad: String(row[2] || ""),
+          idPlanilla: doc.id,
+          fechaCarga: String(fila.fechaCarga || ""),
+          fechaActividad: String(fila.fechaActividad || ""),
           tipoActividad: tipo,
-          inicioActividad: String(row[4] || ""),
-          finalizaActividad: String(row[5] || ""),
-          acargoActividad: String(row[6] || ""),
-          detalles: String(row[7] || ""),
-          urlImagenes: parseImageUrls(String(row[8] || "")),
+          inicioActividad: String(fila.inicioActividad || ""),
+          finalizaActividad: String(fila.finalizaActividad || ""),
+          acargoActividad: String(fila.acargoActividad || ""),
+          detalles: String(fila.detalles || ""),
+          urlImagenes: Array.isArray(fila.urlImagenes) ? fila.urlImagenes : [],
         });
-      }
+      });
 
       planillas.sort((a, b) => {
         const dateA = parseDate(a.fechaActividad);
@@ -313,36 +303,22 @@ export const asistenciaRouter = createRouter({
   detalle: publicQuery
     .input(z.object({ idPlanilla: z.string() }))
     .query(async ({ input }) => {
-      const data = await readSheet(env.SHEET_GUARDIAS_ID, "Asistencia_Personal!A1:L");
-      const personal: Array<{
-        idFila: string;
-        idPlanilla: string;
-        fechaCarga: string;
-        fechaActividad: string;
-        codigo: string;
-        nombre: string;
-        asistencia: string;
-        exencion: string;
-        cargadoPorId: string;
-        cargadoPorNombre: string;
-      }> = [];
-
-      for (let i = 1; i < data.length; i++) {
-        if (String(data[i][1] || "").trim() === input.idPlanilla.trim()) {
-          personal.push({
-            idFila: String(data[i][0] || ""),
-            idPlanilla: String(data[i][1] || ""),
-            fechaCarga: String(data[i][2] || ""),
-            fechaActividad: String(data[i][3] || ""),
-            codigo: String(data[i][6] || ""),
-            nombre: String(data[i][7] || ""),
-            asistencia: String(data[i][8] || ""),
-            exencion: String(data[i][11] || ""),
-            cargadoPorId: String(data[i][9] || ""),
-            cargadoPorNombre: String(data[i][10] || ""),
-          });
-        }
-      }
+      const snapshot = await colAsistenciaPersonal().where("idPlanilla", "==", input.idPlanilla.trim()).get();
+      const personal = snapshot.docs.map((doc) => {
+        const fila = doc.data();
+        return {
+          idFila: doc.id,
+          idPlanilla: String(fila.idPlanilla || ""),
+          fechaCarga: String(fila.fechaCarga || ""),
+          fechaActividad: String(fila.fechaActividad || ""),
+          codigo: String(fila.codigo || ""),
+          nombre: String(fila.nombre || ""),
+          asistencia: String(fila.asistencia || ""),
+          exencion: String(fila.exencion || ""),
+          cargadoPorId: String(fila.cargadoPorId || ""),
+          cargadoPorNombre: String(fila.cargadoPorNombre || ""),
+        };
+      });
 
       return { exito: true as const, personal };
     }),
@@ -356,21 +332,13 @@ export const asistenciaRouter = createRouter({
       })
     )
     .mutation(async ({ input }) => {
-      const data = await readSheet(env.SHEET_GUARDIAS_ID, "Asistencia_Personal!A1:I");
-
-      for (let i = 1; i < data.length; i++) {
-        const rowIdPlanilla = String(data[i][1] || "").trim();
-        const rowCodigo = String(data[i][6] || "").trim();
-        if (rowIdPlanilla === input.idPlanilla.trim() && rowCodigo === input.codigo.trim()) {
-          await updateRange(
-            env.SHEET_GUARDIAS_ID,
-            `Asistencia_Personal!I${i + 1}`,
-            [[input.nuevaAsistencia]]
-          );
+      const snapshot = await colAsistenciaPersonal().where("idPlanilla", "==", input.idPlanilla.trim()).get();
+      for (const doc of snapshot.docs) {
+        if (String(doc.data().codigo || "").trim() === input.codigo.trim()) {
+          await colAsistenciaPersonal().doc(doc.id).update({ asistencia: input.nuevaAsistencia });
           return { exito: true as const, mensaje: "Asistencia actualizada" };
         }
       }
-
       return { exito: false as const, error: "Bombero no encontrado en la planilla" };
     }),
 
@@ -382,26 +350,14 @@ export const asistenciaRouter = createRouter({
       })
     )
     .mutation(async ({ input }) => {
-      const data = await readSheet(env.SHEET_GUARDIAS_ID, "Asistencia_Personal!A1:L");
-
-      let rowIndex = -1;
-      for (let i = 1; i < data.length; i++) {
-        const rowIdPlanilla = String(data[i][1] || "").trim();
-        const rowCodigo = String(data[i][6] || "").trim();
-        if (rowIdPlanilla === input.idPlanilla.trim() && rowCodigo === input.codigo.trim()) {
-          rowIndex = i;
-          break;
+      const snapshot = await colAsistenciaPersonal().where("idPlanilla", "==", input.idPlanilla.trim()).get();
+      for (const doc of snapshot.docs) {
+        if (String(doc.data().codigo || "").trim() === input.codigo.trim()) {
+          await colAsistenciaPersonal().doc(doc.id).delete();
+          return { exito: true as const, mensaje: "Asistencia eliminada correctamente" };
         }
       }
-
-      if (rowIndex === -1) {
-        return { exito: false as const, error: "Bombero no encontrado en la planilla" };
-      }
-
-      const persSheetId = await getSheetId(env.SHEET_GUARDIAS_ID, "Asistencia_Personal");
-      await deleteRows(env.SHEET_GUARDIAS_ID, persSheetId, [rowIndex + 1]);
-
-      return { exito: true as const, mensaje: "Asistencia eliminada correctamente" };
+      return { exito: false as const, error: "Bombero no encontrado en la planilla" };
     }),
 
   agregarPersonal: publicQuery
@@ -416,33 +372,24 @@ export const asistenciaRouter = createRouter({
       })
     )
     .mutation(async ({ input }) => {
-      const encData = await readSheet(env.SHEET_GUARDIAS_ID, "Asistencia_Encabezado!A1:I");
-      let fechaActividad = "";
-      for (let i = 1; i < encData.length; i++) {
-        if (String(encData[i][0] || "").trim() === input.idPlanilla.trim()) {
-          fechaActividad = String(encData[i][2] || "");
-          break;
-        }
-      }
-      if (!fechaActividad) {
+      const encDoc = await colAsistenciaEncabezado().doc(input.idPlanilla.trim()).get();
+      if (!encDoc.exists) {
         return { exito: false as const, error: "Planilla no encontrada" };
       }
+      const fechaActividad = String(encDoc.data()!.fechaActividad || "");
 
       const fechaCarga = new Date().toLocaleDateString("es-ES");
-      await appendRow(env.SHEET_GUARDIAS_ID, "Asistencia_Personal", [
-        "",
-        input.idPlanilla,
+      await colAsistenciaPersonal().add({
+        idPlanilla: input.idPlanilla,
         fechaCarga,
         fechaActividad,
-        "",
-        "",
-        input.codigo,
-        input.nombre,
-        input.asistencia,
-        input.usuarioId,
-        input.usuarioNombre,
-        "",
-      ]);
+        codigo: input.codigo,
+        nombre: input.nombre,
+        asistencia: input.asistencia,
+        cargadoPorId: input.usuarioId,
+        cargadoPorNombre: input.usuarioNombre,
+        exencion: "",
+      });
 
       return { exito: true as const, mensaje: "Bombero agregado correctamente" };
     }),
@@ -451,7 +398,7 @@ export const asistenciaRouter = createRouter({
     .input(z.object({ codigo: z.string() }))
     .query(async ({ input }) => {
       const searchCode = extractNumber(input.codigo);
-      const data = await readSheet(env.SHEET_GUARDIAS_ID, "Asistencia_Personal!A1:L");
+      const snapshot = await colAsistenciaPersonal().get();
       const asistencias: Array<{
         idPlanilla: string;
         fechaActividad: string;
@@ -459,18 +406,19 @@ export const asistenciaRouter = createRouter({
         exencion: string;
       }> = [];
 
-      for (let i = 1; i < data.length; i++) {
-        const codigoFila = String(data[i][6] || "").trim();
+      snapshot.forEach((doc) => {
+        const fila = doc.data();
+        const codigoFila = String(fila.codigo || "").trim();
         const numFila = extractNumber(codigoFila);
         if (numFila === searchCode) {
           asistencias.push({
-            idPlanilla: String(data[i][1] || ""),
-            fechaActividad: String(data[i][3] || ""),
-            asistencia: String(data[i][8] || ""),
-            exencion: String(data[i][11] || ""),
+            idPlanilla: String(fila.idPlanilla || ""),
+            fechaActividad: String(fila.fechaActividad || ""),
+            asistencia: String(fila.asistencia || ""),
+            exencion: String(fila.exencion || ""),
           });
         }
-      }
+      });
 
       const stats = {
         totalActividades: asistencias.length,
@@ -485,39 +433,19 @@ export const asistenciaRouter = createRouter({
   eliminar: publicQuery
     .input(z.object({ idPlanilla: z.string() }))
     .mutation(async ({ input }) => {
-      // Find header row
-      const encData = await readSheet(env.SHEET_GUARDIAS_ID, "Asistencia_Encabezado!A1:I");
-      let encRowIndex = -1;
-      for (let i = 1; i < encData.length; i++) {
-        if (String(encData[i][0] || "").trim() === input.idPlanilla.trim()) {
-          encRowIndex = i;
-          break;
-        }
-      }
-      if (encRowIndex === -1) {
+      const idPlanilla = input.idPlanilla.trim();
+      const encDoc = await colAsistenciaEncabezado().doc(idPlanilla).get();
+      if (!encDoc.exists) {
         return { exito: false as const, error: "Planilla no encontrada" };
       }
 
-      // Delete header row (encRowIndex is 0-based array index, add 1 for 1-based row number)
-      const encSheetId = await getSheetId(env.SHEET_GUARDIAS_ID, "Asistencia_Encabezado");
-      await deleteRows(env.SHEET_GUARDIAS_ID, encSheetId, [encRowIndex + 1]);
+      await colAsistenciaEncabezado().doc(idPlanilla).delete();
 
-      // Find and delete all personnel rows (from bottom to top)
-      const persData = await readSheet(env.SHEET_GUARDIAS_ID, "Asistencia_Personal!A1:K");
-      const rowsToDelete: number[] = [];
-      for (let i = 1; i < persData.length; i++) {
-        if (String(persData[i][1] || "").trim() === input.idPlanilla.trim()) {
-          rowsToDelete.push(i);
-        }
-      }
-
-      if (rowsToDelete.length > 0) {
-        const persSheetId = await getSheetId(env.SHEET_GUARDIAS_ID, "Asistencia_Personal");
-        // Convert 0-based array indices to 1-based row numbers for deleteRows
-        const rowNumbers = rowsToDelete.map(idx => idx + 1).sort((a, b) => b - a);
-        for (const rowNum of rowNumbers) {
-          await deleteRows(env.SHEET_GUARDIAS_ID, persSheetId, [rowNum]);
-        }
+      const persSnapshot = await colAsistenciaPersonal().where("idPlanilla", "==", idPlanilla).get();
+      if (!persSnapshot.empty) {
+        const batch = getFirestoreClient().batch();
+        persSnapshot.forEach((doc) => batch.delete(doc.ref));
+        await batch.commit();
       }
 
       return { exito: true as const, mensaje: "Planilla eliminada correctamente" };
@@ -536,38 +464,21 @@ export const asistenciaRouter = createRouter({
       })
     )
     .mutation(async ({ input }) => {
-      // Find header row
-      const encData = await readSheet(env.SHEET_GUARDIAS_ID, "Asistencia_Encabezado!A1:I");
-      let encRowIndex = -1;
-      for (let i = 1; i < encData.length; i++) {
-        if (String(encData[i][0] || "").trim() === input.idPlanilla.trim()) {
-          encRowIndex = i;
-          break;
-        }
-      }
-      if (encRowIndex === -1) {
+      const idPlanilla = input.idPlanilla.trim();
+      const encDoc = await colAsistenciaEncabezado().doc(idPlanilla).get();
+      if (!encDoc.exists) {
         return { exito: false as const, error: "Planilla no encontrada" };
       }
 
-      // Build updated row preserving existing values
-      const existingRow = encData[encRowIndex];
-      const updatedRow = [
-        existingRow[0],                                     // A: idPlanilla (unchanged)
-        existingRow[1],                                     // B: fechaCarga (unchanged)
-        input.fechaActividad ?? existingRow[2] ?? "",      // C: fechaActividad
-        input.tipoActividad ?? existingRow[3] ?? "",       // D: tipoActividad
-        input.inicioActividad ?? existingRow[4] ?? "",     // E: inicioActividad
-        input.finalizaActividad ?? existingRow[5] ?? "",   // F: finalizaActividad
-        input.acargoActividad ?? existingRow[6] ?? "",     // G: acargoActividad
-        input.detalles ?? existingRow[7] ?? "",            // H: detalles
-        existingRow[8] ?? "",                              // I: urlImagen (unchanged)
-      ];
+      const campos: Record<string, string> = {};
+      if (input.fechaActividad !== undefined) campos.fechaActividad = input.fechaActividad;
+      if (input.tipoActividad !== undefined) campos.tipoActividad = input.tipoActividad;
+      if (input.inicioActividad !== undefined) campos.inicioActividad = input.inicioActividad;
+      if (input.finalizaActividad !== undefined) campos.finalizaActividad = input.finalizaActividad;
+      if (input.acargoActividad !== undefined) campos.acargoActividad = input.acargoActividad;
+      if (input.detalles !== undefined) campos.detalles = input.detalles;
 
-      await updateRange(
-        env.SHEET_GUARDIAS_ID,
-        `Asistencia_Encabezado!A${encRowIndex + 1}:I${encRowIndex + 1}`,
-        [updatedRow]
-      );
+      await colAsistenciaEncabezado().doc(idPlanilla).update(campos);
 
       return { exito: true as const, mensaje: "Planilla actualizada correctamente" };
     }),
@@ -600,15 +511,8 @@ export const asistenciaRouter = createRouter({
       }
       personasBase.sort((a, b) => (parseInt(a.numero) || 0) - (parseInt(b.numero) || 0));
 
-      const encData = await readSheet(env.SHEET_GUARDIAS_ID, "Asistencia_Encabezado!A1:I");
-      const tipoPorPlanilla = new Map<string, string>();
-      for (let i = 1; i < encData.length; i++) {
-        const idPlanilla = String(encData[i][0] || "").trim();
-        const tipo = String(encData[i][3] || "").trim().toUpperCase();
-        if (idPlanilla) tipoPorPlanilla.set(idPlanilla, tipo);
-      }
-
-      const persData = await readSheet(env.SHEET_GUARDIAS_ID, "Asistencia_Personal!A1:L");
+      const tipoPorPlanilla = await obtenerTipoPorPlanillaAsistencia();
+      const persData = await obtenerAsistenciaPersonalComoFilas();
       const diasDelMes = new Date(input.anio, input.mes, 0).getDate();
 
       const sabados: number[] = [];

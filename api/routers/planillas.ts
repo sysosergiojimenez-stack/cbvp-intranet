@@ -5,6 +5,7 @@ import { normalizarFechaISO, normalizarMesAnio } from "../lib/fechas";
 import { createRouter, publicQuery } from "../middleware";
 import { readSheet } from "../services/sheets";
 import { getFirestoreClient } from "../services/firestore";
+import { obtenerTipoPorPlanillaAsistencia, obtenerAsistenciaPersonalComoFilas } from "../services/asistenciaFirestore";
 import { extractGuardiaData } from "../services/gemini";
 import { uploadFile } from "../services/storage";
 import { env } from "../lib/env";
@@ -579,14 +580,8 @@ export const planillasRouter = createRouter({
       const diasDelMes = new Date(input.anio, input.mes, 0).getDate();
 
       // Datos de practicas para la planilla de asistencia de activos
-      const encData = await readSheet(env.SHEET_GUARDIAS_ID, "Asistencia_Encabezado!A1:I");
-      const tipoPorPlanilla = new Map<string, string>();
-      for (let i = 1; i < encData.length; i++) {
-        const idPlanilla = String(encData[i][0] || "").trim();
-        const tipo = String(encData[i][3] || "").trim().toUpperCase();
-        if (idPlanilla) tipoPorPlanilla.set(idPlanilla, tipo);
-      }
-      const persData = await readSheet(env.SHEET_GUARDIAS_ID, "Asistencia_Personal!A1:L");
+      const tipoPorPlanilla = await obtenerTipoPorPlanillaAsistencia();
+      const persData = await obtenerAsistenciaPersonalComoFilas();
 
       function calcular(p: { codigo: string; numero: string; nombre: string; situ: string; exencion: string; comisionadoDesde: string }, tipoRequerido: string) {
         if (p.situ === "LM") {
@@ -880,14 +875,8 @@ export const planillasRouter = createRouter({
       }
 
       // --- Practicas / Citaciones ---
-      const encData = await readSheet(env.SHEET_GUARDIAS_ID, "Asistencia_Encabezado!A1:I");
-      const tipoPorPlanilla = new Map<string, string>();
-      for (let i = 1; i < encData.length; i++) {
-        const idPlanilla = String(encData[i][0] || "").trim();
-        const tipo = String(encData[i][3] || "").trim().toUpperCase();
-        if (idPlanilla) tipoPorPlanilla.set(idPlanilla, tipo);
-      }
-      const persData = await readSheet(env.SHEET_GUARDIAS_ID, "Asistencia_Personal!A1:L");
+      const tipoPorPlanilla = await obtenerTipoPorPlanillaAsistencia();
+      const persData = await obtenerAsistenciaPersonalComoFilas();
 
       const sabados: number[] = [];
       for (let d = 1; d <= diasDelMes; d++) {
