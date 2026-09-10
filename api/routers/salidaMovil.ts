@@ -200,11 +200,16 @@ export const salidaMovilRouter = createRouter({
       const movilesSet = new Set<string>();
       const tiposServicioSet = new Set<string>();
 
+      // Algunos registros viejos tienen el anio en 2 digitos ("26" en vez de
+      // "2026"), lo que rompe la comparacion lexicografica de fechas si no
+      // se normaliza antes (ej. "26-09-06" ordena despues de "2026-09-07").
+      const normalizarAnio = (y: string): string => (y.length === 2 ? `20${y}` : y);
+
       const fechaISO = (fecha: string): string => {
         const partes = fecha.split("/");
         if (partes.length !== 3) return "";
         const [d, m, y] = partes;
-        return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+        return `${normalizarAnio(y)}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
       };
 
       snapshot.forEach((doc) => {
@@ -251,7 +256,7 @@ export const salidaMovilRouter = createRouter({
         if (partes.length !== 3) return "0000-00-00 00:00";
         const [d, m, y] = partes;
         const hora = r.horaSalida || "00:00";
-        return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")} ${hora}`;
+        return `${normalizarAnio(y)}-${m.padStart(2, "0")}-${d.padStart(2, "0")} ${hora}`;
       };
 
       registros.sort((a, b) => claveOrden(b).localeCompare(claveOrden(a)));
