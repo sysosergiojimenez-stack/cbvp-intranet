@@ -1,6 +1,7 @@
 export const CONDICIONES_MOVIL_VALIDAS = [
   "En Servicio",
   "Fuera de Servicio",
+  "Con Desperfecto",
   "De Baja",
 ] as const;
 
