@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { formatearNombreCompleto } from "../lib/nombres";
 import { createRouter, publicQuery } from "../middleware";
-import { readSheet, appendRow, updateRange, deleteRows, getSheetId, findRowIndex } from "../services/sheets";
+import { readSheet } from "../services/sheets";
+import { getFirestoreClient } from "../services/firestore";
 import { normalizarFechaISO } from "../lib/fechas";
 import { env } from "../lib/env";
 
@@ -17,10 +18,23 @@ function generateId(): string {
 
 const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
+const db = () => getFirestoreClient();
+const colCabecera = () => db().collection("rolesGuardiaCabecera");
+const colGrupos = () => db().collection("rolesGuardiaGrupos");
+const colPersonal = () => db().collection("rolesGuardiaPersonal");
+const colEspeciales = () => db().collection("rolesGuardiaEspeciales");
+const colActivos = () => db().collection("rolesGuardiaActivos");
+const colLicencias = () => db().collection("rolesGuardiaLicencias");
+const colCalendario = () => db().collection("rolesGuardiaCalendario");
+
+function idCalendario(idGrupo: string, anio: number, mes: number): string {
+  return `${idGrupo}_${anio}_${mes}`;
+}
+
 export const rolesGuardiaRouter = createRouter({
   // Lista todos los Roles de Guardia creados, mas reciente primero.
   listar: publicQuery.query(async () => {
-    const data = await readSheet(env.SHEET_GUARDIAS_ID, "RolesGuardia_Cabecera!A1:F");
+    const snapshot = await colCabecera().get();
     const roles: Array<{
       id: string;
       mesInicio: number;
@@ -31,27 +45,25 @@ export const rolesGuardiaRouter = createRouter({
       etiqueta: string;
     }> = [];
 
-    for (let i = 1; i < data.length; i++) {
-      const fila = data[i];
-      const id = String(fila[0] || "").trim();
-      if (!id) continue;
-      const mesInicio = Number(fila[1]) || 1;
-      const anioInicio = Number(fila[2]) || 0;
-      const mesFin = Number(fila[3]) || 1;
-      const anioFin = Number(fila[4]) || 0;
+    snapshot.forEach((doc) => {
+      const fila = doc.data();
+      const mesInicio = Number(fila.mesInicio) || 1;
+      const anioInicio = Number(fila.anioInicio) || 0;
+      const mesFin = Number(fila.mesFin) || 1;
+      const anioFin = Number(fila.anioFin) || 0;
       const etiqueta = anioInicio === anioFin
         ? `${MESES[mesInicio - 1]} - ${MESES[mesFin - 1]} ${anioFin}`
         : `${MESES[mesInicio - 1]} ${anioInicio} - ${MESES[mesFin - 1]} ${anioFin}`;
       roles.push({
-        id,
+        id: doc.id,
         mesInicio,
         anioInicio,
         mesFin,
         anioFin,
-        fechaCreacion: String(fila[5] || ""),
+        fechaCreacion: String(fila.fechaCreacion || ""),
         etiqueta,
       });
-    }
+    });
 
     // Mas reciente primero (el id es un timestamp AAAAMMDDHHMMSS)
     roles.sort((a, b) => b.id.localeCompare(a.id));
@@ -79,14 +91,13 @@ export const rolesGuardiaRouter = createRouter({
       const ahora = new Date();
       const fechaCreacion = `${String(ahora.getDate()).padStart(2, "0")}/${String(ahora.getMonth() + 1).padStart(2, "0")}/${ahora.getFullYear()}`;
 
-      await appendRow(env.SHEET_GUARDIAS_ID, "RolesGuardia_Cabecera", [
-        id,
-        input.mesInicio,
-        input.anioInicio,
+      await colCabecera().doc(id).set({
+        mesInicio: input.mesInicio,
+        anioInicio: input.anioInicio,
         mesFin,
         anioFin,
         fechaCreacion,
-      ]);
+      });
 
       return { exito: true as const, id };
     }),
@@ -95,39 +106,33 @@ export const rolesGuardiaRouter = createRouter({
   obtenerDetalle: publicQuery
     .input(z.object({ idRol: z.string() }))
     .query(async ({ input }) => {
-      const cabData = await readSheet(env.SHEET_GUARDIAS_ID, "RolesGuardia_Cabecera!A1:F");
-      let cabecera: { id: string; mesInicio: number; anioInicio: number; mesFin: number; anioFin: number; fechaCreacion: string } | null = null;
-      for (let i = 1; i < cabData.length; i++) {
-        if (String(cabData[i][0] || "").trim() === input.idRol) {
-          cabecera = {
-            id: input.idRol,
-            mesInicio: Number(cabData[i][1]) || 1,
-            anioInicio: Number(cabData[i][2]) || 0,
-            mesFin: Number(cabData[i][3]) || 1,
-            anioFin: Number(cabData[i][4]) || 0,
-            fechaCreacion: String(cabData[i][5] || ""),
-          };
-          break;
-        }
-      }
-      if (!cabecera) {
+      const cabDoc = await colCabecera().doc(input.idRol).get();
+      if (!cabDoc.exists) {
         return { exito: false as const, error: "Rol de Guardia no encontrado" };
       }
+      const cabFila = cabDoc.data()!;
+      const cabecera = {
+        id: input.idRol,
+        mesInicio: Number(cabFila.mesInicio) || 1,
+        anioInicio: Number(cabFila.anioInicio) || 0,
+        mesFin: Number(cabFila.mesFin) || 1,
+        anioFin: Number(cabFila.anioFin) || 0,
+        fechaCreacion: String(cabFila.fechaCreacion || ""),
+      };
 
-      const gruposData = await readSheet(env.SHEET_GUARDIAS_ID, "RolesGuardia_Grupos!A1:D");
+      const gruposSnap = await colGrupos().where("idRol", "==", input.idRol).get();
       const grupos: Array<{ id: string; nombreGrupo: string; orden: number }> = [];
-      for (let i = 1; i < gruposData.length; i++) {
-        const fila = gruposData[i];
-        if (String(fila[1] || "").trim() !== input.idRol) continue;
+      gruposSnap.forEach((doc) => {
+        const fila = doc.data();
         grupos.push({
-          id: String(fila[0] || ""),
-          nombreGrupo: String(fila[2] || ""),
-          orden: Number(fila[3]) || 0,
+          id: doc.id,
+          nombreGrupo: String(fila.nombreGrupo || ""),
+          orden: Number(fila.orden) || 0,
         });
-      }
+      });
       grupos.sort((a, b) => a.orden - b.orden);
 
-      const personalData = await readSheet(env.SHEET_GUARDIAS_ID, "RolesGuardia_Personal!A1:G");
+      const personalSnap = await colPersonal().where("idRol", "==", input.idRol).get();
       const usuariosData = await readSheet(env.SHEET_USUARIOS_ID, "USUARIOS!A1:U");
       const nombrePorCodigo = new Map<string, string>();
       for (let i = 1; i < usuariosData.length; i++) {
@@ -139,75 +144,68 @@ export const rolesGuardiaRouter = createRouter({
         if (codigo) nombrePorCodigo.set(codigo, formatearNombreCompleto(rangoFila, categoriaFila, primerNombre, primerApellido));
       }
 
-      const calData = await readSheet(env.SHEET_GUARDIAS_ID, "RolesGuardia_Calendario!A1:E");
-      function diasGuardados(idGrupo: string, anio: number, mes: number): number[] {
-        for (let i = 1; i < calData.length; i++) {
-          if (
-            String(calData[i][1] || "").trim() === idGrupo &&
-            Number(calData[i][2]) === anio &&
-            Number(calData[i][3]) === mes
-          ) {
-            const str = String(calData[i][4] || "").trim();
-            return str ? str.split(",").map((d) => Number(d.trim())).filter((n) => !isNaN(n)) : [];
-          }
-        }
-        return [];
+      async function diasGuardados(idGrupo: string, anio: number, mes: number): Promise<number[]> {
+        const doc = await colCalendario().doc(idCalendario(idGrupo, anio, mes)).get();
+        if (!doc.exists) return [];
+        const dias = doc.data()!.dias;
+        return Array.isArray(dias) ? dias : [];
       }
 
-      const gruposConPersonal = grupos.map((g) => {
+      const gruposConPersonal = await Promise.all(grupos.map(async (g) => {
         const personalGrupo: Array<{ id: string; codigo: string; nombre: string; radial: string; asignacion: string; orden: number }> = [];
-        for (let i = 1; i < personalData.length; i++) {
-          const fila = personalData[i];
-          if (String(fila[1] || "").trim() !== input.idRol) continue;
-          if (String(fila[2] || "").trim() !== g.id) continue;
-          const codigo = String(fila[3] || "").trim();
+        personalSnap.forEach((doc) => {
+          const fila = doc.data();
+          if (String(fila.idGrupo || "").trim() !== g.id) return;
+          const codigo = String(fila.codigo || "").trim();
           personalGrupo.push({
-            id: String(fila[0] || ""),
+            id: doc.id,
             codigo,
             nombre: nombrePorCodigo.get(codigo) || codigo,
-            radial: String(fila[4] || ""),
-            asignacion: String(fila[5] || ""),
-            orden: Number(fila[6]) || 0,
+            radial: String(fila.radial || ""),
+            asignacion: String(fila.asignacion || ""),
+            orden: Number(fila.orden) || 0,
           });
-        }
+        });
         personalGrupo.sort((a, b) => a.orden - b.orden);
         return {
           ...g,
           personal: personalGrupo,
-          diasInicio: diasGuardados(g.id, cabecera!.anioInicio, cabecera!.mesInicio),
-          diasFin: diasGuardados(g.id, cabecera!.anioFin, cabecera!.mesFin),
+          diasInicio: await diasGuardados(g.id, cabecera.anioInicio, cabecera.mesInicio),
+          diasFin: await diasGuardados(g.id, cabecera.anioFin, cabecera.mesFin),
         };
-      });
+      }));
 
-      function leerLista(rows: unknown[][], conAsignacion: boolean) {
+      function leerLista(
+        snapshot: FirebaseFirestore.QuerySnapshot,
+        conAsignacion: boolean
+      ) {
         const lista: Array<{ id: string; codigo: string; nombre: string; radial: string; asignacion: string; observaciones: string }> = [];
-        for (let i = 1; i < rows.length; i++) {
-          const fila = rows[i];
-          if (String(fila[1] || "").trim() !== input.idRol) continue;
-          const codigo = String(fila[2] || "").trim();
-          if (!codigo) continue;
+        snapshot.forEach((doc) => {
+          const fila = doc.data();
+          const codigo = String(fila.codigo || "").trim();
+          if (!codigo) return;
           lista.push({
-            id: String(fila[0] || ""),
+            id: doc.id,
             codigo,
             nombre: nombrePorCodigo.get(codigo) || codigo,
-            radial: String(fila[3] || ""),
-            asignacion: conAsignacion ? String(fila[4] || "") : "",
-            observaciones: conAsignacion ? String(fila[5] || "") : String(fila[4] || ""),
+            radial: String(fila.radial || ""),
+            asignacion: conAsignacion ? String(fila.asignacion || "") : "",
+            observaciones: conAsignacion ? String(fila.observaciones || "") : String(fila.asignacion || fila.observaciones || ""),
           });
-        }
+        });
         return lista;
       }
 
-      const especialesData = await readSheet(env.SHEET_GUARDIAS_ID, "RolesGuardia_Especiales!A1:F");
-      const activosData = await readSheet(env.SHEET_GUARDIAS_ID, "RolesGuardia_Activos!A1:F");
+      const especialesSnap = await colEspeciales().where("idRol", "==", input.idRol).get();
+      const activosSnap = await colActivos().where("idRol", "==", input.idRol).get();
 
-      const especiales = leerLista(especialesData, true);
-      const activos = leerLista(activosData, true);
+      const especiales = leerLista(especialesSnap, true);
+      const activos = leerLista(activosSnap, true);
 
       // Licencias: se calculan automaticamente segun quien tenga SITU=LC o LM
       // con una licencia vigente que se superponga con las fechas de este Rol.
-      const rolInicioDate = new Date(cabecera!.anioInicio, cabecera!.mesInicio - 1, 1);
-      const rolFinDate = new Date(cabecera!.anioFin, cabecera!.mesFin, 0);
+      const rolInicioDate = new Date(cabecera.anioInicio, cabecera.mesInicio - 1, 1);
+      const rolFinDate = new Date(cabecera.anioFin, cabecera.mesFin, 0);
       const licencias: Array<{ id: string; codigo: string; nombre: string; radial: string; asignacion: string; observaciones: string }> = [];
       for (let i = 1; i < usuariosData.length; i++) {
         const filaU = usuariosData[i];
@@ -256,7 +254,10 @@ export const rolesGuardiaRouter = createRouter({
     .input(z.object({ idRol: z.string(), codigo: z.string().min(1), radial: z.string().optional().or(z.literal("")), asignacion: z.string().optional().or(z.literal("")), observaciones: z.string().optional().or(z.literal("")) }))
     .mutation(async ({ input }) => {
       const id = generateId();
-      await appendRow(env.SHEET_GUARDIAS_ID, "RolesGuardia_Especiales", [id, input.idRol, input.codigo, input.radial || "", input.asignacion || "", input.observaciones || ""]);
+      await colEspeciales().doc(id).set({
+        idRol: input.idRol, codigo: input.codigo, radial: input.radial || "",
+        asignacion: input.asignacion || "", observaciones: input.observaciones || "",
+      });
       return { exito: true as const, id };
     }),
 
@@ -264,10 +265,7 @@ export const rolesGuardiaRouter = createRouter({
   quitarEspecial: publicQuery
     .input(z.object({ id: z.string() }))
     .mutation(async ({ input }) => {
-      const rowIndex = await findRowIndex(env.SHEET_GUARDIAS_ID, "RolesGuardia_Especiales!A1:F", 0, input.id);
-      if (rowIndex === -1) return { exito: false as const, error: "No encontrado" };
-      const sheetId = await getSheetId(env.SHEET_GUARDIAS_ID, "RolesGuardia_Especiales");
-      await deleteRows(env.SHEET_GUARDIAS_ID, sheetId, [rowIndex]);
+      await colEspeciales().doc(input.id).delete();
       return { exito: true as const };
     }),
 
@@ -276,7 +274,9 @@ export const rolesGuardiaRouter = createRouter({
     .input(z.object({ idRol: z.string(), codigo: z.string().min(1), radial: z.string().optional().or(z.literal("")), observaciones: z.string().optional().or(z.literal("")) }))
     .mutation(async ({ input }) => {
       const id = generateId();
-      await appendRow(env.SHEET_GUARDIAS_ID, "RolesGuardia_Licencias", [id, input.idRol, input.codigo, input.radial || "", input.observaciones || ""]);
+      await colLicencias().doc(id).set({
+        idRol: input.idRol, codigo: input.codigo, radial: input.radial || "", observaciones: input.observaciones || "",
+      });
       return { exito: true as const, id };
     }),
 
@@ -284,10 +284,7 @@ export const rolesGuardiaRouter = createRouter({
   quitarLicencia: publicQuery
     .input(z.object({ id: z.string() }))
     .mutation(async ({ input }) => {
-      const rowIndex = await findRowIndex(env.SHEET_GUARDIAS_ID, "RolesGuardia_Licencias!A1:E", 0, input.id);
-      if (rowIndex === -1) return { exito: false as const, error: "No encontrado" };
-      const sheetId = await getSheetId(env.SHEET_GUARDIAS_ID, "RolesGuardia_Licencias");
-      await deleteRows(env.SHEET_GUARDIAS_ID, sheetId, [rowIndex]);
+      await colLicencias().doc(input.id).delete();
       return { exito: true as const };
     }),
 
@@ -296,7 +293,10 @@ export const rolesGuardiaRouter = createRouter({
     .input(z.object({ idRol: z.string(), codigo: z.string().min(1), radial: z.string().optional().or(z.literal("")), asignacion: z.string().optional().or(z.literal("")), observaciones: z.string().optional().or(z.literal("")) }))
     .mutation(async ({ input }) => {
       const id = generateId();
-      await appendRow(env.SHEET_GUARDIAS_ID, "RolesGuardia_Activos", [id, input.idRol, input.codigo, input.radial || "", input.asignacion || "", input.observaciones || ""]);
+      await colActivos().doc(id).set({
+        idRol: input.idRol, codigo: input.codigo, radial: input.radial || "",
+        asignacion: input.asignacion || "", observaciones: input.observaciones || "",
+      });
       return { exito: true as const, id };
     }),
 
@@ -304,10 +304,7 @@ export const rolesGuardiaRouter = createRouter({
   quitarActivo: publicQuery
     .input(z.object({ id: z.string() }))
     .mutation(async ({ input }) => {
-      const rowIndex = await findRowIndex(env.SHEET_GUARDIAS_ID, "RolesGuardia_Activos!A1:F", 0, input.id);
-      if (rowIndex === -1) return { exito: false as const, error: "No encontrado" };
-      const sheetId = await getSheetId(env.SHEET_GUARDIAS_ID, "RolesGuardia_Activos");
-      await deleteRows(env.SHEET_GUARDIAS_ID, sheetId, [rowIndex]);
+      await colActivos().doc(input.id).delete();
       return { exito: true as const };
     }),
 
@@ -322,33 +319,10 @@ export const rolesGuardiaRouter = createRouter({
       })
     )
     .mutation(async ({ input }) => {
-      const data = await readSheet(env.SHEET_GUARDIAS_ID, "RolesGuardia_Calendario!A1:E");
-      let rowIndex = -1;
-      let idExistente = "";
-      for (let i = 1; i < data.length; i++) {
-        if (
-          String(data[i][1] || "").trim() === input.idGrupo &&
-          Number(data[i][2]) === input.anio &&
-          Number(data[i][3]) === input.mes
-        ) {
-          rowIndex = i + 1;
-          idExistente = String(data[i][0] || "");
-          break;
-        }
-      }
-      const diasStr = input.dias.slice().sort((a, b) => a - b).join(",");
-      if (rowIndex !== -1) {
-        await updateRange(env.SHEET_GUARDIAS_ID, `RolesGuardia_Calendario!A${rowIndex}:E${rowIndex}`, [[
-          idExistente,
-          input.idGrupo,
-          input.anio,
-          input.mes,
-          diasStr,
-        ]]);
-      } else {
-        const id = generateId();
-        await appendRow(env.SHEET_GUARDIAS_ID, "RolesGuardia_Calendario", [id, input.idGrupo, input.anio, input.mes, diasStr]);
-      }
+      const dias = input.dias.slice().sort((a, b) => a - b);
+      await colCalendario().doc(idCalendario(input.idGrupo, input.anio, input.mes)).set({
+        idGrupo: input.idGrupo, anio: input.anio, mes: input.mes, dias,
+      });
       return { exito: true as const };
     }),
 
@@ -357,14 +331,12 @@ export const rolesGuardiaRouter = createRouter({
     .input(z.object({ idRol: z.string(), nombreGrupo: z.string().min(1) }))
     .mutation(async ({ input }) => {
       const id = generateId();
-      const data = await readSheet(env.SHEET_GUARDIAS_ID, "RolesGuardia_Grupos!A1:D");
+      const snapshot = await colGrupos().where("idRol", "==", input.idRol).get();
       let maxOrden = 0;
-      for (let i = 1; i < data.length; i++) {
-        if (String(data[i][1] || "").trim() === input.idRol) {
-          maxOrden = Math.max(maxOrden, Number(data[i][3]) || 0);
-        }
-      }
-      await appendRow(env.SHEET_GUARDIAS_ID, "RolesGuardia_Grupos", [id, input.idRol, input.nombreGrupo, maxOrden + 1]);
+      snapshot.forEach((doc) => {
+        maxOrden = Math.max(maxOrden, Number(doc.data().orden) || 0);
+      });
+      await colGrupos().doc(id).set({ idRol: input.idRol, nombreGrupo: input.nombreGrupo, orden: maxOrden + 1 });
       return { exito: true as const, id };
     }),
 
@@ -372,22 +344,13 @@ export const rolesGuardiaRouter = createRouter({
   eliminarGrupo: publicQuery
     .input(z.object({ idGrupo: z.string() }))
     .mutation(async ({ input }) => {
-      const rowIndex = await findRowIndex(env.SHEET_GUARDIAS_ID, "RolesGuardia_Grupos!A1:D", 0, input.idGrupo);
-      if (rowIndex !== -1) {
-        const sheetId = await getSheetId(env.SHEET_GUARDIAS_ID, "RolesGuardia_Grupos");
-        await deleteRows(env.SHEET_GUARDIAS_ID, sheetId, [rowIndex]);
-      }
+      await colGrupos().doc(input.idGrupo).delete();
 
-      const personalData = await readSheet(env.SHEET_GUARDIAS_ID, "RolesGuardia_Personal!A1:G");
-      const filasABorrar: number[] = [];
-      for (let i = 1; i < personalData.length; i++) {
-        if (String(personalData[i][2] || "").trim() === input.idGrupo) {
-          filasABorrar.push(i + 1);
-        }
-      }
-      if (filasABorrar.length > 0) {
-        const sheetIdPersonal = await getSheetId(env.SHEET_GUARDIAS_ID, "RolesGuardia_Personal");
-        await deleteRows(env.SHEET_GUARDIAS_ID, sheetIdPersonal, filasABorrar);
+      const personalSnap = await colPersonal().where("idGrupo", "==", input.idGrupo).get();
+      if (!personalSnap.empty) {
+        const batch = db().batch();
+        personalSnap.forEach((doc) => batch.delete(doc.ref));
+        await batch.commit();
       }
 
       return { exito: true as const };
@@ -406,22 +369,19 @@ export const rolesGuardiaRouter = createRouter({
     )
     .mutation(async ({ input }) => {
       const id = generateId();
-      const data = await readSheet(env.SHEET_GUARDIAS_ID, "RolesGuardia_Personal!A1:G");
+      const snapshot = await colPersonal().where("idGrupo", "==", input.idGrupo).get();
       let maxOrden = 0;
-      for (let i = 1; i < data.length; i++) {
-        if (String(data[i][2] || "").trim() === input.idGrupo) {
-          maxOrden = Math.max(maxOrden, Number(data[i][6]) || 0);
-        }
-      }
-      await appendRow(env.SHEET_GUARDIAS_ID, "RolesGuardia_Personal", [
-        id,
-        input.idRol,
-        input.idGrupo,
-        input.codigo,
-        input.radial || "",
-        input.asignacion || "",
-        maxOrden + 1,
-      ]);
+      snapshot.forEach((doc) => {
+        maxOrden = Math.max(maxOrden, Number(doc.data().orden) || 0);
+      });
+      await colPersonal().doc(id).set({
+        idRol: input.idRol,
+        idGrupo: input.idGrupo,
+        codigo: input.codigo,
+        radial: input.radial || "",
+        asignacion: input.asignacion || "",
+        orden: maxOrden + 1,
+      });
       return { exito: true as const, id };
     }),
 
@@ -429,12 +389,7 @@ export const rolesGuardiaRouter = createRouter({
   quitarPersonal: publicQuery
     .input(z.object({ idPersonal: z.string() }))
     .mutation(async ({ input }) => {
-      const rowIndex = await findRowIndex(env.SHEET_GUARDIAS_ID, "RolesGuardia_Personal!A1:G", 0, input.idPersonal);
-      if (rowIndex === -1) {
-        return { exito: false as const, error: "No encontrado" };
-      }
-      const sheetId = await getSheetId(env.SHEET_GUARDIAS_ID, "RolesGuardia_Personal");
-      await deleteRows(env.SHEET_GUARDIAS_ID, sheetId, [rowIndex]);
+      await colPersonal().doc(input.idPersonal).delete();
       return { exito: true as const };
     }),
 });
