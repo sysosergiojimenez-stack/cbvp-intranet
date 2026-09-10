@@ -87,7 +87,7 @@ export const planillasRouter = createRouter({
               return new Date(`${y}-${m}-${d}T${parts[1] || "00:00"}`).getTime();
             } catch { return 0; }
           };
-          return parseFecha(b.fechaCarga) - parseFecha(a.fechaCarga);
+          return parseFecha(b.fechaGuardia) - parseFecha(a.fechaGuardia);
         });
         return { exito: true as const, planillas: filtered };
       }
@@ -102,7 +102,7 @@ export const planillasRouter = createRouter({
             return 0;
           }
         };
-        return parseFecha(b.fechaCarga) - parseFecha(a.fechaCarga);
+        return parseFecha(b.fechaGuardia) - parseFecha(a.fechaGuardia);
       });
 
       return { exito: true as const, planillas };
