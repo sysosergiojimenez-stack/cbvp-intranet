@@ -1,8 +1,7 @@
 import { initTRPC } from "@trpc/server";
 import superjson from "superjson";
 import type { TrpcContext } from "./context";
-import { readSheet } from "./services/sheets";
-import { env } from "./lib/env";
+import { colUsuarios } from "./services/usuariosFirestore";
 
 const t = initTRPC.context<TrpcContext>().create({
   transformer: superjson,
@@ -34,14 +33,14 @@ export const adminProcedure = publicQuery.use(async ({ ctx, next }) => {
     throw new Error("No autorizado: credenciales incompletas");
   }
 
-  const data = await readSheet(env.SHEET_USUARIOS_ID, "USUARIOS!A1:U");
-  for (let i = 1; i < data.length; i++) {
-    const fila = data[i];
-    const correoFila = String(fila[13] || "").trim().toLowerCase();
-    const passFila = String(fila[14] || "").trim();
+  const snapshot = await colUsuarios().get();
+  for (const doc of snapshot.docs) {
+    const fila = doc.data();
+    const correoFila = String(fila.correo || "").trim().toLowerCase();
+    const passFila = String(fila.contrasena || "").trim();
     if (correoFila === correo.toLowerCase() && passFila === contrasena) {
-      const cargo = String(fila[4] || "").trim().toUpperCase();
-      const nivelRaw = parseInt(String(fila[15] || ""), 10);
+      const cargo = String(fila.cargo || "").trim().toUpperCase();
+      const nivelRaw = parseInt(String(fila.nivelPermiso || ""), 10);
       const nivelPermiso = nivelRaw >= 1 && nivelRaw <= 5 ? nivelRaw : 1;
       if (nivelPermiso >= 5 || cargo === "DESARROLLADOR") {
         return next();

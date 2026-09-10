@@ -2,17 +2,19 @@ import { z } from "zod";
 import { formatearNombreCompleto } from "../lib/nombres";
 import { normalizarFechaISO, normalizarMesAnio } from "../lib/fechas";
 import { createRouter, publicQuery, adminProcedure } from "../middleware";
-import { readSheet, appendRow, updateRange, findRowIndex } from "../services/sheets";
-import { env } from "../lib/env";
+import { getFirestoreClient } from "../services/firestore";
+import { colUsuarios } from "../services/usuariosFirestore";
 
 function extractNumber(code: string): string {
   const match = code.match(/\d+/);
   return match ? match[0] : "";
 }
 
+const colGuardiasPersonal = () => getFirestoreClient().collection("guardiasPersonal");
+
 export const personalRouter = createRouter({
   list: publicQuery.query(async () => {
-    const data = await readSheet(env.SHEET_USUARIOS_ID, "USUARIOS!A1:W");
+    const snapshot = await colUsuarios().get();
     const personal: Array<{
       identificador: string;
       codigo: string;
@@ -31,37 +33,37 @@ export const personalRouter = createRouter({
       comisionadoDesde: string;
     }> = [];
 
-    for (let i = 1; i < data.length; i++) {
-      const fila = data[i];
-      const codigo = fila[1] ? String(fila[1]).trim() : "";
-      const primerNombre = fila[7] ? String(fila[7]).trim() : "";
-      if (!codigo || !primerNombre) continue;
+    snapshot.forEach((doc) => {
+      const fila = doc.data();
+      const codigo = fila.codigo ? String(fila.codigo).trim() : "";
+      const primerNombre = fila.primerNombre ? String(fila.primerNombre).trim() : "";
+      if (!codigo || !primerNombre) return;
 
-      const primerApellido = fila[9] ? String(fila[9]).trim() : "";
-      const rango = fila[5] ? String(fila[5]).trim() : "";
-      const categoriaFila = fila[3] ? String(fila[3]).trim() : "";
+      const primerApellido = fila.primerApellido ? String(fila.primerApellido).trim() : "";
+      const rango = fila.rango ? String(fila.rango).trim() : "";
+      const categoriaFila = fila.categoria ? String(fila.categoria).trim() : "";
       const nombreCompleto = formatearNombreCompleto(rango, categoriaFila, primerNombre, primerApellido);
 
-      const nivelRaw = parseInt(String(fila[15] || "1"), 10);
+      const nivelRaw = parseInt(String(fila.nivelPermiso || "1"), 10);
 
       personal.push({
-        identificador: String(fila[0] || ""),
+        identificador: doc.id,
         codigo,
-        anioJuramento: String(fila[2] || ""),
-        categoria: String(fila[3] || ""),
-        cargo: String(fila[4] || ""),
-        rango: String(fila[5] || ""),
-        codigoRadial: String(fila[6] || ""),
+        anioJuramento: String(fila.anioJuramento || ""),
+        categoria: String(fila.categoria || ""),
+        cargo: String(fila.cargo || ""),
+        rango: String(fila.rango || ""),
+        codigoRadial: String(fila.codigoRadial || ""),
         nombreCompleto,
         nivelPermiso: nivelRaw >= 1 && nivelRaw <= 5 ? nivelRaw : 1,
-        situ: String(fila[17] || ""),
-        cuota: normalizarMesAnio(String(fila[18] || "")),
-        licenciaInicio: normalizarFechaISO(String(fila[19] || "")),
-        licenciaDias: String(fila[20] || ""),
-        exencion: String(fila[21] || ""),
-        comisionadoDesde: normalizarFechaISO(String(fila[22] || "")),
+        situ: String(fila.situ || ""),
+        cuota: normalizarMesAnio(String(fila.cuota || "")),
+        licenciaInicio: normalizarFechaISO(String(fila.licenciaInicio || "")),
+        licenciaDias: String(fila.licenciaDias || ""),
+        exencion: String(fila.exencion || ""),
+        comisionadoDesde: normalizarFechaISO(String(fila.comisionadoDesde || "")),
       });
-    }
+    });
 
     // Ordenar: primero por AnioJuramento (numerico ASC), luego por Codigo (numerico ASC)
     personal.sort((a, b) => {
@@ -83,10 +85,7 @@ export const personalRouter = createRouter({
       const codigoBusqueda = input.codigo.toString().trim().toUpperCase();
       const numeroBusqueda = extractNumber(codigoBusqueda);
 
-      const data = await readSheet(
-        env.SHEET_GUARDIAS_ID,
-        "Guardias_Personal!A1:L"
-      );
+      const snapshot = await colGuardiasPersonal().get();
 
       const guardias: Array<{
         idPlanilla: string;
@@ -98,22 +97,23 @@ export const personalRouter = createRouter({
         fechaCarga: string;
       }> = [];
 
-      for (let i = 1; i < data.length; i++) {
-        const codigoFila = data[i][6] ? String(data[i][6]).trim().toUpperCase() : "";
+      snapshot.forEach((doc) => {
+        const fila = doc.data();
+        const codigoFila = fila.codigo ? String(fila.codigo).trim().toUpperCase() : "";
         const numeroFila = extractNumber(codigoFila);
 
         if (numeroFila && numeroFila === numeroBusqueda) {
           guardias.push({
-            idPlanilla: String(data[i][1] || ""),
-            fechaGuardia: String(data[i][3] || ""),
-            grupo: String(data[i][4] || ""),
-            tipo: String(data[i][5] || ""),
-            asignacion: String(data[i][8] || ""),
-            asistencia: String(data[i][9] || ""),
-            fechaCarga: String(data[i][2] || ""),
+            idPlanilla: String(fila.idPlanilla || ""),
+            fechaGuardia: String(fila.fechaGuardia || ""),
+            grupo: String(fila.grupo || ""),
+            tipo: String(fila.tipo || ""),
+            asignacion: String(fila.asignacion || ""),
+            asistencia: String(fila.asistencia || ""),
+            fechaCarga: String(fila.fechaCarga || ""),
           });
         }
-      }
+      });
 
       const stats = {
         totalGuardias: guardias.length,
@@ -156,68 +156,68 @@ export const personalRouter = createRouter({
       })
     )
     .mutation(async ({ input }) => {
-      await appendRow(env.SHEET_USUARIOS_ID, "USUARIOS", [
-        "", // A: IDENTIFICADOR (no se usa)
-        input.codigo,
-        input.anioJuramento,
-        input.categoria,
-        "", // E: CARGO (no se usa en formulario)
-        input.rango,
-        input.codigoRadial,
-        input.primerNombre,
-        input.segundoNombre,
-        input.primerApellido,
-        input.segundoApellido,
-        input.nroDocId || "",
-        input.fechaNacimiento || "",
-        input.correo,
-        input.contrasena,
-        input.nivelPermiso,
-        input.descripcionPermiso,
-        input.situ || "",
-        normalizarMesAnio(input.cuota || ""),
-        input.licenciaInicio || "",
-        input.licenciaDias || "",
-        input.exencion || "",
-        input.comisionadoDesde || "",
-      ]);
+      await colUsuarios().add({
+        codigo: input.codigo,
+        anioJuramento: input.anioJuramento,
+        categoria: input.categoria,
+        cargo: "",
+        rango: input.rango,
+        codigoRadial: input.codigoRadial,
+        primerNombre: input.primerNombre,
+        segundoNombre: input.segundoNombre,
+        primerApellido: input.primerApellido,
+        segundoApellido: input.segundoApellido,
+        nroDoc: input.nroDocId || "",
+        fechaNacimiento: input.fechaNacimiento || "",
+        correo: input.correo,
+        contrasena: input.contrasena,
+        nivelPermiso: input.nivelPermiso,
+        descripcionPermiso: input.descripcionPermiso,
+        situ: input.situ || "",
+        cuota: normalizarMesAnio(input.cuota || ""),
+        licenciaInicio: input.licenciaInicio || "",
+        licenciaDias: input.licenciaDias || "",
+        exencion: input.exencion || "",
+        comisionadoDesde: input.comisionadoDesde || "",
+      });
       return { exito: true as const, mensaje: "Bombero registrado correctamente" };
     }),
 
   obtenerPorCodigo: publicQuery
     .input(z.object({ codigo: z.string() }))
     .query(async ({ input }) => {
-      const data = await readSheet(env.SHEET_USUARIOS_ID, "USUARIOS!A1:W");
+      const snapshot = await colUsuarios().get();
       const searchNum = extractNumber(input.codigo);
-      for (let i = 1; i < data.length; i++) {
-        const codigoFila = String(data[i][1] || "").trim();
+      for (const doc of snapshot.docs) {
+        const fila = doc.data();
+        const codigoFila = String(fila.codigo || "").trim();
         const numFila = extractNumber(codigoFila);
         if (numFila === searchNum) {
           return {
             exito: true as const,
             bombero: {
-              identificador: String(data[i][0] || ""),
+              identificador: doc.id,
               codigo: codigoFila,
-              anioJuramento: String(data[i][2] || ""),
-              categoria: String(data[i][3] || ""),
-              cargo: String(data[i][4] || ""),
-              rango: String(data[i][5] || ""),
-              codigoRadial: String(data[i][6] || ""),
-              primerNombre: String(data[i][7] || ""),
-              segundoNombre: String(data[i][8] || ""),
-              primerApellido: String(data[i][9] || ""),
-              segundoApellido: String(data[i][10] || ""),
-              nroDocId: String(data[i][11] || ""),
-              fechaNacimiento: String(data[i][12] || ""),
-              correo: String(data[i][13] || ""),
-              nivelPermiso: String(data[i][15] || "1"),
-              descripcionPermiso: String(data[i][16] || ""),
-              situ: String(data[i][17] || ""),
-              cuota: normalizarMesAnio(String(data[i][18] || "")),
-              licenciaInicio: normalizarFechaISO(String(data[i][19] || "")),
-              licenciaDias: String(data[i][20] || ""),
-              exencion: String(data[i][21] || ""),
-              comisionadoDesde: normalizarFechaISO(String(data[i][22] || "")),
+              anioJuramento: String(fila.anioJuramento || ""),
+              categoria: String(fila.categoria || ""),
+              cargo: String(fila.cargo || ""),
+              rango: String(fila.rango || ""),
+              codigoRadial: String(fila.codigoRadial || ""),
+              primerNombre: String(fila.primerNombre || ""),
+              segundoNombre: String(fila.segundoNombre || ""),
+              primerApellido: String(fila.primerApellido || ""),
+              segundoApellido: String(fila.segundoApellido || ""),
+              nroDocId: String(fila.nroDoc || ""),
+              fechaNacimiento: String(fila.fechaNacimiento || ""),
+              correo: String(fila.correo || ""),
+              nivelPermiso: String(fila.nivelPermiso || "1"),
+              descripcionPermiso: String(fila.descripcionPermiso || ""),
+              situ: String(fila.situ || ""),
+              cuota: normalizarMesAnio(String(fila.cuota || "")),
+              licenciaInicio: normalizarFechaISO(String(fila.licenciaInicio || "")),
+              licenciaDias: String(fila.licenciaDias || ""),
+              exencion: String(fila.exencion || ""),
+              comisionadoDesde: normalizarFechaISO(String(fila.comisionadoDesde || "")),
             },
           };
         }
@@ -249,47 +249,38 @@ export const personalRouter = createRouter({
       })
     )
     .mutation(async ({ input }) => {
-      const data = await readSheet(env.SHEET_USUARIOS_ID, "USUARIOS!A1:W");
+      const snapshot = await colUsuarios().get();
       const searchNum = extractNumber(input.codigoOriginal);
-      let rowIndex = -1;
-      let existingRow: string[] = [];
-      for (let i = 1; i < data.length; i++) {
-        const codigoFila = String(data[i][1] || "").trim();
-        const numFila = extractNumber(codigoFila);
-        if (numFila === searchNum) {
-          rowIndex = i + 1;
-          existingRow = data[i] as string[];
+      let docId: string | null = null;
+      for (const doc of snapshot.docs) {
+        const codigoFila = String(doc.data().codigo || "").trim();
+        if (extractNumber(codigoFila) === searchNum) {
+          docId = doc.id;
           break;
         }
       }
-      if (rowIndex === -1) {
+      if (!docId) {
         return { exito: false as const, error: "Bombero no encontrado" };
       }
-      await updateRange(env.SHEET_USUARIOS_ID, `USUARIOS!A${rowIndex}:W${rowIndex}`, [[
-        "", // A: IDENTIFICADOR
-        input.codigo,
-        input.anioJuramento,
-        input.categoria,
-        existingRow[4] || "", // E: CARGO (preserve existing)
-        input.rango,
-        input.codigoRadial,
-        input.primerNombre,
-        input.segundoNombre,
-        input.primerApellido,
-        input.segundoApellido,
-        input.nroDocId || "",
-        input.fechaNacimiento || "",
-        existingRow[13] || "", // N: correo (preserve existing)
-        existingRow[14] || "", // O: contrasena (preserve existing)
-        existingRow[15] || "", // P: nivelPermiso (preserve existing)
-        existingRow[16] || "", // Q: descripcionPermiso (preserve existing)
-        input.situ || "",
-        normalizarMesAnio(input.cuota || ""),
-        input.licenciaInicio || "",
-        input.licenciaDias || "",
-        input.exencion || "",
-        input.comisionadoDesde || "",
-      ]]);
+      await colUsuarios().doc(docId).update({
+        codigo: input.codigo,
+        anioJuramento: input.anioJuramento,
+        categoria: input.categoria,
+        rango: input.rango,
+        codigoRadial: input.codigoRadial,
+        primerNombre: input.primerNombre,
+        segundoNombre: input.segundoNombre,
+        primerApellido: input.primerApellido,
+        segundoApellido: input.segundoApellido,
+        nroDoc: input.nroDocId || "",
+        fechaNacimiento: input.fechaNacimiento || "",
+        situ: input.situ || "",
+        cuota: normalizarMesAnio(input.cuota || ""),
+        licenciaInicio: input.licenciaInicio || "",
+        licenciaDias: input.licenciaDias || "",
+        exencion: input.exencion || "",
+        comisionadoDesde: input.comisionadoDesde || "",
+      });
       return { exito: true as const, mensaje: "Bombero actualizado correctamente" };
     }),
 
@@ -305,29 +296,29 @@ export const personalRouter = createRouter({
     .mutation(async ({ input }) => {
       // Buscar por correo+contrasena en vez de por codigo
       // Asi solo puedes modificar tu propia fila
-      const data = await readSheet(env.SHEET_USUARIOS_ID, "USUARIOS!A1:Q");
-      let rowIndex = -1;
-      for (let i = 1; i < data.length; i++) {
-        const row = data[i] as string[];
-        const storedEmail = String(row[13] || "").trim();
-        const storedPassword = String(row[14] || "").trim();
+      const snapshot = await colUsuarios().get();
+      let docId: string | null = null;
+      for (const doc of snapshot.docs) {
+        const fila = doc.data();
+        const storedEmail = String(fila.correo || "").trim();
+        const storedPassword = String(fila.contrasena || "").trim();
         if (storedEmail === input.correoActual.trim() && storedPassword === input.contrasenaActual.trim()) {
-          rowIndex = i + 1;
+          docId = doc.id;
           break;
         }
       }
-      if (rowIndex === -1) {
+      if (!docId) {
         return { exito: false as const, error: "Correo o contrasena actual incorrectos" };
       }
-      await updateRange(env.SHEET_USUARIOS_ID, `USUARIOS!N${rowIndex}:O${rowIndex}`, [[
-        input.correoNuevo.trim(),
-        input.contrasenaNueva.trim(),
-      ]]);
+      await colUsuarios().doc(docId).update({
+        correo: input.correoNuevo.trim(),
+        contrasena: input.contrasenaNueva.trim(),
+      });
       return { exito: true as const, mensaje: "Datos de acceso actualizados correctamente" };
     }),
 
   resumenCuadroServicio: publicQuery.query(async () => {
-    const data = await readSheet(env.SHEET_USUARIOS_ID, "USUARIOS!A1:S");
+    const snapshot = await colUsuarios().get();
     let regimenNormal = 0;
     let regimenEspecial = 0;
     let b10a = 0;
@@ -337,14 +328,14 @@ export const personalRouter = createRouter({
     let licencia = 0;
     let total = 0;
 
-    for (let i = 1; i < data.length; i++) {
-      const fila = data[i];
-      const codigo = fila[1] ? String(fila[1]).trim() : "";
-      const primerNombre = fila[7] ? String(fila[7]).trim() : "";
-      if (!codigo || !primerNombre) continue;
+    snapshot.forEach((doc) => {
+      const fila = doc.data();
+      const codigo = fila.codigo ? String(fila.codigo).trim() : "";
+      const primerNombre = fila.primerNombre ? String(fila.primerNombre).trim() : "";
+      if (!codigo || !primerNombre) return;
       total++;
 
-      const situ = String(fila[17] || "RN").trim().toUpperCase() || "RN";
+      const situ = String(fila.situ || "RN").trim().toUpperCase() || "RN";
       if (situ === "RN") regimenNormal++;
       else if (situ === "GE") regimenEspecial++;
       else if (situ === "B10A") b10a++;
@@ -352,7 +343,7 @@ export const personalRouter = createRouter({
       else if (situ === "B20A") b20a++;
       else if (situ === "CM") comisionados++;
       else if (situ === "LC") licencia++;
-    }
+    });
 
     const enCuadro = regimenNormal + regimenEspecial + b10a + b15a + b20a + comisionados;
     const fueraDeCuadro = total - enCuadro - licencia;
@@ -382,21 +373,20 @@ export const personalRouter = createRouter({
       })
     )
     .mutation(async ({ input }) => {
-      const data = await readSheet(env.SHEET_USUARIOS_ID, "USUARIOS!A1:U");
+      const snapshot = await colUsuarios().get();
       const searchNum = extractNumber(input.codigo);
-      let rowIndex = -1;
-      for (let i = 1; i < data.length; i++) {
-        const codigoFila = String(data[i][1] || "").trim();
+      let docId: string | null = null;
+      for (const doc of snapshot.docs) {
+        const codigoFila = String(doc.data().codigo || "").trim();
         if (extractNumber(codigoFila) === searchNum) {
-          rowIndex = i + 1;
+          docId = doc.id;
           break;
         }
       }
-      if (rowIndex === -1) {
+      if (!docId) {
         return { exito: false as const, error: "Bombero no encontrado" };
       }
-      await updateRange(env.SHEET_USUARIOS_ID, `USUARIOS!E${rowIndex}`, [[input.cargo]]);
-      await updateRange(env.SHEET_USUARIOS_ID, `USUARIOS!P${rowIndex}`, [[input.nivelPermiso]]);
+      await colUsuarios().doc(docId).update({ cargo: input.cargo, nivelPermiso: input.nivelPermiso });
       return { exito: true as const };
     }),
 });

@@ -2,8 +2,8 @@ import { z } from "zod";
 import { formatearNombreCompleto } from "../lib/nombres";
 import { normalizarFechaISO } from "../lib/fechas";
 import { createRouter, publicQuery } from "../middleware";
-import { readSheet } from "../services/sheets";
 import { colAsistenciaEncabezado, colAsistenciaPersonal, obtenerTipoPorPlanillaAsistencia, obtenerAsistenciaPersonalComoFilas } from "../services/asistenciaFirestore";
+import { obtenerUsuariosComoFilas } from "../services/usuariosFirestore";
 import { getFirestoreClient } from "../services/firestore";
 import { env } from "../lib/env";
 import { extractAsistenciaData } from "../services/gemini";
@@ -486,7 +486,7 @@ export const asistenciaRouter = createRouter({
   mensualDetallada: publicQuery
     .input(z.object({ mes: z.number().min(1).max(12), anio: z.number(), categoria: z.string() }))
     .query(async ({ input }) => {
-      const usuariosData = await readSheet(env.SHEET_USUARIOS_ID, "USUARIOS!A1:W");
+      const usuariosData = await obtenerUsuariosComoFilas();
       const personasBase: Array<{ codigo: string; numero: string; nombre: string; situ: string; exencion: string; comisionadoDesde: string }> = [];
       for (let i = 1; i < usuariosData.length; i++) {
         const fila = usuariosData[i];

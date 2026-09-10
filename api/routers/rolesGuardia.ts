@@ -1,10 +1,9 @@
 import { z } from "zod";
 import { formatearNombreCompleto } from "../lib/nombres";
 import { createRouter, publicQuery } from "../middleware";
-import { readSheet } from "../services/sheets";
 import { getFirestoreClient } from "../services/firestore";
+import { obtenerUsuariosComoFilas } from "../services/usuariosFirestore";
 import { normalizarFechaISO } from "../lib/fechas";
-import { env } from "../lib/env";
 
 function generateId(): string {
   const now = new Date();
@@ -133,7 +132,7 @@ export const rolesGuardiaRouter = createRouter({
       grupos.sort((a, b) => a.orden - b.orden);
 
       const personalSnap = await colPersonal().where("idRol", "==", input.idRol).get();
-      const usuariosData = await readSheet(env.SHEET_USUARIOS_ID, "USUARIOS!A1:U");
+      const usuariosData = await obtenerUsuariosComoFilas();
       const nombrePorCodigo = new Map<string, string>();
       for (let i = 1; i < usuariosData.length; i++) {
         const codigo = String(usuariosData[i][1] || "").trim();

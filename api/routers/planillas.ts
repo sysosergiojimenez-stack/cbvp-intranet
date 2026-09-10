@@ -3,9 +3,9 @@ import { Firestore } from "@google-cloud/firestore";
 import { formatearNombreCompleto } from "../lib/nombres";
 import { normalizarFechaISO, normalizarMesAnio } from "../lib/fechas";
 import { createRouter, publicQuery } from "../middleware";
-import { readSheet } from "../services/sheets";
 import { getFirestoreClient } from "../services/firestore";
 import { obtenerTipoPorPlanillaAsistencia, obtenerAsistenciaPersonalComoFilas } from "../services/asistenciaFirestore";
+import { obtenerUsuariosComoFilas } from "../services/usuariosFirestore";
 import { extractGuardiaData } from "../services/gemini";
 import { uploadFile } from "../services/storage";
 import { env } from "../lib/env";
@@ -551,7 +551,7 @@ export const planillasRouter = createRouter({
   asistenciaMensualDetallada: publicQuery
     .input(z.object({ mes: z.number().min(1).max(12), anio: z.number(), categoria: z.string() }))
     .query(async ({ input }) => {
-      const usuariosData = await readSheet(env.SHEET_USUARIOS_ID, "USUARIOS!A1:W");
+      const usuariosData = await obtenerUsuariosComoFilas();
       const personasBase: Array<{ codigo: string; numero: string; nombre: string; situ: string; exencion: string; comisionadoDesde: string }> = [];
       for (let i = 1; i < usuariosData.length; i++) {
         const fila = usuariosData[i];
@@ -779,7 +779,7 @@ export const planillasRouter = createRouter({
     .query(async ({ input }) => {
       const esActivo = input.categoria.toUpperCase() === "ACTIVO";
 
-      const usuariosData = await readSheet(env.SHEET_USUARIOS_ID, "USUARIOS!A1:W");
+      const usuariosData = await obtenerUsuariosComoFilas();
       const personasBase: Array<{ codigo: string; numero: string; nombre: string; categoria: string; situ: string; cuota: string; exencion: string; comisionadoDesde: string }> = [];
       for (let i = 1; i < usuariosData.length; i++) {
         const fila = usuariosData[i];

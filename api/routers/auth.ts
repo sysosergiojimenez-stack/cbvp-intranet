@@ -1,34 +1,20 @@
 import { z } from "zod";
 import { formatearNombreCompleto } from "../lib/nombres";
 import { createRouter, publicQuery } from "../middleware";
-import { readSheet } from "../services/sheets";
-import { env } from "../lib/env";
-
-function normalizeCode(code: string): string {
-  return code.toString().trim().toUpperCase();
-}
-
-function extractNumber(code: string): string {
-  const match = code.match(/\d+/);
-  return match ? match[0] : "";
-}
+import { colUsuarios, colRoles } from "../services/usuariosFirestore";
 
 async function obtenerNivelPermiso(cargo: string) {
   try {
-    const data = await readSheet(env.SHEET_USUARIOS_ID, "ROLES!A1:D");
     const cargoBusqueda = cargo.toString().trim();
-    for (let i = 1; i < data.length; i++) {
-      const rowCargo = data[i][0] ? String(data[i][0]).trim() : "";
-      if (rowCargo === cargoBusqueda) {
-        return {
-          exito: true,
-          nivel: parseInt(String(data[i][1])) || 1,
-          descripcion: data[i][2] ? String(data[i][2]) : "",
-          accesos: data[i][3] ? String(data[i][3]) : "",
-        };
-      }
-    }
-    return { exito: false, nivel: 1, descripcion: "", accesos: "" };
+    const doc = await colRoles().doc(cargoBusqueda).get();
+    if (!doc.exists) return { exito: false, nivel: 1, descripcion: "", accesos: "" };
+    const fila = doc.data()!;
+    return {
+      exito: true,
+      nivel: parseInt(String(fila.nivel)) || 1,
+      descripcion: fila.descripcion ? String(fila.descripcion) : "",
+      accesos: fila.accesos ? String(fila.accesos) : "",
+    };
   } catch {
     return { exito: false, nivel: 1, descripcion: "", accesos: "" };
   }
@@ -46,21 +32,17 @@ export const authRouter = createRouter({
       const correoInput = input.correo.trim().toLowerCase();
       const passInput = input.contrasena.trim();
 
-      // Read from USUARIOS sheet
-      // Columns: 0=ID, 1=Codigo, 2=AnioJuramento, 3=Categoria, 4=Cargo, 5=Rango,
-      // 6=CodigoRadial, 7=PrimerNombre, 8=SegundoNombre, 9=PrimerApellido, 10=SegundoApellido,
-      // 11=NroDoc, 12=FechaNacimiento, 13=Correo, 14=Contrasena
-      const data = await readSheet(env.SHEET_USUARIOS_ID, "USUARIOS!A1:U");
+      const snapshot = await colUsuarios().get();
 
-      for (let i = 1; i < data.length; i++) {
-        const fila = data[i];
-        const correoFila = fila[13] ? String(fila[13]).trim().toLowerCase() : "";
-        const passFila = fila[14] ? String(fila[14]).trim() : "";
+      for (const doc of snapshot.docs) {
+        const fila = doc.data();
+        const correoFila = fila.correo ? String(fila.correo).trim().toLowerCase() : "";
+        const passFila = fila.contrasena ? String(fila.contrasena).trim() : "";
 
         if (correoFila === correoInput && passFila === passInput) {
-          const cargo = fila[4] ? String(fila[4]).trim() : "Voluntario(a)";
+          const cargo = fila.cargo ? String(fila.cargo).trim() : "Voluntario(a)";
           const permiso = await obtenerNivelPermiso(cargo);
-          const nivelColP = parseInt(String(fila[15] || ""), 10);
+          const nivelColP = parseInt(String(fila.nivelPermiso || ""), 10);
           const nivelPermiso =
             nivelColP >= 1 && nivelColP <= 5
               ? nivelColP
@@ -68,20 +50,20 @@ export const authRouter = createRouter({
                 ? permiso.nivel
                 : 2;
 
-          const primerNombre = fila[7] ? String(fila[7]).trim() : "";
-          const primerApellido = fila[9] ? String(fila[9]).trim() : "";
-          const rango = fila[5] ? String(fila[5]).trim() : "";
-          const categoriaFila = fila[3] ? String(fila[3]).trim() : "";
+          const primerNombre = fila.primerNombre ? String(fila.primerNombre).trim() : "";
+          const primerApellido = fila.primerApellido ? String(fila.primerApellido).trim() : "";
+          const rango = fila.rango ? String(fila.rango).trim() : "";
+          const categoriaFila = fila.categoria ? String(fila.categoria).trim() : "";
           const nombreCompleto = formatearNombreCompleto(rango, categoriaFila, primerNombre, primerApellido);
 
           return {
             exito: true as const,
-            identificador: String(fila[0] || ""),
-            codigo: String(fila[1] || ""),
-            anioJuramento: String(fila[2] || ""),
-            categoria: String(fila[3] || ""),
+            identificador: doc.id,
+            codigo: String(fila.codigo || ""),
+            anioJuramento: String(fila.anioJuramento || ""),
+            categoria: String(fila.categoria || ""),
             cargo,
-            rango: String(fila[5] || ""),
+            rango: String(fila.rango || ""),
             nivelPermiso,
             descripcionPermiso: permiso.exito ? permiso.descripcion : "",
             accesosPermiso: permiso.exito ? permiso.accesos : "",
@@ -101,30 +83,30 @@ export const authRouter = createRouter({
     .input(z.object({ correo: z.string().email() }))
     .query(async ({ input }) => {
       const correoBusqueda = input.correo.trim().toLowerCase();
-      const data = await readSheet(env.SHEET_USUARIOS_ID, "USUARIOS!A1:O");
+      const snapshot = await colUsuarios().get();
 
-      for (let i = 1; i < data.length; i++) {
-        const fila = data[i];
-        const correoFila = fila[13] ? String(fila[13]).trim().toLowerCase() : "";
+      for (const doc of snapshot.docs) {
+        const fila = doc.data();
+        const correoFila = fila.correo ? String(fila.correo).trim().toLowerCase() : "";
         if (correoFila === correoBusqueda) {
-          const primerNombre = fila[7] ? String(fila[7]).trim() : "";
-          const primerApellido = fila[9] ? String(fila[9]).trim() : "";
-          const rango = fila[5] ? String(fila[5]).trim() : "";
-          const categoriaFila = fila[3] ? String(fila[3]).trim() : "";
+          const primerNombre = fila.primerNombre ? String(fila.primerNombre).trim() : "";
+          const primerApellido = fila.primerApellido ? String(fila.primerApellido).trim() : "";
+          const rango = fila.rango ? String(fila.rango).trim() : "";
+          const categoriaFila = fila.categoria ? String(fila.categoria).trim() : "";
           const nombreCompleto = formatearNombreCompleto(rango, categoriaFila, primerNombre, primerApellido);
 
           return {
             exito: true as const,
-            identificador: String(fila[0] || ""),
-            codigo: String(fila[1] || ""),
-            anioJuramento: String(fila[2] || ""),
-            categoria: String(fila[3] || ""),
-            cargo: String(fila[4] || ""),
-            rango: String(fila[5] || ""),
-            codigoRadial: String(fila[6] || ""),
+            identificador: doc.id,
+            codigo: String(fila.codigo || ""),
+            anioJuramento: String(fila.anioJuramento || ""),
+            categoria: String(fila.categoria || ""),
+            cargo: String(fila.cargo || ""),
+            rango: String(fila.rango || ""),
+            codigoRadial: String(fila.codigoRadial || ""),
             nombreCompleto,
-            nroDoc: String(fila[11] || ""),
-            fechaNacimiento: String(fila[12] || ""),
+            nroDoc: String(fila.nroDoc || ""),
+            fechaNacimiento: String(fila.fechaNacimiento || ""),
             correo: correoFila,
           };
         }
