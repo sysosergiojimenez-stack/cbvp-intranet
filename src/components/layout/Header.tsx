@@ -11,6 +11,7 @@ const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
   '/historial': { title: 'Historial de Planillas', subtitle: 'Registro historico de guardias' },
   '/personal': { title: 'Personal', subtitle: 'Listado de bomberos voluntarios' },
   '/agregar-bombero': { title: 'Agregar Bombero', subtitle: 'Registrar nuevo bombero voluntario' },
+  '/moviles': { title: 'Moviles', subtitle: 'Ficha tecnica de la flota de vehiculos' },
   '/configuracion': { title: 'Configuracion', subtitle: 'Roles, permisos y ajustes del sistema' },
   '/configurar-acceso': { title: 'Configurar Acceso', subtitle: '' },
 };

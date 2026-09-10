@@ -17,6 +17,7 @@ import SalidaMovil from '@/pages/SalidaMovil';
 import InformeAsistencia from '@/pages/InformeAsistencia';
 import RolesGuardia from '@/pages/RolesGuardia';
 import RolGuardiaDetalle from '@/pages/RolGuardiaDetalle';
+import Moviles from '@/pages/Moviles';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { usuario } = useAuth();
@@ -103,6 +104,11 @@ function AppRoutes() {
         <Route path="/configurar-acceso" element={
           <ProtectedRoute>
             <ConfigurarAcceso />
+          </ProtectedRoute>
+        } />
+        <Route path="/moviles" element={
+          <ProtectedRoute>
+            {permisos.puedeVerMoviles ? <Moviles /> : <Navigate to="/" replace />}
           </ProtectedRoute>
         } />
         <Route path="/configuracion" element={

@@ -36,6 +36,13 @@ const NAV_ITEMS: NavItem[] = [
       { path: '/informe-asistencia', label: 'Informe Mensual', icon: ClipboardCheck, checkAccess: p => p.puedeVerInformes },
     ],
   },
+  {
+    path: '/primer-oficial', label: 'Primer Oficial', icon: Crown,
+    checkAccess: (p) => p.puedeVerMoviles,
+    children: [
+      { path: '/moviles', label: 'Moviles', icon: Truck, checkAccess: p => p.puedeVerMoviles },
+    ],
+  },
   { path: '/configuracion', label: 'Configuracion', icon: Settings, checkAccess: p => p.puedeConfiguracion },
 ];
 

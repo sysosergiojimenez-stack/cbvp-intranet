@@ -23,6 +23,7 @@ const PERMISO_LABELS: Record<AccionPermiso, string> = {
   ver_informes: 'Ver informes de asistencia',
   gestionar_roles_guardia: 'Gestionar roles de guardia',
   crear_bombero: 'Agregar bomberos',
+  ver_moviles: 'Ver modulo de Moviles',
 };
 
 const PERMISO_KEYS = ACCIONES_PERMISO;
