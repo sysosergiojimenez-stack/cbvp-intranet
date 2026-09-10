@@ -1,6 +1,7 @@
 import { useState, Fragment } from 'react';
 import { trpc } from '@/providers/trpc';
 import { Truck, Plus, Save, Trash2, RotateCcw, ExternalLink } from 'lucide-react';
+import { CONDICIONES_MOVIL_VALIDAS } from '@contracts/condicionMovil';
 
 interface MovilForm {
   codificacion: string;
@@ -32,7 +33,6 @@ const CAMPOS: { key: keyof MovilForm; label: string }[] = [
   { key: 'anio', label: 'Anio' },
   { key: 'chasis', label: 'Chasis' },
   { key: 'matricula', label: 'Matricula' },
-  { key: 'condicion', label: 'Condicion' },
   { key: 'tipoCombustible', label: 'Tipo de Combustible' },
   { key: 'foto', label: 'Foto (URL)' },
 ];
@@ -40,6 +40,20 @@ const CAMPOS: { key: keyof MovilForm; label: string }[] = [
 function FormularioMovil({ valor, onChange }: { valor: MovilForm; onChange: (campo: keyof MovilForm, v: string) => void }) {
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div>
+        <label className="text-xs text-white/40 mb-1 block">Condicion</label>
+        <select
+          value={valor.condicion}
+          onChange={(e) => onChange('condicion', e.target.value)}
+          className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none"
+        >
+          <option value="">-- Seleccionar --</option>
+          {!(CONDICIONES_MOVIL_VALIDAS as readonly string[]).includes(valor.condicion) && valor.condicion && (
+            <option value={valor.condicion}>{valor.condicion} (anterior)</option>
+          )}
+          {CONDICIONES_MOVIL_VALIDAS.map((c) => <option key={c} value={c}>{c}</option>)}
+        </select>
+      </div>
       {CAMPOS.map(({ key, label }) => (
         <div key={key} className={key === 'foto' ? 'col-span-2 md:col-span-4' : ''}>
           <label className="text-xs text-white/40 mb-1 block">{label}</label>
@@ -83,9 +97,13 @@ export default function Moviles() {
       setError('La codificacion es obligatoria.');
       return;
     }
+    if (!nuevoMovil.condicion) {
+      setError('Selecciona la condicion del movil antes de guardar.');
+      return;
+    }
     setError('');
     try {
-      const resp = await crearMutation.mutateAsync(nuevoMovil);
+      const resp = await crearMutation.mutateAsync({ ...nuevoMovil, condicion: nuevoMovil.condicion as (typeof CONDICIONES_MOVIL_VALIDAS)[number] });
       if (!resp.exito) throw new Error('Error al crear');
       setCreando(false);
       setNuevoMovil({ ...movilVacio });
@@ -97,8 +115,12 @@ export default function Moviles() {
 
   const guardarEdicion = async () => {
     if (editandoId === null) return;
+    if (!editForm.condicion) {
+      alert('Selecciona la condicion del movil antes de guardar.');
+      return;
+    }
     try {
-      const resp = await editarMutation.mutateAsync({ id: editandoId, ...editForm });
+      const resp = await editarMutation.mutateAsync({ id: editandoId, ...editForm, condicion: editForm.condicion as (typeof CONDICIONES_MOVIL_VALIDAS)[number] });
       if (!resp.exito) throw new Error('Error al guardar');
       setEditandoId(null);
       utils.moviles.listado.invalidate();

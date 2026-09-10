@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { createRouter, publicQuery } from "../middleware";
 import { getFirestoreClient } from "../services/firestore";
+import { CONDICIONES_MOVIL_VALIDAS } from "@contracts/condicionMovil";
 
 function movilesCollection() {
   return getFirestoreClient().collection("moviles");
@@ -17,7 +18,7 @@ const movilInput = z.object({
   chasis: z.string(),
   matricula: z.string(),
   foto: z.string(),
-  condicion: z.string(),
+  condicion: z.enum(CONDICIONES_MOVIL_VALIDAS),
   tipoCombustible: z.string(),
 });
 
