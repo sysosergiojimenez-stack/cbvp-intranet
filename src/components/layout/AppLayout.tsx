@@ -27,6 +27,14 @@ const NAV_ITEMS: NavItem[] = [
   { path: '/practicas-citaciones', label: 'Practicas y Citaciones', icon: BookOpen, checkAccess: p => p.puedeCargarPlanillas },
   { path: '/salida-movil', label: 'Salidas de Movil', icon: Truck, checkAccess: p => p.puedeCargarPlanillas },
   {
+    path: '/primer-oficial', label: 'Primer Oficial', icon: Crown,
+    checkAccess: (p) => p.puedeVerMoviles,
+    children: [
+      { path: '/moviles', label: 'Material Mayor', icon: Truck, checkAccess: p => p.puedeVerMoviles },
+      { path: '/material-menor', label: 'Material Menor', icon: Package, checkAccess: p => p.puedeVerMoviles },
+    ],
+  },
+  {
     path: '/administracion', label: 'Segundo Oficial', icon: Shield,
     checkAccess: (p) => p.puedeVerInformes || p.puedeGestionarRolesGuardia || p.puedeVerPersonal || p.puedeCrearBombero,
     children: [
@@ -34,14 +42,6 @@ const NAV_ITEMS: NavItem[] = [
       { path: '/agregar-bombero', label: 'Agregar Bombero', icon: UserPlus, checkAccess: p => p.puedeCrearBombero },
       { path: '/roles-guardia', label: 'Roles de Guardia', icon: Shield, checkAccess: p => p.puedeGestionarRolesGuardia },
       { path: '/informe-asistencia', label: 'Informe Mensual', icon: ClipboardCheck, checkAccess: p => p.puedeVerInformes },
-    ],
-  },
-  {
-    path: '/primer-oficial', label: 'Primer Oficial', icon: Crown,
-    checkAccess: (p) => p.puedeVerMoviles,
-    children: [
-      { path: '/moviles', label: 'Moviles', icon: Truck, checkAccess: p => p.puedeVerMoviles },
-      { path: '/material-menor', label: 'Material Menor', icon: Package, checkAccess: p => p.puedeVerMoviles },
     ],
   },
   { path: '/configuracion', label: 'Configuracion', icon: Settings, checkAccess: p => p.puedeConfiguracion },

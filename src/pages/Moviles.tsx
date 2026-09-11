@@ -145,7 +145,7 @@ export default function Moviles() {
       <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-sm font-semibold text-white/60 uppercase tracking-wider flex items-center gap-2">
-            <Truck className="w-4 h-4 text-cbvp-red" /> Flota de Moviles
+            <Truck className="w-4 h-4 text-cbvp-red" /> Material Mayor
           </h2>
           {!creando && (
             <button onClick={() => setCreando(true)} className="px-3 py-2 bg-cbvp-blue/10 hover:bg-cbvp-blue/20 text-cbvp-blue rounded-lg text-xs flex items-center gap-2 transition-colors">
