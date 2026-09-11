@@ -12,6 +12,15 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
   return btoa(binary);
 }
 
+function hoyFormateada(): string {
+  const hoy = new Date();
+  return `${String(hoy.getDate()).padStart(2, '0')}/${String(hoy.getMonth() + 1).padStart(2, '0')}/${hoy.getFullYear()}`;
+}
+
+function valoresUnicos(items: { item: string; marca: string; modelo: string }[], campo: 'item' | 'marca' | 'modelo'): string[] {
+  return Array.from(new Set(items.map((i) => i[campo]).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+}
+
 interface MaterialForm {
   fecha: string;
   item: string;
@@ -72,29 +81,42 @@ function ImagenPicker({ inputId, preview, onFile }: { inputId: string; preview: 
   );
 }
 
+const CAMPOS_CON_SUGERENCIAS = new Set<keyof MaterialForm>(['item', 'marca', 'modelo']);
+
 function FormularioMaterial({
-  valor, onChange, inputId, imagenPreview, onImagen,
+  valor, onChange, inputId, imagenPreview, onImagen, sugerencias,
 }: {
   valor: MaterialForm;
   onChange: (campo: keyof MaterialForm, v: string) => void;
   inputId: string;
   imagenPreview: string;
   onImagen: (file: File) => void;
+  sugerencias: { item: string[]; marca: string[]; modelo: string[] };
 }) {
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {CAMPOS.map(({ key, label }) => (
-          <div key={key} className={key === 'especificaciones' || key === 'observaciones' ? 'col-span-2 md:col-span-4' : ''}>
-            <label className="text-xs text-white/40 mb-1 block">{label}</label>
-            <input
-              type="text"
-              value={valor[key]}
-              onChange={(e) => onChange(key, e.target.value)}
-              className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none"
-            />
-          </div>
-        ))}
+        {CAMPOS.map(({ key, label }) => {
+          const tieneSugerencias = CAMPOS_CON_SUGERENCIAS.has(key);
+          const datalistId = `${inputId}-${key}-opciones`;
+          return (
+            <div key={key} className={key === 'especificaciones' || key === 'observaciones' ? 'col-span-2 md:col-span-4' : ''}>
+              <label className="text-xs text-white/40 mb-1 block">{label}</label>
+              <input
+                type="text"
+                value={valor[key]}
+                onChange={(e) => onChange(key, e.target.value)}
+                list={tieneSugerencias ? datalistId : undefined}
+                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none"
+              />
+              {tieneSugerencias && (
+                <datalist id={datalistId}>
+                  {sugerencias[key as 'item' | 'marca' | 'modelo'].map((op) => <option key={op} value={op} />)}
+                </datalist>
+              )}
+            </div>
+          );
+        })}
       </div>
       <ImagenPicker inputId={inputId} preview={imagenPreview} onFile={onImagen} />
     </div>
@@ -123,12 +145,23 @@ export default function MaterialMenor() {
 
   const [error, setError] = useState('');
 
-  const itemsTab = (listadoData?.items || []).filter((it) => it.categoria === tabActiva);
+  const todosLosItems = listadoData?.items || [];
+  const itemsTab = todosLosItems.filter((it) => it.categoria === tabActiva);
+  const sugerencias = {
+    item: valoresUnicos(todosLosItems, 'item'),
+    marca: valoresUnicos(todosLosItems, 'marca'),
+    modelo: valoresUnicos(todosLosItems, 'modelo'),
+  };
 
   const cambiarTab = (cat: CategoriaMaterialMenor) => {
     setTabActiva(cat);
     setCreando(false);
     setEditandoId(null);
+  };
+
+  const iniciarCreacion = () => {
+    setNuevoItem({ ...materialVacio, fecha: hoyFormateada() });
+    setCreando(true);
   };
 
   const iniciarEdicion = (it: MaterialForm & { id: string; imagen?: string }) => {
@@ -231,7 +264,7 @@ export default function MaterialMenor() {
             <Package className="w-4 h-4 text-cbvp-red" /> {tabActiva}
           </h2>
           {!creando && (
-            <button onClick={() => setCreando(true)} className="px-3 py-2 bg-cbvp-blue/10 hover:bg-cbvp-blue/20 text-cbvp-blue rounded-lg text-xs flex items-center gap-2 transition-colors">
+            <button onClick={iniciarCreacion} className="px-3 py-2 bg-cbvp-blue/10 hover:bg-cbvp-blue/20 text-cbvp-blue rounded-lg text-xs flex items-center gap-2 transition-colors">
               <Plus className="w-3.5 h-3.5" /> Agregar Item
             </button>
           )}
@@ -245,6 +278,7 @@ export default function MaterialMenor() {
               inputId="material-nuevo"
               imagenPreview={nuevaImagenPreview}
               onImagen={(file) => { setNuevaImagen(file); setNuevaImagenPreview(URL.createObjectURL(file)); }}
+              sugerencias={sugerencias}
             />
             {error && <div className="text-sm text-cbvp-red-light">{error}</div>}
             <div className="flex gap-3">
@@ -300,6 +334,7 @@ export default function MaterialMenor() {
                             inputId={`material-editar-${it.id}`}
                             imagenPreview={editImagenPreview}
                             onImagen={(file) => { setEditImagen(file); setEditImagenPreview(URL.createObjectURL(file)); }}
+                            sugerencias={sugerencias}
                           />
                           <div className="flex gap-2 mt-3">
                             <button onClick={guardarEdicion} className="px-4 py-2 bg-cbvp-green hover:bg-cbvp-green/80 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2"><Save className="w-4 h-4" /> Guardar</button>
