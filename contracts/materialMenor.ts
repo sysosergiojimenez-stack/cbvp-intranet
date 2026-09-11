@@ -1,0 +1,12 @@
+export const CATEGORIAS_MATERIAL_MENOR = [
+  "ERA'S",
+  "EQUIPO HIDRAULICO",
+  "HERRAMIENTAS MANUALES",
+  "EQUIPOS DE POTENCIA",
+  "ATENCION PREHOSPITALAR",
+  "TRABAJO EN ALTURAS",
+  "MANGAS Y ACCESORIOS",
+  "OTROS",
+] as const;
+
+export type CategoriaMaterialMenor = (typeof CATEGORIAS_MATERIAL_MENOR)[number];

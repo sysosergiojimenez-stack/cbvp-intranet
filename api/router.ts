@@ -7,6 +7,7 @@ import { salidaMovilRouter } from "./routers/salidaMovil";
 import { rolesGuardiaRouter } from "./routers/rolesGuardia";
 import { permisosRouter } from "./routers/permisos";
 import { movilesRouter } from "./routers/moviles";
+import { materialMenorRouter } from "./routers/materialMenor";
 
 export const appRouter = createRouter({
   ping: publicQuery.query(() => ({ ok: true, ts: Date.now() })),
@@ -19,6 +20,7 @@ export const appRouter = createRouter({
   rolesGuardia: rolesGuardiaRouter,
   permisos: permisosRouter,
   moviles: movilesRouter,
+  materialMenor: materialMenorRouter,
 });
 
 export type AppRouter = typeof appRouter;

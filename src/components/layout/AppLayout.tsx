@@ -8,7 +8,7 @@ import {
   LayoutDashboard, ClipboardList,
   Users, Settings, LogOut, Shield, Menu, X,
   ChevronLeft, ChevronRight, ChevronDown, Flame, Crown,
-  UserCircle, UserPlus, Lock, BookOpen, Truck, WifiOff, ClipboardCheck
+  UserCircle, UserPlus, Lock, BookOpen, Truck, WifiOff, ClipboardCheck, Package
 } from 'lucide-react';
 
 interface NavItem {
@@ -41,6 +41,7 @@ const NAV_ITEMS: NavItem[] = [
     checkAccess: (p) => p.puedeVerMoviles,
     children: [
       { path: '/moviles', label: 'Moviles', icon: Truck, checkAccess: p => p.puedeVerMoviles },
+      { path: '/material-menor', label: 'Material Menor', icon: Package, checkAccess: p => p.puedeVerMoviles },
     ],
   },
   { path: '/configuracion', label: 'Configuracion', icon: Settings, checkAccess: p => p.puedeConfiguracion },

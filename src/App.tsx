@@ -18,6 +18,7 @@ import InformeAsistencia from '@/pages/InformeAsistencia';
 import RolesGuardia from '@/pages/RolesGuardia';
 import RolGuardiaDetalle from '@/pages/RolGuardiaDetalle';
 import Moviles from '@/pages/Moviles';
+import MaterialMenor from '@/pages/MaterialMenor';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { usuario } = useAuth();
@@ -109,6 +110,11 @@ function AppRoutes() {
         <Route path="/moviles" element={
           <ProtectedRoute>
             {permisos.puedeVerMoviles ? <Moviles /> : <Navigate to="/" replace />}
+          </ProtectedRoute>
+        } />
+        <Route path="/material-menor" element={
+          <ProtectedRoute>
+            {permisos.puedeVerMoviles ? <MaterialMenor /> : <Navigate to="/" replace />}
           </ProtectedRoute>
         } />
         <Route path="/configuracion" element={
