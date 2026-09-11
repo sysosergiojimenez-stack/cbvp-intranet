@@ -21,6 +21,8 @@ function VistaEstadisticasServicios({ mes, anio }: { mes: number; anio: number }
   if (isLoading) return <div className="text-center py-6 text-white/40 text-sm">Cargando...</div>;
   if (!data?.tipos || data.tipos.length === 0) return <div className="text-center py-6 text-white/40 text-sm">No hay salidas registradas ese mes.</div>;
 
+  const tiposAscendente = [...data.tipos].sort((a, b) => a.cantidad - b.cantidad);
+
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
@@ -31,7 +33,7 @@ function VistaEstadisticasServicios({ mes, anio }: { mes: number; anio: number }
           </tr>
         </thead>
         <tbody>
-          {data.tipos.map((t, idx) => (
+          {tiposAscendente.map((t, idx) => (
             <tr key={idx} className="border-b border-white/5">
               <td className="px-3 py-2 text-white/80">{t.tipo}</td>
               <td className="px-3 py-2 text-right text-white font-mono">{t.cantidad}</td>
