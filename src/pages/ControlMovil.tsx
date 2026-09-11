@@ -2,6 +2,12 @@ import { useState } from 'react';
 import { trpc } from '@/providers/trpc';
 import { ClipboardCheck, Plus, Save, Trash2, Pencil, X, Truck, Package } from 'lucide-react';
 
+function detalleMaterial(m: { marca?: string; modelo?: string; serialCodigo?: string }): string {
+  const marcaModelo = [m.marca, m.modelo].filter(Boolean).join(' ');
+  const partes = [marcaModelo, m.serialCodigo ? `S/N: ${m.serialCodigo}` : ''].filter(Boolean);
+  return partes.join(' · ');
+}
+
 export default function ControlMovil() {
   const utils = trpc.useUtils();
   const { data: movilesData, isLoading: cargandoMoviles } = trpc.moviles.listado.useQuery();
@@ -186,17 +192,25 @@ export default function ControlMovil() {
                     <p className="text-xs text-white/30 flex items-center gap-2"><Package className="w-3.5 h-3.5" /> Sin materiales asignados a este sitio.</p>
                   ) : (
                     <div className="space-y-1.5">
-                      {materialesSitio.map((m) => (
-                        <label key={m.id} className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-white/[0.03] cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={!!m.verificado}
-                            onChange={() => toggleVerificado(m.id, !!m.verificado)}
-                            className="w-4 h-4 rounded border-white/20 bg-white/5 text-cbvp-red focus:ring-cbvp-red/50 shrink-0"
-                          />
-                          <span className={`text-sm truncate ${m.verificado ? 'text-white/40 line-through' : 'text-white/80'}`}>{String(m.item || '')}</span>
-                        </label>
-                      ))}
+                      {materialesSitio.map((m) => {
+                        const detalle = detalleMaterial(m);
+                        return (
+                          <label key={m.id} className="flex items-start gap-2.5 px-2 py-1.5 rounded-lg hover:bg-white/[0.03] cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={!!m.verificado}
+                              onChange={() => toggleVerificado(m.id, !!m.verificado)}
+                              className="w-4 h-4 mt-0.5 rounded border-white/20 bg-white/5 text-cbvp-red focus:ring-cbvp-red/50 shrink-0"
+                            />
+                            <span className="min-w-0">
+                              <span className={`block text-sm truncate ${m.verificado ? 'text-white/40 line-through' : 'text-white/80'}`}>{String(m.item || '')}</span>
+                              {detalle && (
+                                <span className={`block text-xs truncate ${m.verificado ? 'text-white/20' : 'text-white/40'}`}>{detalle}</span>
+                              )}
+                            </span>
+                          </label>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
