@@ -47,10 +47,11 @@ const CAMPOS: { key: keyof MaterialForm; label: string }[] = [
   { key: 'cantidad', label: 'Cantidad' },
   { key: 'precioUnitario', label: 'Precio Unitario' },
   { key: 'serialCodigo', label: 'Serial / Codigo de Identificacion' },
-  { key: 'ubicacion', label: 'Ubicacion' },
   { key: 'especificaciones', label: 'Especificaciones' },
   { key: 'observaciones', label: 'Observaciones' },
 ];
+
+interface OpcionUbicacion { value: string; label: string }
 
 function ImagenPicker({ inputId, preview, onFile }: { inputId: string; preview: string; onFile: (file: File) => void }) {
   const handleChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -84,7 +85,7 @@ function ImagenPicker({ inputId, preview, onFile }: { inputId: string; preview: 
 const CAMPOS_CON_SUGERENCIAS = new Set<keyof MaterialForm>(['item', 'marca', 'modelo']);
 
 function FormularioMaterial({
-  valor, onChange, inputId, imagenPreview, onImagen, sugerencias,
+  valor, onChange, inputId, imagenPreview, onImagen, sugerencias, opcionesUbicacion,
 }: {
   valor: MaterialForm;
   onChange: (campo: keyof MaterialForm, v: string) => void;
@@ -92,10 +93,22 @@ function FormularioMaterial({
   imagenPreview: string;
   onImagen: (file: File) => void;
   sugerencias: { item: string[]; marca: string[]; modelo: string[] };
+  opcionesUbicacion: OpcionUbicacion[];
 }) {
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div>
+          <label className="text-xs text-white/40 mb-1 block">Ubicacion</label>
+          <select
+            value={valor.ubicacion}
+            onChange={(e) => onChange('ubicacion', e.target.value)}
+            className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none"
+          >
+            <option value="">-- Sin asignar --</option>
+            {opcionesUbicacion.map((op) => <option key={op.value} value={op.value}>{op.label}</option>)}
+          </select>
+        </div>
         {CAMPOS.map(({ key, label }) => {
           const tieneSugerencias = CAMPOS_CON_SUGERENCIAS.has(key);
           const datalistId = `${inputId}-${key}-opciones`;
@@ -127,6 +140,8 @@ export default function MaterialMenor() {
   const { usuario } = useAuth();
   const utils = trpc.useUtils();
   const { data: listadoData, isLoading } = trpc.materialMenor.listado.useQuery();
+  const { data: movilesData } = trpc.moviles.listado.useQuery();
+  const { data: sitiosData } = trpc.controlMovil.listadoSitios.useQuery();
   const crearMutation = trpc.materialMenor.crear.useMutation();
   const editarMutation = trpc.materialMenor.editar.useMutation();
   const eliminarMutation = trpc.materialMenor.eliminar.useMutation();
@@ -152,6 +167,18 @@ export default function MaterialMenor() {
     marca: valoresUnicos(todosLosItems, 'marca'),
     modelo: valoresUnicos(todosLosItems, 'modelo'),
   };
+
+  const moviles = movilesData?.moviles || [];
+  const sitios = sitiosData?.sitios || [];
+  const movilPorId = new Map(moviles.map((m) => [m.id, m]));
+  const opcionesUbicacion: OpcionUbicacion[] = sitios
+    .map((s) => ({
+      value: s.id,
+      label: `${String(movilPorId.get(s.movilId)?.codificacion || '?')} - ${String(s.denominacion || '')}`,
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+  const etiquetaUbicacion = (sitioId: string): string =>
+    opcionesUbicacion.find((op) => op.value === sitioId)?.label || '';
 
   const cambiarTab = (cat: CategoriaMaterialMenor) => {
     setTabActiva(cat);
@@ -279,6 +306,7 @@ export default function MaterialMenor() {
               imagenPreview={nuevaImagenPreview}
               onImagen={(file) => { setNuevaImagen(file); setNuevaImagenPreview(URL.createObjectURL(file)); }}
               sugerencias={sugerencias}
+              opcionesUbicacion={opcionesUbicacion}
             />
             {error && <div className="text-sm text-cbvp-red-light">{error}</div>}
             <div className="flex gap-3">
@@ -314,7 +342,7 @@ export default function MaterialMenor() {
                       <td className="px-3 py-2 text-white font-medium block sm:table-cell">{it.item || '-'}</td>
                       <td className="px-3 py-2 text-white/70 block sm:table-cell"><span className="text-white/30 sm:hidden">Marca/Modelo: </span>{[it.marca, it.modelo].filter(Boolean).join(' ') || '-'}</td>
                       <td className="px-3 py-2 text-white/70 block sm:table-cell"><span className="text-white/30 sm:hidden">Cantidad: </span>{it.cantidad || '-'}</td>
-                      <td className="px-3 py-2 text-white/70 block sm:table-cell"><span className="text-white/30 sm:hidden">Ubicacion: </span>{it.ubicacion || '-'}</td>
+                      <td className="px-3 py-2 text-white/70 block sm:table-cell"><span className="text-white/30 sm:hidden">Ubicacion: </span>{etiquetaUbicacion(it.ubicacion) || '-'}</td>
                       <td className="px-3 py-2 text-white/70 block sm:table-cell"><span className="text-white/30 sm:hidden">Serial: </span>{it.serialCodigo || '-'}</td>
                       <td className="px-3 py-2 block sm:table-cell" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center gap-2 pt-1.5 sm:pt-0 mt-1 sm:mt-0 border-t border-white/5 sm:border-0">
@@ -335,6 +363,7 @@ export default function MaterialMenor() {
                             imagenPreview={editImagenPreview}
                             onImagen={(file) => { setEditImagen(file); setEditImagenPreview(URL.createObjectURL(file)); }}
                             sugerencias={sugerencias}
+                            opcionesUbicacion={opcionesUbicacion}
                           />
                           <div className="flex gap-2 mt-3">
                             <button onClick={guardarEdicion} className="px-4 py-2 bg-cbvp-green hover:bg-cbvp-green/80 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2"><Save className="w-4 h-4" /> Guardar</button>

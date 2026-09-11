@@ -102,4 +102,13 @@ export const materialMenorRouter = createRouter({
       await colMaterialMenor().doc(input.id).delete();
       return { exito: true as const, mensaje: "Item eliminado" };
     }),
+
+  // Marca/desmarca el checkbox de verificacion de un item, usado desde el
+  // checklist de Control de Movil. No pisa el resto de los campos.
+  marcarVerificado: publicQuery
+    .input(z.object({ id: z.string(), verificado: z.boolean() }))
+    .mutation(async ({ input }) => {
+      await colMaterialMenor().doc(input.id).update({ verificado: input.verificado });
+      return { exito: true as const };
+    }),
 });
