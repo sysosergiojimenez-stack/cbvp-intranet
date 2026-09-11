@@ -24,6 +24,7 @@ const NAV_ITEMS: NavItem[] = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard, checkAccess: (p, u) => p.puedeVerTodo && u?.cargo?.trim().toUpperCase() !== 'VOLUNTARIO(A)' },
   { path: '/mi-dashboard', label: 'Mi Dashboard', icon: UserCircle, checkAccess: p => p.puedeVerPerfilPropio },
   { path: '/planillas', label: 'Planillas de Guardia', icon: ClipboardList, checkAccess: p => p.puedeCargarPlanillas },
+  { path: '/control-movil', label: 'Control de Movil', icon: ClipboardCheck, checkAccess: p => p.puedeCargarPlanillas },
   { path: '/practicas-citaciones', label: 'Practicas y Citaciones', icon: BookOpen, checkAccess: p => p.puedeCargarPlanillas },
   { path: '/salida-movil', label: 'Salidas de Movil', icon: Truck, checkAccess: p => p.puedeCargarPlanillas },
   {

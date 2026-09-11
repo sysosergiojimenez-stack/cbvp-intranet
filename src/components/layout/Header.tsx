@@ -6,6 +6,7 @@ const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
   '/': { title: 'Dashboard', subtitle: 'Resumen general del sistema' },
   '/mi-dashboard': { title: 'Mi Dashboard', subtitle: 'Mis datos y metricas de asistencia' },
   '/planillas': { title: 'Planillas de Guardia', subtitle: 'Carga y procesamiento de planillas' },
+  '/control-movil': { title: 'Control de Movil', subtitle: 'Checklist de materiales asignados por movil' },
   '/practicas-citaciones': { title: 'Practicas y Citaciones', subtitle: 'Asistencia a practicas, citaciones y reuniones' },
   '/salida-movil': { title: 'Salidas de Movil', subtitle: 'Registro de movimientos de la flota de vehiculos' },
   '/historial': { title: 'Historial de Planillas', subtitle: 'Registro historico de guardias' },

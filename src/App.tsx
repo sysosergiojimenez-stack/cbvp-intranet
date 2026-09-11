@@ -18,6 +18,7 @@ import RolesGuardia from '@/pages/RolesGuardia';
 import RolGuardiaDetalle from '@/pages/RolGuardiaDetalle';
 import Moviles from '@/pages/Moviles';
 import MaterialMenor from '@/pages/MaterialMenor';
+import ControlMovil from '@/pages/ControlMovil';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { usuario } = useAuth();
@@ -59,6 +60,11 @@ function AppRoutes() {
         <Route path="/planillas" element={
           <ProtectedRoute>
             {permisos.puedeCargarPlanillas ? <Planillas /> : <Navigate to="/" replace />}
+          </ProtectedRoute>
+        } />
+        <Route path="/control-movil" element={
+          <ProtectedRoute>
+            {permisos.puedeCargarPlanillas ? <ControlMovil /> : <Navigate to="/" replace />}
           </ProtectedRoute>
         } />
         <Route path="/practicas-citaciones" element={
