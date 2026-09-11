@@ -1,0 +1,197 @@
+import { useState } from 'react';
+import { trpc } from '@/providers/trpc';
+import { UserPlus, Save, X, CheckCircle } from 'lucide-react';
+
+const formVacio = {
+  codigo: '', anioJuramento: '', categoria: 'COMBATIENTE',
+  rango: 'Voluntario(a)', codigoRadial: '',
+  primerNombre: '', segundoNombre: '', primerApellido: '', segundoApellido: '',
+  nroDocId: '', fechaNacimiento: '', situ: 'RN', cuota: '', licenciaInicio: '', licenciaDias: '',
+  exencion: '', comisionadoDesde: '',
+};
+
+export default function AgregarBomberoModal({ onClose }: { onClose: () => void }) {
+  const utils = trpc.useUtils();
+  const [form, setForm] = useState({ ...formVacio });
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+
+  const crearMutation = trpc.personal.crear.useMutation({
+    onSuccess: () => {
+      setSuccess('Bombero registrado correctamente');
+      setError('');
+      setForm({ ...formVacio });
+      utils.personal.list.invalidate();
+      setTimeout(() => setSuccess(''), 3000);
+    },
+    onError: (err) => { setError(err.message); setSuccess(''); },
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(''); setSuccess('');
+    if (!form.codigo || !form.anioJuramento || !form.primerNombre || !form.primerApellido) {
+      setError('Complete los campos obligatorios'); return;
+    }
+    if (form.situ === 'CM' && (!form.exencion || !form.comisionadoDesde)) {
+      setError('Complete la exencion y la fecha de comisionado'); return;
+    }
+    // Enviar con valores por defecto para los campos de acceso eliminados
+    crearMutation.mutate({
+      ...form,
+      correo: '',
+      contrasena: '',
+      nivelPermiso: '1',
+      descripcionPermiso: 'BASICO',
+    });
+  };
+
+  const field = (label: string, key: keyof typeof form, opts?: { type?: string; placeholder?: string; required?: boolean }) => (
+    <div>
+      <label className="text-[10px] text-white/40 uppercase tracking-wider mb-1 block">{label}{opts?.required ? ' *' : ''}</label>
+      <input type={opts?.type || 'text'} value={form[key]} onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))} placeholder={opts?.placeholder || ''} className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-cbvp-red/50" />
+    </div>
+  );
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-cbvp-dark-light border border-white/10 rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto scrollbar-thin" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between p-5 border-b border-white/5">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-full bg-cbvp-red/10 flex items-center justify-center">
+              <UserPlus className="w-6 h-6 text-cbvp-red" />
+            </div>
+            <h2 className="text-lg font-semibold text-white">Agregar Bombero</h2>
+          </div>
+          <button onClick={onClose} className="p-2 rounded-lg hover:bg-white/5 text-white/40 hover:text-white transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="p-5">
+          {error && (
+            <div className="mb-4 p-3 bg-cbvp-red/10 border border-cbvp-red/20 rounded-lg text-sm text-cbvp-red-light">{error}</div>
+          )}
+          {success && (
+            <div className="mb-4 p-3 bg-cbvp-green/10 border border-cbvp-green/20 rounded-lg text-sm text-cbvp-green flex items-center gap-2">
+              <CheckCircle className="w-4 h-4" /> {success}
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <h3 className="text-sm font-semibold text-white/60 uppercase tracking-wider border-b border-white/5 pb-2">Datos Generales</h3>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              {field('Codigo', 'codigo', { placeholder: '4852', required: true })}
+              {field('Anio Juramento', 'anioJuramento', { placeholder: '2014', required: true })}
+              <div>
+                <label className="text-[10px] text-white/40 uppercase tracking-wider mb-1 block">Categoria</label>
+                <select value={form.categoria} onChange={e => setForm(f => ({ ...f, categoria: e.target.value }))} className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-cbvp-red/50">
+                  <option value="COMBATIENTE">COMBATIENTE</option>
+                  <option value="ACTIVO">ACTIVO</option>
+                  <option value="FUNDADOR">FUNDADOR</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-[10px] text-white/40 uppercase tracking-wider mb-1 block">Rango</label>
+                <select value={form.rango} onChange={e => setForm(f => ({ ...f, rango: e.target.value }))} className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-cbvp-red/50">
+                  <option value="Voluntario(a)">Voluntario(a)</option>
+                  <option value="Sub Teniente">Sub Teniente</option>
+                  <option value="Teniente">Teniente</option>
+                  <option value="Teniente Primero">Teniente Primero</option>
+                  <option value="Capitan">Capitan</option>
+                  <option value="Capitan Inspector">Capitan Inspector</option>
+                  <option value="Capitan Mayor">Capitan Mayor</option>
+                  <option value="Capitan Director">Capitan Director</option>
+                  <option value="Capitan Principal">Capitan Principal</option>
+                  <option value="Capitan General">Capitan General</option>
+                </select>
+              </div>
+              {field('Codigo Radial', 'codigoRadial')}
+              <div>
+                <label className="text-[10px] text-white/40 uppercase tracking-wider mb-1 block">Cuota al dia hasta</label>
+                <input type="month" value={form.cuota} onChange={e => setForm(f => ({ ...f, cuota: e.target.value }))} className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-cbvp-red/50 [color-scheme:dark]" />
+              </div>
+              <div>
+                <label className="text-[10px] text-white/40 uppercase tracking-wider mb-1 block">Situacion (SITU)</label>
+                <select value={form.situ} onChange={e => setForm(f => ({ ...f, situ: e.target.value }))} className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-cbvp-red/50">
+                  <option value="RN">RN - Regimen Normal</option>
+                  <option value="GE">GE - Guardia Especial</option>
+                  <option value="CM">CM - Comisionado</option>
+                  <option value="SC">SC - Sancionado</option>
+                  <option value="LC">LC - Licencia</option>
+                  <option value="LM">LM - Licencia Maternidad</option>
+                  <option value="PS">PS - Pasantia</option>
+                  <option value="BCP">BCP - Baja c/Prescripcion Especial</option>
+                  <option value="B10A">B10A - Beneficios 10 años</option>
+                  <option value="B15A">B15A - Beneficios 15 años</option>
+                  <option value="B20A">B20A - Beneficios 20 años</option>
+                </select>
+              </div>
+              {(form.situ === 'LC' || form.situ === 'LM') && (
+                <>
+                  <div>
+                    <label className="text-[10px] text-white/40 uppercase tracking-wider mb-1 block">Inicio de Licencia</label>
+                    <input type="date" value={form.licenciaInicio} onChange={e => setForm(f => ({ ...f, licenciaInicio: e.target.value }))} className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-cbvp-red/50 [color-scheme:dark]" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-white/40 uppercase tracking-wider mb-1 block">Duracion (dias)</label>
+                    <input type="number" min="1" value={form.licenciaDias} onChange={e => setForm(f => ({ ...f, licenciaDias: e.target.value }))} placeholder="Ej: 90" className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-cbvp-red/50" />
+                  </div>
+                  {form.licenciaInicio && form.licenciaDias && (() => {
+                    const fin = new Date(form.licenciaInicio);
+                    fin.setDate(fin.getDate() + Number(form.licenciaDias));
+                    const vencida = fin < new Date();
+                    return vencida ? (
+                      <div className="col-span-full text-amber-400 text-xs bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
+                        Esta licencia ya vencio el {fin.toLocaleDateString('es-PY')}. Recorda volver el SITU a RN si corresponde.
+                      </div>
+                    ) : (
+                      <div className="col-span-full text-white/40 text-xs">
+                        Vence el {fin.toLocaleDateString('es-PY')}
+                      </div>
+                    );
+                  })()}
+                </>
+              )}
+              {form.situ === 'CM' && (
+                <>
+                  <div>
+                    <label className="text-[10px] text-white/40 uppercase tracking-wider mb-1 block">Exencion *</label>
+                    <select value={form.exencion} onChange={e => setForm(f => ({ ...f, exencion: e.target.value }))} className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-cbvp-red/50">
+                      <option value="">Ninguna</option>
+                      <option value="GUARDIAS">Guardias</option>
+                      <option value="PRACTICAS">Practicas</option>
+                      <option value="AMBOS">Ambos</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-white/40 uppercase tracking-wider mb-1 block">Comisionado desde *</label>
+                    <input type="date" value={form.comisionadoDesde} onChange={e => setForm(f => ({ ...f, comisionadoDesde: e.target.value }))} className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-cbvp-red/50 [color-scheme:dark]" />
+                  </div>
+                </>
+              )}
+            </div>
+
+            <h3 className="text-sm font-semibold text-white/60 uppercase tracking-wider border-b border-white/5 pb-2 pt-2">Datos Personales</h3>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              {field('Primer Nombre *', 'primerNombre', { required: true })}
+              {field('Segundo Nombre', 'segundoNombre')}
+              {field('Primer Apellido *', 'primerApellido', { required: true })}
+              {field('Segundo Apellido', 'segundoApellido')}
+              {field('Nro Doc ID', 'nroDocId', { placeholder: '1234567' })}
+              <div>
+                <label className="text-[10px] text-white/40 uppercase tracking-wider mb-1 block">Fecha de Nacimiento</label>
+                <input type="date" value={form.fechaNacimiento} onChange={e => setForm(f => ({ ...f, fechaNacimiento: e.target.value }))} className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-cbvp-red/50 [color-scheme:dark]" />
+              </div>
+            </div>
+
+            <button type="submit" disabled={crearMutation.isPending} className="w-full mt-4 py-3 bg-cbvp-green hover:bg-cbvp-green/80 disabled:opacity-50 text-white font-semibold rounded-xl transition-all flex items-center justify-center gap-2">
+              <Save className="w-4 h-4" />
+              {crearMutation.isPending ? 'Guardando...' : 'Registrar Bombero'}
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+}

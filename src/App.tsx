@@ -8,7 +8,6 @@ import Planillas from '@/pages/Planillas';
 import Personal from '@/pages/Personal';
 import Perfil from '@/pages/Perfil';
 import MiDashboard from '@/pages/MiDashboard';
-import AgregarBombero from '@/pages/AgregarBombero';
 import EditarBombero from '@/pages/EditarBombero';
 import ConfigurarAcceso from '@/pages/ConfigurarAcceso';
 import Configuracion from '@/pages/Configuracion';
@@ -90,11 +89,6 @@ function AppRoutes() {
         <Route path="/personal" element={
           <ProtectedRoute>
             {permisos.puedeVerPersonal ? <Personal /> : <Navigate to="/" replace />}
-          </ProtectedRoute>
-        } />
-        <Route path="/agregar-bombero" element={
-          <ProtectedRoute>
-            {permisos.puedeCrearBombero ? <AgregarBombero /> : <Navigate to="/" replace />}
           </ProtectedRoute>
         } />
         <Route path="/editar-bombero/:codigo" element={

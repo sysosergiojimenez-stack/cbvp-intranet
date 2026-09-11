@@ -2,18 +2,20 @@ import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { usePermiso } from '@/hooks/usePermiso';
 import { trpc } from '@/providers/trpc';
+import AgregarBomberoModal from '@/components/AgregarBomberoModal';
 import type { Personal, GuardiaHistorial, EstadisticasGuardias } from '@/types';
 import {
   Search, User, Shield, Award, Calendar, Hash, Radio,
-  Mail, FileText, X, Flame,
+  Mail, FileText, X, Flame, UserPlus,
   Clock, Users, AlertTriangle, ChevronDown, ChevronUp, Pencil
 } from 'lucide-react';
 
 export default function PersonalPage() {
   const navigate = useNavigate();
-  const { puedeVerPersonal } = usePermiso();
+  const { puedeVerPersonal, puedeCrearBombero } = usePermiso();
   const [search, setSearch] = useState('');
   const [selectedBombero, setSelectedBombero] = useState<Personal | null>(null);
+  const [mostrarAgregar, setMostrarAgregar] = useState(false);
   const { data: metricasData } = trpc.planillas.misMetricas.useQuery(
     { codigo: selectedBombero?.codigo || '' },
     { enabled: !!selectedBombero }
@@ -86,15 +88,25 @@ export default function PersonalPage() {
   return (
     <div className="animate-fade-in">
       <div className="bg-white/[0.03] border border-white/5 rounded-xl p-5">
-        <div className="relative mb-4">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
-          <input
-            type="text"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Buscar por nombre, codigo, categoria o rango..."
-            className="w-full pl-10 pr-4 py-3 rounded-lg bg-white/5 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:border-cbvp-red/50 text-sm"
-          />
+        <div className="flex flex-col sm:flex-row gap-3 mb-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+            <input
+              type="text"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Buscar por nombre, codigo, categoria o rango..."
+              className="w-full pl-10 pr-4 py-3 rounded-lg bg-white/5 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:border-cbvp-red/50 text-sm"
+            />
+          </div>
+          {puedeCrearBombero && (
+            <button
+              onClick={() => setMostrarAgregar(true)}
+              className="px-4 py-3 bg-cbvp-green/10 hover:bg-cbvp-green/20 text-cbvp-green rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors shrink-0"
+            >
+              <UserPlus className="w-4 h-4" /> Agregar Bombero
+            </button>
+          )}
         </div>
 
         {/* Error from backend */}
@@ -401,6 +413,8 @@ export default function PersonalPage() {
           </div>
         </div>
       )}
+
+      {mostrarAgregar && <AgregarBomberoModal onClose={() => setMostrarAgregar(false)} />}
     </div>
   );
 }
