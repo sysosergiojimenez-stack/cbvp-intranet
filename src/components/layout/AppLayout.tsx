@@ -61,6 +61,17 @@ export default function AppLayout() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
 
+  // Al navegar a una pagina, abre automaticamente el grupo al que pertenece
+  // (si es que pertenece a alguno). Solo se dispara en cambios de ruta, asi
+  // que colapsar manualmente el grupo activo (sin navegar) se respeta.
+  useEffect(() => {
+    const grupoActivo = NAV_ITEMS.find(item =>
+      item.children?.some(child => location.pathname.startsWith(child.path))
+    );
+    if (grupoActivo) setGrupoAbierto(grupoActivo.path);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname]);
+
   const visibleNavItems = NAV_ITEMS.filter(item => {
     if (item.disabled) return false;
     return item.checkAccess(permisos, usuario);
@@ -130,7 +141,7 @@ export default function AppLayout() {
               const childrenVisibles = item.children.filter(child => child.checkAccess(permisos, usuario));
               if (childrenVisibles.length === 0) return null;
               const isGroupActive = childrenVisibles.some(child => location.pathname.startsWith(child.path));
-              const isOpen = grupoAbierto === item.path || isGroupActive;
+              const isOpen = grupoAbierto === item.path;
               return (
                 <div key={item.path}>
                   <button
