@@ -240,7 +240,9 @@ export default function MaterialMenor() {
     .filter((it) => it.esKit)
     .map((it) => ({
       id: it.id,
-      nombre: String(it.item || 'Kit sin nombre'),
+      // El serial se incluye para distinguir kits con el mismo nombre
+      // (ej. "ARNES ERA 001" vs "ARNES ERA 002").
+      nombre: [String(it.item || 'Kit sin nombre'), it.serialCodigo].filter(Boolean).join(' '),
       ubicacion: String(it.ubicacion || ''),
     }))
     .sort((a, b) => a.nombre.localeCompare(b.nombre));
