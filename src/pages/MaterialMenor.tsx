@@ -6,6 +6,7 @@ import { CATEGORIAS_MATERIAL_MENOR, type CategoriaMaterialMenor } from '@contrac
 import { Package, Plus, Save, Trash2, RotateCcw, ExternalLink, Camera, Image as ImageIcon, X, Boxes, CornerDownRight, FileSpreadsheet, FileText } from 'lucide-react';
 import { exportarInventarioCsv, type FilaInventarioExport } from '@/lib/exportarMaterialMenorCsv';
 import { exportarInventarioPdf } from '@/lib/exportarMaterialMenorPdf';
+import ImagenLightbox from '@/components/ImagenLightbox';
 
 function arrayBufferToBase64(buffer: ArrayBuffer): string {
   let binary = '';
@@ -207,6 +208,7 @@ export default function MaterialMenor() {
   const [editImagenPreview, setEditImagenPreview] = useState('');
 
   const [error, setError] = useState('');
+  const [imagenAmpliada, setImagenAmpliada] = useState<string | null>(null);
 
   const todosLosItems = listadoData?.items || [];
   const itemsTabPlano = todosLosItems.filter((it) => it.categoria === tabActiva);
@@ -445,6 +447,7 @@ export default function MaterialMenor() {
             <table className="w-full text-sm block sm:table">
               <thead className="hidden sm:table-header-group">
                 <tr className="bg-white/5 border-b border-white/10">
+                  <th className="text-left px-3 py-2 font-medium text-white/50">Foto</th>
                   <th className="text-left px-3 py-2 font-medium text-white/50">Item</th>
                   <th className="text-left px-3 py-2 font-medium text-white/50">Marca / Modelo</th>
                   <th className="text-left px-3 py-2 font-medium text-white/50">Cantidad</th>
@@ -459,6 +462,17 @@ export default function MaterialMenor() {
                   return (
                   <Fragment key={it.id}>
                     <tr onClick={() => iniciarEdicion(it as MaterialForm & { id: string; imagen?: string })} className={`border-b border-white/5 hover:bg-white/[0.02] transition-colors cursor-pointer block sm:table-row mb-2 sm:mb-0 bg-white/[0.02] sm:bg-transparent rounded-lg sm:rounded-none p-2 sm:p-0 ${esHijoDeKit ? 'sm:bg-white/[0.015]' : ''}`}>
+                      <td className="px-3 py-2 block sm:table-cell" onClick={(e) => e.stopPropagation()}>
+                        {it.imagen ? (
+                          <button onClick={() => setImagenAmpliada(String(it.imagen))} title="Ver imagen">
+                            <img src={String(it.imagen)} alt={String(it.item || '')} className="w-10 h-10 object-cover rounded-lg border border-white/10 hover:opacity-80 transition-opacity" />
+                          </button>
+                        ) : (
+                          <div className="w-10 h-10 rounded-lg border border-white/10 bg-white/5 flex items-center justify-center">
+                            <ImageIcon className="w-4 h-4 text-white/15" />
+                          </div>
+                        )}
+                      </td>
                       <td className="px-3 py-2 text-white font-medium block sm:table-cell">
                         <span className={`inline-flex items-center gap-1.5 ${esHijoDeKit ? 'pl-4 text-white/70 font-normal' : ''}`}>
                           {it.esKit && <Boxes className="w-3.5 h-3.5 text-cbvp-blue shrink-0" />}
@@ -486,7 +500,7 @@ export default function MaterialMenor() {
                     </tr>
                     {editandoId === it.id && (
                       <tr className="border-b border-white/5 bg-white/[0.02]">
-                        <td colSpan={6} className="px-3 py-4">
+                        <td colSpan={7} className="px-3 py-4">
                           <FormularioMaterial
                             valor={editForm}
                             onChange={(campo, v) => setEditForm({ ...editForm, [campo]: v })}
@@ -513,6 +527,7 @@ export default function MaterialMenor() {
           </div>
         )}
       </div>
+      {imagenAmpliada && <ImagenLightbox src={imagenAmpliada} onClose={() => setImagenAmpliada(null)} />}
     </div>
   );
 }

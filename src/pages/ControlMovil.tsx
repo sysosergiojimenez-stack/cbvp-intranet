@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { trpc } from '@/providers/trpc';
 import { useAuth } from '@/context/AuthContext';
-import { ClipboardCheck, Plus, Save, Trash2, Pencil, X, Truck, Package, CheckCircle2, XCircle, History, ChevronDown, ChevronUp, Boxes } from 'lucide-react';
+import { ClipboardCheck, Plus, Save, Trash2, Pencil, X, Truck, Package, CheckCircle2, XCircle, History, ChevronDown, ChevronUp, Boxes, Image as ImageIcon } from 'lucide-react';
 import type { EstadoChecklist } from '@contracts/controlMovil';
+import ImagenLightbox from '@/components/ImagenLightbox';
 
 function detalleMaterial(m: { marca?: string; modelo?: string; serialCodigo?: string }): string {
   const marcaModelo = [m.marca, m.modelo].filter(Boolean).join(' ');
@@ -18,19 +19,31 @@ interface RespuestaChecklist {
 function FilaChecklistMaterial({
   material, respuesta, onMarcar, onObservacion, indentado,
 }: {
-  material: { id: string; item?: string; marca?: string; modelo?: string; serialCodigo?: string };
+  material: { id: string; item?: string; marca?: string; modelo?: string; serialCodigo?: string; imagen?: string };
   respuesta: RespuestaChecklist | undefined;
   onMarcar: (materialId: string, estado: EstadoChecklist) => void;
   onObservacion: (materialId: string, observacion: string) => void;
   indentado?: boolean;
 }) {
   const detalle = detalleMaterial(material);
+  const [imagenAmpliada, setImagenAmpliada] = useState(false);
   return (
     <div className={`px-2 py-1.5 rounded-lg hover:bg-white/[0.03] ${indentado ? 'ml-5 border-l border-white/10 pl-3' : ''}`}>
       <div className="flex items-start justify-between gap-2">
-        <span className="min-w-0">
-          <span className="block text-sm text-white/80 truncate">{String(material.item || '')}</span>
-          {detalle && <span className="block text-xs text-white/40 truncate">{detalle}</span>}
+        <span className="min-w-0 flex items-start gap-2">
+          {material.imagen ? (
+            <button onClick={() => setImagenAmpliada(true)} title="Ver imagen" className="shrink-0">
+              <img src={material.imagen} alt={material.item || ''} className="w-8 h-8 object-cover rounded-md border border-white/10 hover:opacity-80 transition-opacity" />
+            </button>
+          ) : (
+            <div className="w-8 h-8 rounded-md border border-white/10 bg-white/5 flex items-center justify-center shrink-0">
+              <ImageIcon className="w-3.5 h-3.5 text-white/15" />
+            </div>
+          )}
+          <span className="min-w-0">
+            <span className="block text-sm text-white/80 truncate">{String(material.item || '')}</span>
+            {detalle && <span className="block text-xs text-white/40 truncate">{detalle}</span>}
+          </span>
         </span>
         <div className="flex items-center gap-1 shrink-0">
           <button
@@ -57,6 +70,9 @@ function FilaChecklistMaterial({
           placeholder="Detalle del problema (opcional)"
           className="mt-1.5 w-full bg-white/5 border border-cbvp-red/20 rounded-lg px-2 py-1.5 text-xs text-white placeholder-white/30 focus:border-cbvp-red/50 focus:outline-none"
         />
+      )}
+      {imagenAmpliada && material.imagen && (
+        <ImagenLightbox src={material.imagen} onClose={() => setImagenAmpliada(false)} />
       )}
     </div>
   );
