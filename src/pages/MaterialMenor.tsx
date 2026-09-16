@@ -3,7 +3,9 @@ import { trpc } from '@/providers/trpc';
 import { useAuth } from '@/context/AuthContext';
 import { compressImage } from '@/lib/imageCompress';
 import { CATEGORIAS_MATERIAL_MENOR, type CategoriaMaterialMenor } from '@contracts/materialMenor';
-import { Package, Plus, Save, Trash2, RotateCcw, ExternalLink, Camera, Image as ImageIcon, X, Boxes, CornerDownRight } from 'lucide-react';
+import { Package, Plus, Save, Trash2, RotateCcw, ExternalLink, Camera, Image as ImageIcon, X, Boxes, CornerDownRight, FileSpreadsheet, FileText } from 'lucide-react';
+import { exportarInventarioCsv, type FilaInventarioExport } from '@/lib/exportarMaterialMenorCsv';
+import { exportarInventarioPdf } from '@/lib/exportarMaterialMenorPdf';
 
 function arrayBufferToBase64(buffer: ArrayBuffer): string {
   let binary = '';
@@ -242,6 +244,39 @@ export default function MaterialMenor() {
     .sort((a, b) => a.nombre.localeCompare(b.nombre));
   const kitPorId = new Map(todosLosItems.filter((it) => it.esKit).map((it) => [it.id, it]));
 
+  const filasExport: FilaInventarioExport[] = todosLosItems.map((it) => {
+    const kit = it.kitPadreId ? kitPorId.get(it.kitPadreId) : undefined;
+    const tipo = it.esKit ? 'Kit' : kit ? `Dentro de: ${String(kit.item || '')}` : 'Suelto';
+    return {
+      categoria: String(it.categoria || ''),
+      item: String(it.item || ''),
+      marca: String(it.marca || ''),
+      modelo: String(it.modelo || ''),
+      cantidad: String(it.cantidad || ''),
+      precioUnitario: String(it.precioUnitario || ''),
+      ubicacion: etiquetaUbicacion(it.ubicacion) || '',
+      tipo,
+      serialCodigo: String(it.serialCodigo || ''),
+      especificaciones: String(it.especificaciones || ''),
+      observaciones: String(it.observaciones || ''),
+      fecha: String(it.fecha || ''),
+    };
+  });
+
+  const handleExportarCsv = () => {
+    if (filasExport.length === 0) { alert('No hay materiales cargados para exportar.'); return; }
+    exportarInventarioCsv(filasExport);
+  };
+
+  const handleExportarPdf = async () => {
+    if (filasExport.length === 0) { alert('No hay materiales cargados para exportar.'); return; }
+    try {
+      await exportarInventarioPdf(filasExport);
+    } catch {
+      alert('Error al generar el PDF.');
+    }
+  };
+
   const cambiarTab = (cat: CategoriaMaterialMenor) => {
     setTabActiva(cat);
     setCreando(false);
@@ -363,11 +398,19 @@ export default function MaterialMenor() {
           <h2 className="text-sm font-semibold text-white/60 uppercase tracking-wider flex items-center gap-2">
             <Package className="w-4 h-4 text-cbvp-red" /> {tabActiva}
           </h2>
-          {!creando && (
-            <button onClick={iniciarCreacion} className="px-3 py-2 bg-cbvp-blue/10 hover:bg-cbvp-blue/20 text-cbvp-blue rounded-lg text-xs flex items-center gap-2 transition-colors">
-              <Plus className="w-3.5 h-3.5" /> Agregar Item
+          <div className="flex items-center gap-2">
+            <button onClick={handleExportarCsv} title="Exportar inventario completo a Excel" className="px-3 py-2 bg-white/5 hover:bg-white/10 text-white/60 hover:text-white rounded-lg text-xs flex items-center gap-2 transition-colors">
+              <FileSpreadsheet className="w-3.5 h-3.5" /> Excel
             </button>
-          )}
+            <button onClick={handleExportarPdf} title="Exportar inventario completo a PDF" className="px-3 py-2 bg-white/5 hover:bg-white/10 text-white/60 hover:text-white rounded-lg text-xs flex items-center gap-2 transition-colors">
+              <FileText className="w-3.5 h-3.5" /> PDF
+            </button>
+            {!creando && (
+              <button onClick={iniciarCreacion} className="px-3 py-2 bg-cbvp-blue/10 hover:bg-cbvp-blue/20 text-cbvp-blue rounded-lg text-xs flex items-center gap-2 transition-colors">
+                <Plus className="w-3.5 h-3.5" /> Agregar Item
+              </button>
+            )}
+          </div>
         </div>
 
         {creando && (
