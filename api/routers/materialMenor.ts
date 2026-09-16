@@ -46,6 +46,12 @@ const camposMaterial = z.object({
   serialCodigo: z.string(),
   ubicacion: z.string(),
   observaciones: z.string(),
+  // esKit marca un item como contenedor (bolson/kit) que agrupa otros
+  // materiales; kitPadreId, cuando esta seteado, indica que este material
+  // vive dentro de ese kit (en vez de suelto en un sitio). Un item nunca
+  // es ambas cosas a la vez.
+  esKit: z.boolean().optional().default(false),
+  kitPadreId: z.string().optional().default(''),
 });
 
 export const materialMenorRouter = createRouter({
@@ -96,10 +102,20 @@ export const materialMenorRouter = createRouter({
       return { exito: true as const, mensaje: "Item actualizado" };
     }),
 
+  // Si el item es un kit, borra tambien los materiales que viven dentro
+  // (kitPadreId apuntando a este id) en la misma operacion.
   eliminar: publicQuery
     .input(z.object({ id: z.string() }))
     .mutation(async ({ input }) => {
-      await colMaterialMenor().doc(input.id).delete();
+      const hijosSnapshot = await colMaterialMenor().where("kitPadreId", "==", input.id).get();
+      if (hijosSnapshot.empty) {
+        await colMaterialMenor().doc(input.id).delete();
+      } else {
+        const batch = getFirestoreClient().batch();
+        hijosSnapshot.forEach((doc) => batch.delete(doc.ref));
+        batch.delete(colMaterialMenor().doc(input.id));
+        await batch.commit();
+      }
       return { exito: true as const, mensaje: "Item eliminado" };
     }),
 });

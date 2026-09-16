@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { trpc } from '@/providers/trpc';
 import { useAuth } from '@/context/AuthContext';
-import { ClipboardCheck, Plus, Save, Trash2, Pencil, X, Truck, Package, CheckCircle2, XCircle, History, ChevronDown, ChevronUp } from 'lucide-react';
+import { ClipboardCheck, Plus, Save, Trash2, Pencil, X, Truck, Package, CheckCircle2, XCircle, History, ChevronDown, ChevronUp, Boxes } from 'lucide-react';
 import type { EstadoChecklist } from '@contracts/controlMovil';
 
 function detalleMaterial(m: { marca?: string; modelo?: string; serialCodigo?: string }): string {
@@ -13,6 +13,53 @@ function detalleMaterial(m: { marca?: string; modelo?: string; serialCodigo?: st
 interface RespuestaChecklist {
   estado: EstadoChecklist | null;
   observacion: string;
+}
+
+function FilaChecklistMaterial({
+  material, respuesta, onMarcar, onObservacion, indentado,
+}: {
+  material: { id: string; item?: string; marca?: string; modelo?: string; serialCodigo?: string };
+  respuesta: RespuestaChecklist | undefined;
+  onMarcar: (materialId: string, estado: EstadoChecklist) => void;
+  onObservacion: (materialId: string, observacion: string) => void;
+  indentado?: boolean;
+}) {
+  const detalle = detalleMaterial(material);
+  return (
+    <div className={`px-2 py-1.5 rounded-lg hover:bg-white/[0.03] ${indentado ? 'ml-5 border-l border-white/10 pl-3' : ''}`}>
+      <div className="flex items-start justify-between gap-2">
+        <span className="min-w-0">
+          <span className="block text-sm text-white/80 truncate">{String(material.item || '')}</span>
+          {detalle && <span className="block text-xs text-white/40 truncate">{detalle}</span>}
+        </span>
+        <div className="flex items-center gap-1 shrink-0">
+          <button
+            onClick={() => onMarcar(material.id, 'conforme')}
+            title="Conforme"
+            className={`p-1.5 rounded-lg transition-colors ${respuesta?.estado === 'conforme' ? 'bg-cbvp-green/20 text-cbvp-green' : 'text-white/30 hover:bg-white/10 hover:text-cbvp-green'}`}
+          >
+            <CheckCircle2 className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => onMarcar(material.id, 'no_conforme')}
+            title="No conforme"
+            className={`p-1.5 rounded-lg transition-colors ${respuesta?.estado === 'no_conforme' ? 'bg-cbvp-red/20 text-cbvp-red-light' : 'text-white/30 hover:bg-white/10 hover:text-cbvp-red-light'}`}
+          >
+            <XCircle className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+      {respuesta?.estado === 'no_conforme' && (
+        <input
+          type="text"
+          value={respuesta.observacion}
+          onChange={(e) => onObservacion(material.id, e.target.value)}
+          placeholder="Detalle del problema (opcional)"
+          className="mt-1.5 w-full bg-white/5 border border-cbvp-red/20 rounded-lg px-2 py-1.5 text-xs text-white placeholder-white/30 focus:border-cbvp-red/50 focus:outline-none"
+        />
+      )}
+    </div>
+  );
 }
 
 export default function ControlMovil() {
@@ -46,6 +93,7 @@ export default function ControlMovil() {
   const [mensajeGuardado, setMensajeGuardado] = useState('');
 
   const [respuestas, setRespuestas] = useState<Record<string, RespuestaChecklist>>({});
+  const [kitsExpandidos, setKitsExpandidos] = useState<Record<string, boolean>>({});
 
   const sitiosMovil = (sitiosData?.sitios || []).filter((s) => s.movilId === movilId);
 
@@ -54,6 +102,7 @@ export default function ControlMovil() {
     setCreando(false);
     setEditandoId(null);
     setRespuestas({});
+    setKitsExpandidos({});
     setMostrarHistorial(false);
     setMensajeGuardado('');
   };
@@ -105,7 +154,14 @@ export default function ControlMovil() {
   };
 
   const materiales = materialData?.items || [];
-  const materialesDelSitio = (sitioId: string) => materiales.filter((m) => m.ubicacion === sitioId);
+  // Los materiales dentro de un kit no se listan sueltos en el sitio: el
+  // kit aparece como un grupo y sus items se listan adentro de el.
+  const materialesDelSitio = (sitioId: string) => materiales.filter((m) => m.ubicacion === sitioId && !m.kitPadreId);
+  const materialesDelKit = (kitId: string) => materiales.filter((m) => m.kitPadreId === kitId);
+
+  const toggleKitExpandido = (kitId: string) => {
+    setKitsExpandidos((prev) => ({ ...prev, [kitId]: !prev[kitId] }));
+  };
 
   const marcarEstado = (materialId: string, estado: EstadoChecklist) => {
     setRespuestas((prev) => {
@@ -134,9 +190,11 @@ export default function ControlMovil() {
       .map(([materialId, r]) => {
         const material = materiales.find((m) => m.id === materialId);
         const sitio = sitiosMovil.find((s) => s.id === material?.ubicacion);
+        const kit = material?.kitPadreId ? materiales.find((m) => m.id === material.kitPadreId) : undefined;
+        const item = kit ? `${String(kit.item || 'Kit')} — ${String(material?.item || '')}` : String(material?.item || '');
         return {
           materialId,
-          item: String(material?.item || ''),
+          item,
           detalle: material ? detalleMaterial(material) : '',
           sitioId: String(material?.ubicacion || ''),
           sitioDenominacion: String(sitio?.denominacion || ''),
@@ -328,40 +386,49 @@ export default function ControlMovil() {
                   ) : (
                     <div className="space-y-2">
                       {materialesSitio.map((m) => {
-                        const detalle = detalleMaterial(m);
-                        const respuesta = respuestas[m.id];
+                        if (!m.esKit) {
+                          return (
+                            <FilaChecklistMaterial
+                              key={m.id}
+                              material={m}
+                              respuesta={respuestas[m.id]}
+                              onMarcar={marcarEstado}
+                              onObservacion={cambiarObservacion}
+                            />
+                          );
+                        }
+                        const contenido = materialesDelKit(m.id);
+                        const expandido = !!kitsExpandidos[m.id];
                         return (
-                          <div key={m.id} className="px-2 py-1.5 rounded-lg hover:bg-white/[0.03]">
-                            <div className="flex items-start justify-between gap-2">
-                              <span className="min-w-0">
-                                <span className="block text-sm text-white/80 truncate">{String(m.item || '')}</span>
-                                {detalle && <span className="block text-xs text-white/40 truncate">{detalle}</span>}
+                          <div key={m.id} className="border border-cbvp-blue/10 rounded-lg overflow-hidden">
+                            <button
+                              onClick={() => toggleKitExpandido(m.id)}
+                              className="w-full flex items-center justify-between gap-2 px-2 py-1.5 bg-cbvp-blue/5 hover:bg-cbvp-blue/10 transition-colors text-left"
+                            >
+                              <span className="flex items-center gap-2 min-w-0">
+                                <Boxes className="w-4 h-4 text-cbvp-blue shrink-0" />
+                                <span className="text-sm text-white/80 truncate">{String(m.item || '')}</span>
+                                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-cbvp-blue/10 text-cbvp-blue shrink-0">{contenido.length} item(s)</span>
                               </span>
-                              <div className="flex items-center gap-1 shrink-0">
-                                <button
-                                  onClick={() => marcarEstado(m.id, 'conforme')}
-                                  title="Conforme"
-                                  className={`p-1.5 rounded-lg transition-colors ${respuesta?.estado === 'conforme' ? 'bg-cbvp-green/20 text-cbvp-green' : 'text-white/30 hover:bg-white/10 hover:text-cbvp-green'}`}
-                                >
-                                  <CheckCircle2 className="w-4 h-4" />
-                                </button>
-                                <button
-                                  onClick={() => marcarEstado(m.id, 'no_conforme')}
-                                  title="No conforme"
-                                  className={`p-1.5 rounded-lg transition-colors ${respuesta?.estado === 'no_conforme' ? 'bg-cbvp-red/20 text-cbvp-red-light' : 'text-white/30 hover:bg-white/10 hover:text-cbvp-red-light'}`}
-                                >
-                                  <XCircle className="w-4 h-4" />
-                                </button>
+                              {expandido ? <ChevronUp className="w-3.5 h-3.5 text-white/40 shrink-0" /> : <ChevronDown className="w-3.5 h-3.5 text-white/40 shrink-0" />}
+                            </button>
+                            {expandido && (
+                              <div className="p-2 space-y-2">
+                                {contenido.length === 0 ? (
+                                  <p className="text-xs text-white/30 pl-3">Este kit todavia no tiene materiales cargados.</p>
+                                ) : (
+                                  contenido.map((h) => (
+                                    <FilaChecklistMaterial
+                                      key={h.id}
+                                      material={h}
+                                      respuesta={respuestas[h.id]}
+                                      onMarcar={marcarEstado}
+                                      onObservacion={cambiarObservacion}
+                                      indentado
+                                    />
+                                  ))
+                                )}
                               </div>
-                            </div>
-                            {respuesta?.estado === 'no_conforme' && (
-                              <input
-                                type="text"
-                                value={respuesta.observacion}
-                                onChange={(e) => cambiarObservacion(m.id, e.target.value)}
-                                placeholder="Detalle del problema (opcional)"
-                                className="mt-1.5 w-full bg-white/5 border border-cbvp-red/20 rounded-lg px-2 py-1.5 text-xs text-white placeholder-white/30 focus:border-cbvp-red/50 focus:outline-none"
-                              />
                             )}
                           </div>
                         );

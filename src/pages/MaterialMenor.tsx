@@ -3,7 +3,7 @@ import { trpc } from '@/providers/trpc';
 import { useAuth } from '@/context/AuthContext';
 import { compressImage } from '@/lib/imageCompress';
 import { CATEGORIAS_MATERIAL_MENOR, type CategoriaMaterialMenor } from '@contracts/materialMenor';
-import { Package, Plus, Save, Trash2, RotateCcw, ExternalLink, Camera, Image as ImageIcon, X } from 'lucide-react';
+import { Package, Plus, Save, Trash2, RotateCcw, ExternalLink, Camera, Image as ImageIcon, X, Boxes, CornerDownRight } from 'lucide-react';
 
 function arrayBufferToBase64(buffer: ArrayBuffer): string {
   let binary = '';
@@ -32,14 +32,19 @@ interface MaterialForm {
   serialCodigo: string;
   ubicacion: string;
   observaciones: string;
+  esKit: boolean;
+  kitPadreId: string;
 }
 
 const materialVacio: MaterialForm = {
   fecha: '', item: '', marca: '', modelo: '', cantidad: '', precioUnitario: '',
   especificaciones: '', serialCodigo: '', ubicacion: '', observaciones: '',
+  esKit: false, kitPadreId: '',
 };
 
-const CAMPOS: { key: keyof MaterialForm; label: string }[] = [
+type CampoTexto = Exclude<keyof MaterialForm, 'esKit' | 'kitPadreId'>;
+
+const CAMPOS: { key: CampoTexto; label: string }[] = [
   { key: 'fecha', label: 'Fecha' },
   { key: 'item', label: 'Item' },
   { key: 'marca', label: 'Marca' },
@@ -52,6 +57,7 @@ const CAMPOS: { key: keyof MaterialForm; label: string }[] = [
 ];
 
 interface OpcionUbicacion { value: string; label: string }
+interface OpcionKit { id: string; label: string; ubicacion: string }
 
 function ImagenPicker({ inputId, preview, onFile }: { inputId: string; preview: string; onFile: (file: File) => void }) {
   const handleChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -85,16 +91,31 @@ function ImagenPicker({ inputId, preview, onFile }: { inputId: string; preview: 
 const CAMPOS_CON_SUGERENCIAS = new Set<keyof MaterialForm>(['item', 'marca', 'modelo']);
 
 function FormularioMaterial({
-  valor, onChange, inputId, imagenPreview, onImagen, sugerencias, opcionesUbicacion,
+  valor, onChange, onChangeCampos, inputId, imagenPreview, onImagen, sugerencias, opcionesUbicacion, opcionesKit,
 }: {
   valor: MaterialForm;
   onChange: (campo: keyof MaterialForm, v: string) => void;
+  onChangeCampos: (cambios: Partial<MaterialForm>) => void;
   inputId: string;
   imagenPreview: string;
   onImagen: (file: File) => void;
   sugerencias: { item: string[]; marca: string[]; modelo: string[] };
   opcionesUbicacion: OpcionUbicacion[];
+  opcionesKit: OpcionKit[];
 }) {
+  const cambiarEsKit = (esKit: boolean) => {
+    onChangeCampos(esKit ? { esKit: true, kitPadreId: '' } : { esKit: false });
+  };
+
+  const cambiarKitPadre = (kitPadreId: string) => {
+    if (!kitPadreId) {
+      onChangeCampos({ kitPadreId: '' });
+      return;
+    }
+    const kit = opcionesKit.find((k) => k.id === kitPadreId);
+    onChangeCampos({ kitPadreId, esKit: false, ubicacion: kit?.ubicacion ?? valor.ubicacion });
+  };
+
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -103,11 +124,34 @@ function FormularioMaterial({
           <select
             value={valor.ubicacion}
             onChange={(e) => onChange('ubicacion', e.target.value)}
-            className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none"
+            disabled={!!valor.kitPadreId}
+            className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none disabled:opacity-50"
           >
             <option value="">-- Sin asignar --</option>
             {opcionesUbicacion.map((op) => <option key={op.value} value={op.value}>{op.label}</option>)}
           </select>
+        </div>
+        <div>
+          <label className="text-xs text-white/40 mb-1 block">Kit padre (opcional)</label>
+          <select
+            value={valor.kitPadreId}
+            onChange={(e) => cambiarKitPadre(e.target.value)}
+            disabled={valor.esKit}
+            className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none disabled:opacity-50"
+          >
+            <option value="">-- Item suelto --</option>
+            {opcionesKit.map((k) => <option key={k.id} value={k.id}>{k.label}</option>)}
+          </select>
+          <label className="flex items-center gap-2 mt-2 text-xs text-white/50 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={valor.esKit}
+              onChange={(e) => cambiarEsKit(e.target.checked)}
+              disabled={!!valor.kitPadreId}
+              className="w-3.5 h-3.5 rounded border-white/20 bg-white/5 text-cbvp-red focus:ring-cbvp-red/50"
+            />
+            Este item es un Kit (bolson/contenedor con materiales adentro)
+          </label>
         </div>
         {CAMPOS.map(({ key, label }) => {
           const tieneSugerencias = CAMPOS_CON_SUGERENCIAS.has(key);
@@ -161,7 +205,13 @@ export default function MaterialMenor() {
   const [error, setError] = useState('');
 
   const todosLosItems = listadoData?.items || [];
-  const itemsTab = todosLosItems.filter((it) => it.categoria === tabActiva);
+  const itemsTabPlano = todosLosItems.filter((it) => it.categoria === tabActiva);
+  // Los kits se muestran seguidos de sus materiales (kitPadreId -> id del kit),
+  // para que se vean agrupados en vez de mezclados con el resto de la tabla.
+  const kitsEnTab = new Set(itemsTabPlano.filter((it) => it.esKit).map((it) => it.id));
+  const itemsTab = itemsTabPlano
+    .filter((it) => !it.kitPadreId || !kitsEnTab.has(it.kitPadreId))
+    .flatMap((it) => (it.esKit ? [it, ...itemsTabPlano.filter((h) => h.kitPadreId === it.id)] : [it]));
   const sugerencias = {
     item: valoresUnicos(todosLosItems, 'item'),
     marca: valoresUnicos(todosLosItems, 'marca'),
@@ -180,11 +230,27 @@ export default function MaterialMenor() {
   const etiquetaUbicacion = (sitioId: string): string =>
     opcionesUbicacion.find((op) => op.value === sitioId)?.label || '';
 
+  const opcionesKit: OpcionKit[] = todosLosItems
+    .filter((it) => it.esKit)
+    .map((it) => ({
+      id: it.id,
+      label: `${etiquetaUbicacion(it.ubicacion) || 'Sin ubicacion'} - ${String(it.item || 'Kit sin nombre')}`,
+      ubicacion: String(it.ubicacion || ''),
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+  const kitPorId = new Map(todosLosItems.filter((it) => it.esKit).map((it) => [it.id, it]));
+
   const cambiarTab = (cat: CategoriaMaterialMenor) => {
     setTabActiva(cat);
     setCreando(false);
     setEditandoId(null);
   };
+
+  // Un material dentro de un kit hereda la categoria del kit, para que
+  // ambos queden agrupados en la misma pestana sin importar en cual
+  // pestana estaba parado el usuario al cargarlo.
+  const categoriaParaForm = (form: MaterialForm): CategoriaMaterialMenor =>
+    (form.kitPadreId && kitPorId.get(form.kitPadreId)?.categoria as CategoriaMaterialMenor) || tabActiva;
 
   const iniciarCreacion = () => {
     setNuevoItem({ ...materialVacio, fecha: hoyFormateada() });
@@ -197,6 +263,7 @@ export default function MaterialMenor() {
       fecha: it.fecha, item: it.item, marca: it.marca, modelo: it.modelo, cantidad: it.cantidad,
       precioUnitario: it.precioUnitario, especificaciones: it.especificaciones, serialCodigo: it.serialCodigo,
       ubicacion: it.ubicacion, observaciones: it.observaciones,
+      esKit: !!it.esKit, kitPadreId: it.kitPadreId || '',
     });
     setEditImagen(null);
     setEditImagenPreview(it.imagen || '');
@@ -217,7 +284,7 @@ export default function MaterialMenor() {
         imagenMimeType = nuevaImagen.type || 'image/jpeg';
       }
       const resp = await crearMutation.mutateAsync({
-        categoria: tabActiva,
+        categoria: categoriaParaForm(nuevoItem),
         usuario: usuario?.nombreCompleto || '',
         ...nuevoItem,
         imagenBase64,
@@ -246,7 +313,7 @@ export default function MaterialMenor() {
       }
       const resp = await editarMutation.mutateAsync({
         id: editandoId,
-        categoria: tabActiva,
+        categoria: categoriaParaForm(editForm),
         usuario: usuario?.nombreCompleto || '',
         ...editForm,
         imagenBase64,
@@ -261,7 +328,11 @@ export default function MaterialMenor() {
   };
 
   const eliminarItem = async (id: string) => {
-    if (!confirm('Eliminar este item?')) return;
+    const cantidadHijos = todosLosItems.filter((it) => it.kitPadreId === id).length;
+    const mensaje = cantidadHijos > 0
+      ? `Este kit tiene ${cantidadHijos} material(es) adentro. Se eliminaran todos. Continuar?`
+      : 'Eliminar este item?';
+    if (!confirm(mensaje)) return;
     try {
       const resp = await eliminarMutation.mutateAsync({ id });
       if (!resp.exito) throw new Error('Error al eliminar');
@@ -302,11 +373,13 @@ export default function MaterialMenor() {
             <FormularioMaterial
               valor={nuevoItem}
               onChange={(campo, v) => setNuevoItem({ ...nuevoItem, [campo]: v })}
+              onChangeCampos={(cambios) => setNuevoItem({ ...nuevoItem, ...cambios })}
               inputId="material-nuevo"
               imagenPreview={nuevaImagenPreview}
               onImagen={(file) => { setNuevaImagen(file); setNuevaImagenPreview(URL.createObjectURL(file)); }}
               sugerencias={sugerencias}
               opcionesUbicacion={opcionesUbicacion}
+              opcionesKit={opcionesKit}
             />
             {error && <div className="text-sm text-cbvp-red-light">{error}</div>}
             <div className="flex gap-3">
@@ -336,10 +409,23 @@ export default function MaterialMenor() {
                 </tr>
               </thead>
               <tbody className="block sm:table-row-group">
-                {itemsTab.map((it) => (
+                {itemsTab.map((it) => {
+                  const esHijoDeKit = !!it.kitPadreId && kitsEnTab.has(it.kitPadreId);
+                  return (
                   <Fragment key={it.id}>
-                    <tr onClick={() => iniciarEdicion(it as MaterialForm & { id: string; imagen?: string })} className="border-b border-white/5 hover:bg-white/[0.02] transition-colors cursor-pointer block sm:table-row mb-2 sm:mb-0 bg-white/[0.02] sm:bg-transparent rounded-lg sm:rounded-none p-2 sm:p-0">
-                      <td className="px-3 py-2 text-white font-medium block sm:table-cell">{it.item || '-'}</td>
+                    <tr onClick={() => iniciarEdicion(it as MaterialForm & { id: string; imagen?: string })} className={`border-b border-white/5 hover:bg-white/[0.02] transition-colors cursor-pointer block sm:table-row mb-2 sm:mb-0 bg-white/[0.02] sm:bg-transparent rounded-lg sm:rounded-none p-2 sm:p-0 ${esHijoDeKit ? 'sm:bg-white/[0.015]' : ''}`}>
+                      <td className="px-3 py-2 text-white font-medium block sm:table-cell">
+                        <span className={`inline-flex items-center gap-1.5 ${esHijoDeKit ? 'pl-4 text-white/70 font-normal' : ''}`}>
+                          {it.esKit && <Boxes className="w-3.5 h-3.5 text-cbvp-blue shrink-0" />}
+                          {esHijoDeKit && <CornerDownRight className="w-3 h-3 text-white/25 shrink-0" />}
+                          {it.item || '-'}
+                          {it.esKit && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-cbvp-blue/10 text-cbvp-blue">
+                              Kit · {todosLosItems.filter((h) => h.kitPadreId === it.id).length} item(s)
+                            </span>
+                          )}
+                        </span>
+                      </td>
                       <td className="px-3 py-2 text-white/70 block sm:table-cell"><span className="text-white/30 sm:hidden">Marca/Modelo: </span>{[it.marca, it.modelo].filter(Boolean).join(' ') || '-'}</td>
                       <td className="px-3 py-2 text-white/70 block sm:table-cell"><span className="text-white/30 sm:hidden">Cantidad: </span>{it.cantidad || '-'}</td>
                       <td className="px-3 py-2 text-white/70 block sm:table-cell"><span className="text-white/30 sm:hidden">Ubicacion: </span>{etiquetaUbicacion(it.ubicacion) || '-'}</td>
@@ -359,11 +445,13 @@ export default function MaterialMenor() {
                           <FormularioMaterial
                             valor={editForm}
                             onChange={(campo, v) => setEditForm({ ...editForm, [campo]: v })}
+                            onChangeCampos={(cambios) => setEditForm({ ...editForm, ...cambios })}
                             inputId={`material-editar-${it.id}`}
                             imagenPreview={editImagenPreview}
                             onImagen={(file) => { setEditImagen(file); setEditImagenPreview(URL.createObjectURL(file)); }}
                             sugerencias={sugerencias}
                             opcionesUbicacion={opcionesUbicacion}
+                            opcionesKit={opcionesKit.filter((k) => k.id !== it.id)}
                           />
                           <div className="flex gap-2 mt-3">
                             <button onClick={guardarEdicion} className="px-4 py-2 bg-cbvp-green hover:bg-cbvp-green/80 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2"><Save className="w-4 h-4" /> Guardar</button>
@@ -373,7 +461,8 @@ export default function MaterialMenor() {
                       </tr>
                     )}
                   </Fragment>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
