@@ -211,7 +211,12 @@ export default function MaterialMenor() {
   const [imagenAmpliada, setImagenAmpliada] = useState<string | null>(null);
 
   const todosLosItems = listadoData?.items || [];
-  const itemsTabPlano = todosLosItems.filter((it) => it.categoria === tabActiva);
+  // Orden: primero por nombre de Item, y a igual nombre, por Serial/Codigo.
+  const compararItemSerial = (a: { item?: string; serialCodigo?: string }, b: { item?: string; serialCodigo?: string }) => {
+    const porItem = String(a.item || '').localeCompare(String(b.item || ''));
+    return porItem !== 0 ? porItem : String(a.serialCodigo || '').localeCompare(String(b.serialCodigo || ''));
+  };
+  const itemsTabPlano = todosLosItems.filter((it) => it.categoria === tabActiva).sort(compararItemSerial);
   // Los kits se muestran seguidos de sus materiales (kitPadreId -> id del kit),
   // para que se vean agrupados en vez de mezclados con el resto de la tabla.
   const kitsEnTab = new Set(itemsTabPlano.filter((it) => it.esKit).map((it) => it.id));
@@ -248,7 +253,9 @@ export default function MaterialMenor() {
     .sort((a, b) => a.nombre.localeCompare(b.nombre));
   const kitPorId = new Map(todosLosItems.filter((it) => it.esKit).map((it) => [it.id, it]));
 
-  const filasExport: FilaInventarioExport[] = todosLosItems.map((it) => {
+  const filasExport: FilaInventarioExport[] = [...todosLosItems]
+    .sort((a, b) => String(a.categoria || '').localeCompare(String(b.categoria || '')) || compararItemSerial(a, b))
+    .map((it) => {
     const kit = it.kitPadreId ? kitPorId.get(it.kitPadreId) : undefined;
     const tipo = it.esKit ? 'Kit' : kit ? `Dentro de: ${String(kit.item || '')}` : 'Suelto';
     return {
