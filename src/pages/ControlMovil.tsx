@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { trpc } from '@/providers/trpc';
-import { ClipboardCheck, Plus, Save, Trash2, Pencil, X, Truck, Package } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
+import { ClipboardCheck, Plus, Save, Trash2, Pencil, X, Truck, Package, CheckCircle2, XCircle, History, ChevronDown, ChevronUp } from 'lucide-react';
+import type { EstadoChecklist } from '@contracts/controlMovil';
 
 function detalleMaterial(m: { marca?: string; modelo?: string; serialCodigo?: string }): string {
   const marcaModelo = [m.marca, m.modelo].filter(Boolean).join(' ');
@@ -8,7 +10,13 @@ function detalleMaterial(m: { marca?: string; modelo?: string; serialCodigo?: st
   return partes.join(' · ');
 }
 
+interface RespuestaChecklist {
+  estado: EstadoChecklist | null;
+  observacion: string;
+}
+
 export default function ControlMovil() {
+  const { usuario } = useAuth();
   const utils = trpc.useUtils();
   const { data: movilesData, isLoading: cargandoMoviles } = trpc.moviles.listado.useQuery();
   const { data: sitiosData, isLoading: cargandoSitios } = trpc.controlMovil.listadoSitios.useQuery();
@@ -16,17 +24,28 @@ export default function ControlMovil() {
   const crearSitioMutation = trpc.controlMovil.crearSitio.useMutation();
   const editarSitioMutation = trpc.controlMovil.editarSitio.useMutation();
   const eliminarSitioMutation = trpc.controlMovil.eliminarSitio.useMutation();
-  const marcarVerificadoMutation = trpc.materialMenor.marcarVerificado.useMutation();
+  const guardarChecklistMutation = trpc.controlMovil.guardarChecklist.useMutation();
 
-  const moviles = movilesData?.moviles || [];
+  const moviles = (movilesData?.moviles || []).filter((m) => m.condicion !== 'De Baja');
   const [movilActivo, setMovilActivo] = useState<string | null>(null);
   const movilId = movilActivo ?? moviles[0]?.id ?? null;
+  const movilSeleccionado = moviles.find((m) => m.id === movilId);
+
+  const { data: historialData, isLoading: cargandoHistorial } = trpc.controlMovil.historialChecklists.useQuery(
+    { movilId: movilId || '' },
+    { enabled: !!movilId }
+  );
 
   const [creando, setCreando] = useState(false);
   const [nuevaDenominacion, setNuevaDenominacion] = useState('');
   const [editandoId, setEditandoId] = useState<string | null>(null);
   const [editDenominacion, setEditDenominacion] = useState('');
   const [error, setError] = useState('');
+  const [mostrarHistorial, setMostrarHistorial] = useState(false);
+  const [checklistExpandido, setChecklistExpandido] = useState<string | null>(null);
+  const [mensajeGuardado, setMensajeGuardado] = useState('');
+
+  const [respuestas, setRespuestas] = useState<Record<string, RespuestaChecklist>>({});
 
   const sitiosMovil = (sitiosData?.sitios || []).filter((s) => s.movilId === movilId);
 
@@ -34,6 +53,9 @@ export default function ControlMovil() {
     setMovilActivo(id);
     setCreando(false);
     setEditandoId(null);
+    setRespuestas({});
+    setMostrarHistorial(false);
+    setMensajeGuardado('');
   };
 
   const confirmarCrear = async () => {
@@ -85,12 +107,61 @@ export default function ControlMovil() {
   const materiales = materialData?.items || [];
   const materialesDelSitio = (sitioId: string) => materiales.filter((m) => m.ubicacion === sitioId);
 
-  const toggleVerificado = async (id: string, verificadoActual: boolean) => {
+  const marcarEstado = (materialId: string, estado: EstadoChecklist) => {
+    setRespuestas((prev) => {
+      const actual = prev[materialId];
+      // Tocar el mismo estado de nuevo lo deselecciona.
+      if (actual?.estado === estado) {
+        return { ...prev, [materialId]: { estado: null, observacion: '' } };
+      }
+      return { ...prev, [materialId]: { estado, observacion: actual?.observacion || '' } };
+    });
+  };
+
+  const cambiarObservacion = (materialId: string, observacion: string) => {
+    setRespuestas((prev) => ({
+      ...prev,
+      [materialId]: { estado: prev[materialId]?.estado ?? null, observacion },
+    }));
+  };
+
+  const totalRespondidos = Object.values(respuestas).filter((r) => r.estado).length;
+
+  const guardarChecklist = async () => {
+    if (!movilId || !movilSeleccionado) return;
+    const items = Object.entries(respuestas)
+      .filter(([, r]) => r.estado)
+      .map(([materialId, r]) => {
+        const material = materiales.find((m) => m.id === materialId);
+        const sitio = sitiosMovil.find((s) => s.id === material?.ubicacion);
+        return {
+          materialId,
+          item: String(material?.item || ''),
+          detalle: material ? detalleMaterial(material) : '',
+          sitioId: String(material?.ubicacion || ''),
+          sitioDenominacion: String(sitio?.denominacion || ''),
+          estado: r.estado as EstadoChecklist,
+          observacion: r.observacion.trim(),
+        };
+      });
+
+    if (items.length === 0) {
+      setMensajeGuardado('Marca al menos un material como conforme o no conforme antes de guardar.');
+      return;
+    }
+
     try {
-      await marcarVerificadoMutation.mutateAsync({ id, verificado: !verificadoActual });
-      utils.materialMenor.listado.invalidate();
+      await guardarChecklistMutation.mutateAsync({
+        movilId,
+        movilCodificacion: String(movilSeleccionado.codificacion || movilId),
+        usuario: usuario?.nombreCompleto || '',
+        items,
+      });
+      setRespuestas({});
+      setMensajeGuardado(`Checklist guardado (${items.length} material(es) revisado(s)).`);
+      utils.controlMovil.historialChecklists.invalidate({ movilId });
     } catch (err: unknown) {
-      alert('Error: ' + (err instanceof Error ? err.message : 'desconocido'));
+      setMensajeGuardado('Error al guardar: ' + (err instanceof Error ? err.message : 'desconocido'));
     }
   };
 
@@ -102,10 +173,12 @@ export default function ControlMovil() {
     return (
       <div className="animate-fade-in bg-white/[0.03] border border-white/10 rounded-2xl p-6 text-center">
         <Truck className="w-8 h-8 text-white/20 mx-auto mb-2" />
-        <p className="text-white/40 text-sm">No hay moviles cargados todavia. Anda a Primer Oficial &gt; Material Mayor para agregar uno.</p>
+        <p className="text-white/40 text-sm">No hay moviles en servicio todavia. Anda a Primer Oficial &gt; Material Mayor para agregar uno.</p>
       </div>
     );
   }
+
+  const checklists = historialData?.checklists || [];
 
   return (
     <div className="animate-fade-in space-y-4">
@@ -126,12 +199,74 @@ export default function ControlMovil() {
           <h2 className="text-sm font-semibold text-white/60 uppercase tracking-wider flex items-center gap-2">
             <ClipboardCheck className="w-4 h-4 text-cbvp-red" /> Sitios del Movil
           </h2>
-          {!creando && (
-            <button onClick={() => { setCreando(true); setNuevaDenominacion(''); setError(''); }} className="px-3 py-2 bg-cbvp-blue/10 hover:bg-cbvp-blue/20 text-cbvp-blue rounded-lg text-xs flex items-center gap-2 transition-colors">
-              <Plus className="w-3.5 h-3.5" /> Agregar Sitio
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setMostrarHistorial((v) => !v)}
+              className="px-3 py-2 bg-white/5 hover:bg-white/10 text-white/60 hover:text-white rounded-lg text-xs flex items-center gap-2 transition-colors"
+            >
+              <History className="w-3.5 h-3.5" /> Historial
             </button>
-          )}
+            {!creando && (
+              <button onClick={() => { setCreando(true); setNuevaDenominacion(''); setError(''); }} className="px-3 py-2 bg-cbvp-blue/10 hover:bg-cbvp-blue/20 text-cbvp-blue rounded-lg text-xs flex items-center gap-2 transition-colors">
+                <Plus className="w-3.5 h-3.5" /> Agregar Sitio
+              </button>
+            )}
+          </div>
         </div>
+
+        {mostrarHistorial && (
+          <div className="border border-white/10 rounded-xl p-4 mb-4 bg-white/[0.02]">
+            <h3 className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-3">Checklists guardados</h3>
+            {cargandoHistorial ? (
+              <p className="text-sm text-white/40">Cargando...</p>
+            ) : checklists.length === 0 ? (
+              <p className="text-sm text-white/40">Todavia no se guardo ningun checklist para este movil.</p>
+            ) : (
+              <div className="space-y-2">
+                {checklists.map((c) => {
+                  const expandido = checklistExpandido === c.id;
+                  return (
+                    <div key={c.id} className="bg-white/[0.03] border border-white/10 rounded-lg overflow-hidden">
+                      <button
+                        onClick={() => setChecklistExpandido(expandido ? null : c.id)}
+                        className="w-full flex items-center justify-between gap-2 px-3 py-2.5 text-left hover:bg-white/[0.03] transition-colors"
+                      >
+                        <span className="text-sm text-white/80 min-w-0 truncate">
+                          {String(c.fechaLegible || '')} <span className="text-white/40">— {String(c.usuario || 'Sin usuario')}</span>
+                        </span>
+                        <span className="flex items-center gap-3 shrink-0 text-xs">
+                          <span className="flex items-center gap-1 text-cbvp-green"><CheckCircle2 className="w-3.5 h-3.5" /> {Number(c.totalConforme || 0)}</span>
+                          <span className="flex items-center gap-1 text-cbvp-red-light"><XCircle className="w-3.5 h-3.5" /> {Number(c.totalNoConforme || 0)}</span>
+                          {expandido ? <ChevronUp className="w-3.5 h-3.5 text-white/40" /> : <ChevronDown className="w-3.5 h-3.5 text-white/40" />}
+                        </span>
+                      </button>
+                      {expandido && (
+                        <div className="px-3 pb-3 space-y-1.5 border-t border-white/5 pt-2">
+                          {(c.items as Array<Record<string, unknown>> || []).map((it, idx) => (
+                            <div key={idx} className="flex items-start gap-2 text-xs">
+                              {it.estado === 'conforme' ? (
+                                <CheckCircle2 className="w-3.5 h-3.5 text-cbvp-green shrink-0 mt-0.5" />
+                              ) : (
+                                <XCircle className="w-3.5 h-3.5 text-cbvp-red-light shrink-0 mt-0.5" />
+                              )}
+                              <span className="min-w-0">
+                                <span className="text-white/70">{String(it.item || '')}</span>
+                                <span className="text-white/30"> · {String(it.sitioDenominacion || '')}</span>
+                                {!!it.observacion && (
+                                  <span className="block text-white/40 italic">{String(it.observacion)}</span>
+                                )}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
 
         {creando && (
           <div className="border border-white/10 rounded-xl p-4 mb-4 bg-white/[0.02]">
@@ -191,24 +326,44 @@ export default function ControlMovil() {
                   {materialesSitio.length === 0 ? (
                     <p className="text-xs text-white/30 flex items-center gap-2"><Package className="w-3.5 h-3.5" /> Sin materiales asignados a este sitio.</p>
                   ) : (
-                    <div className="space-y-1.5">
+                    <div className="space-y-2">
                       {materialesSitio.map((m) => {
                         const detalle = detalleMaterial(m);
+                        const respuesta = respuestas[m.id];
                         return (
-                          <label key={m.id} className="flex items-start gap-2.5 px-2 py-1.5 rounded-lg hover:bg-white/[0.03] cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={!!m.verificado}
-                              onChange={() => toggleVerificado(m.id, !!m.verificado)}
-                              className="w-4 h-4 mt-0.5 rounded border-white/20 bg-white/5 text-cbvp-red focus:ring-cbvp-red/50 shrink-0"
-                            />
-                            <span className="min-w-0">
-                              <span className={`block text-sm truncate ${m.verificado ? 'text-white/40 line-through' : 'text-white/80'}`}>{String(m.item || '')}</span>
-                              {detalle && (
-                                <span className={`block text-xs truncate ${m.verificado ? 'text-white/20' : 'text-white/40'}`}>{detalle}</span>
-                              )}
-                            </span>
-                          </label>
+                          <div key={m.id} className="px-2 py-1.5 rounded-lg hover:bg-white/[0.03]">
+                            <div className="flex items-start justify-between gap-2">
+                              <span className="min-w-0">
+                                <span className="block text-sm text-white/80 truncate">{String(m.item || '')}</span>
+                                {detalle && <span className="block text-xs text-white/40 truncate">{detalle}</span>}
+                              </span>
+                              <div className="flex items-center gap-1 shrink-0">
+                                <button
+                                  onClick={() => marcarEstado(m.id, 'conforme')}
+                                  title="Conforme"
+                                  className={`p-1.5 rounded-lg transition-colors ${respuesta?.estado === 'conforme' ? 'bg-cbvp-green/20 text-cbvp-green' : 'text-white/30 hover:bg-white/10 hover:text-cbvp-green'}`}
+                                >
+                                  <CheckCircle2 className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => marcarEstado(m.id, 'no_conforme')}
+                                  title="No conforme"
+                                  className={`p-1.5 rounded-lg transition-colors ${respuesta?.estado === 'no_conforme' ? 'bg-cbvp-red/20 text-cbvp-red-light' : 'text-white/30 hover:bg-white/10 hover:text-cbvp-red-light'}`}
+                                >
+                                  <XCircle className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </div>
+                            {respuesta?.estado === 'no_conforme' && (
+                              <input
+                                type="text"
+                                value={respuesta.observacion}
+                                onChange={(e) => cambiarObservacion(m.id, e.target.value)}
+                                placeholder="Detalle del problema (opcional)"
+                                className="mt-1.5 w-full bg-white/5 border border-cbvp-red/20 rounded-lg px-2 py-1.5 text-xs text-white placeholder-white/30 focus:border-cbvp-red/50 focus:outline-none"
+                              />
+                            )}
+                          </div>
                         );
                       })}
                     </div>
@@ -216,6 +371,24 @@ export default function ControlMovil() {
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {sitiosMovil.length > 0 && (
+          <div className="mt-4 pt-4 border-t border-white/5 flex items-center justify-between gap-3">
+            <span className="text-xs text-white/40">
+              {totalRespondidos > 0 ? `${totalRespondidos} material(es) marcado(s)` : 'Marca conforme o no conforme en los materiales revisados'}
+            </span>
+            <div className="flex items-center gap-3">
+              {mensajeGuardado && <span className="text-xs text-white/50">{mensajeGuardado}</span>}
+              <button
+                onClick={guardarChecklist}
+                disabled={guardarChecklistMutation.isPending || totalRespondidos === 0}
+                className="px-4 py-2 bg-cbvp-green hover:bg-cbvp-green/80 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-all text-sm flex items-center gap-2"
+              >
+                <Save className="w-4 h-4" /> Guardar Checklist
+              </button>
+            </div>
           </div>
         )}
       </div>
