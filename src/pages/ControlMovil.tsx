@@ -207,7 +207,8 @@ export default function ControlMovil() {
         const material = materiales.find((m) => m.id === materialId);
         const sitio = sitiosMovil.find((s) => s.id === material?.ubicacion);
         const kit = material?.kitPadreId ? materiales.find((m) => m.id === material.kitPadreId) : undefined;
-        const item = kit ? `${String(kit.item || 'Kit')} — ${String(material?.item || '')}` : String(material?.item || '');
+        const nombreKit = kit ? [String(kit.item || 'Kit'), kit.serialCodigo].filter(Boolean).join(' ') : '';
+        const item = kit ? `${nombreKit} — ${String(material?.item || '')}` : String(material?.item || '');
         return {
           materialId,
           item,
@@ -423,7 +424,10 @@ export default function ControlMovil() {
                             >
                               <span className="flex items-center gap-2 min-w-0">
                                 <Boxes className="w-4 h-4 text-cbvp-blue shrink-0" />
-                                <span className="text-sm text-white/80 truncate">{String(m.item || '')}</span>
+                                <span className="text-sm text-white/80 truncate">
+                                  {String(m.item || '')}
+                                  {m.serialCodigo && <span className="text-white/40"> · {String(m.serialCodigo)}</span>}
+                                </span>
                                 <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-cbvp-blue/10 text-cbvp-blue shrink-0">{contenido.length} item(s)</span>
                               </span>
                               {expandido ? <ChevronUp className="w-3.5 h-3.5 text-white/40 shrink-0" /> : <ChevronDown className="w-3.5 h-3.5 text-white/40 shrink-0" />}
