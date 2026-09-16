@@ -1,6 +1,6 @@
-// Normaliza una fecha que puede venir de Google Sheets en distintos formatos
-// (DD/MM/AAAA como la muestra Sheets en espanol, o ya en formato ISO
-// AAAA-MM-DD) a formato ISO AAAA-MM-DD, que es el unico que aceptan los
+// Normaliza una fecha que puede venir en distintos formatos (DD/MM/AAAA,
+// el mas comun en datos migrados o ingresados en espanol, o ya en formato
+// ISO AAAA-MM-DD) a formato ISO AAAA-MM-DD, que es el unico que aceptan los
 // <input type="date"> del navegador y el que usamos para calculos internos.
 // Devuelve "" si no se puede interpretar.
 
@@ -14,7 +14,7 @@ export function normalizarFechaISO(valor: string): string {
     return `${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}`;
   }
 
-  // Formato DD/MM/AAAA (el mas comun al leer Sheets en espanol)
+  // Formato DD/MM/AAAA (el mas comun en espanol)
   const slashMatch = v.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
   if (slashMatch) {
     const [, dd, mm, yyyy] = slashMatch;
@@ -24,9 +24,9 @@ export function normalizarFechaISO(valor: string): string {
   return "";
 }
 
-// Normaliza un campo mes/año que puede venir de Google Sheets como YYYY-MM,
-// DD/MM/YYYY (cuando Sheets interpreta el valor como fecha) o numero serial
-// de fecha, y lo devuelve siempre como YYYY-MM.
+// Normaliza un campo mes/año que puede venir como YYYY-MM, DD/MM/YYYY
+// (formato fecha) o numero serial de fecha estilo Sheets/Excel (dato
+// legado de la migracion), y lo devuelve siempre como YYYY-MM.
 export function normalizarMesAnio(valor: string): string {
   if (!valor) return "";
   const v = valor.trim();

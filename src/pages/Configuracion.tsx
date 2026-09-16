@@ -465,7 +465,7 @@ export default function Configuracion() {
                 </table>
               </div>
               <p className="text-xs text-white/30 mt-3 text-center">
-                {filtered.length} bombero(s) — cambios se guardan en Google Sheets
+                {filtered.length} bombero(s) — cambios se guardan automaticamente
               </p>
             </>
           )}

@@ -285,7 +285,7 @@ export default function Historial() {
           <div className="mb-4 p-4 bg-cbvp-red/10 border border-cbvp-red/20 rounded-lg flex items-start gap-3">
             <AlertTriangle className="w-5 h-5 text-cbvp-red shrink-0 mt-0.5" />
             <div>
-              <p className="text-sm text-cbvp-red-light font-medium">Error al conectar con Google Sheets</p>
+              <p className="text-sm text-cbvp-red-light font-medium">Error al conectar con el servidor</p>
               <p className="text-xs text-white/40 mt-1">{rpcError.message}</p>
             </div>
           </div>
@@ -294,7 +294,7 @@ export default function Historial() {
         {rpcLoading && (
           <div className="flex items-center justify-center py-8">
             <div className="w-6 h-6 border-2 border-cbvp-red/30 border-t-cbvp-red rounded-full animate-spin" />
-            <span className="ml-3 text-sm text-white/40">Cargando desde Google Sheets...</span>
+            <span className="ml-3 text-sm text-white/40">Cargando...</span>
           </div>
         )}
 

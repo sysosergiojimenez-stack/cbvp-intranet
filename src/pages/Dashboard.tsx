@@ -197,7 +197,7 @@ export default function Dashboard() {
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-cbvp-green" />
-                <span className="text-xs text-white/50">Google Sheets</span>
+                <span className="text-xs text-white/50">Firestore</span>
                 <span className="text-[10px] text-cbvp-green ml-auto">Conectado</span>
               </div>
               <div className="flex items-center gap-2">
