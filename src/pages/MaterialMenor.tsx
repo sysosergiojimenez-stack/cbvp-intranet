@@ -128,6 +128,13 @@ function FormularioMaterial({
     onChangeCampos(esKit ? { esKit: true, kitPadreId: '' } : { esKit: false });
   };
 
+  // Un cilindro casi siempre va dentro de un arnes: se listan los arneses
+  // primero (arriba del todo) para no tener que buscarlos entre los sitios.
+  const esCilindro = valor.item.trim().toUpperCase().includes('CILINDRO');
+  const arnesesPrioritarios = esCilindro
+    ? opcionesKit.filter((k) => k.nombre.toUpperCase().includes('ARNES'))
+    : [];
+
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -139,6 +146,13 @@ function FormularioMaterial({
             className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none"
           >
             <option value="">-- Sin asignar --</option>
+            {arnesesPrioritarios.length > 0 && (
+              <optgroup label="Arneses (recipiente sugerido para cilindros)">
+                {arnesesPrioritarios.map((k) => (
+                  <option key={`prioridad-${k.id}`} value={`kit:${k.id}`}>{k.nombre}</option>
+                ))}
+              </optgroup>
+            )}
             {opcionesUbicacion.map((op) => (
               <Fragment key={op.value}>
                 <option value={`sitio:${op.value}`}>{op.label}</option>
