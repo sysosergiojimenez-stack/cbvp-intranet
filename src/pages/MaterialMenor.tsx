@@ -57,7 +57,7 @@ const CAMPOS: { key: CampoTexto; label: string }[] = [
 ];
 
 interface OpcionUbicacion { value: string; label: string }
-interface OpcionKit { id: string; label: string; ubicacion: string }
+interface OpcionKit { id: string; nombre: string; ubicacion: string }
 
 function ImagenPicker({ inputId, preview, onFile }: { inputId: string; preview: string; onFile: (file: File) => void }) {
   const handleChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -103,51 +103,53 @@ function FormularioMaterial({
   opcionesUbicacion: OpcionUbicacion[];
   opcionesKit: OpcionKit[];
 }) {
-  const cambiarEsKit = (esKit: boolean) => {
-    onChangeCampos(esKit ? { esKit: true, kitPadreId: '' } : { esKit: false });
+  // Un solo select de Ubicacion: los sitios se listan como siempre, y los
+  // kits que hay dentro de cada sitio aparecen como sub-opciones anidadas
+  // debajo. Elegir un kit setea kitPadreId (y hereda su sitio); elegir un
+  // sitio suelto limpia kitPadreId.
+  const valorSelectUbicacion = valor.kitPadreId ? `kit:${valor.kitPadreId}` : valor.ubicacion ? `sitio:${valor.ubicacion}` : '';
+
+  const cambiarUbicacionSelect = (v: string) => {
+    if (!v) {
+      onChangeCampos({ ubicacion: '', kitPadreId: '' });
+    } else if (v.startsWith('kit:')) {
+      const kitId = v.slice(4);
+      const kit = opcionesKit.find((k) => k.id === kitId);
+      onChangeCampos({ kitPadreId: kitId, ubicacion: kit?.ubicacion ?? '', esKit: false });
+    } else {
+      onChangeCampos({ ubicacion: v.slice(6), kitPadreId: '' });
+    }
   };
 
-  const cambiarKitPadre = (kitPadreId: string) => {
-    if (!kitPadreId) {
-      onChangeCampos({ kitPadreId: '' });
-      return;
-    }
-    const kit = opcionesKit.find((k) => k.id === kitPadreId);
-    onChangeCampos({ kitPadreId, esKit: false, ubicacion: kit?.ubicacion ?? valor.ubicacion });
+  const cambiarEsKit = (esKit: boolean) => {
+    onChangeCampos(esKit ? { esKit: true, kitPadreId: '' } : { esKit: false });
   };
 
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div>
+        <div className="col-span-2">
           <label className="text-xs text-white/40 mb-1 block">Ubicacion</label>
           <select
-            value={valor.ubicacion}
-            onChange={(e) => onChange('ubicacion', e.target.value)}
-            disabled={!!valor.kitPadreId}
-            className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none disabled:opacity-50"
+            value={valorSelectUbicacion}
+            onChange={(e) => cambiarUbicacionSelect(e.target.value)}
+            className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none"
           >
             <option value="">-- Sin asignar --</option>
-            {opcionesUbicacion.map((op) => <option key={op.value} value={op.value}>{op.label}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className="text-xs text-white/40 mb-1 block">Kit padre (opcional)</label>
-          <select
-            value={valor.kitPadreId}
-            onChange={(e) => cambiarKitPadre(e.target.value)}
-            disabled={valor.esKit}
-            className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none disabled:opacity-50"
-          >
-            <option value="">-- Item suelto --</option>
-            {opcionesKit.map((k) => <option key={k.id} value={k.id}>{k.label}</option>)}
+            {opcionesUbicacion.map((op) => (
+              <Fragment key={op.value}>
+                <option value={`sitio:${op.value}`}>{op.label}</option>
+                {opcionesKit.filter((k) => k.ubicacion === op.value).map((k) => (
+                  <option key={k.id} value={`kit:${k.id}`}>&nbsp;&nbsp;&nbsp;&nbsp;↳ {k.nombre} (kit)</option>
+                ))}
+              </Fragment>
+            ))}
           </select>
           <label className="flex items-center gap-2 mt-2 text-xs text-white/50 cursor-pointer">
             <input
               type="checkbox"
               checked={valor.esKit}
               onChange={(e) => cambiarEsKit(e.target.checked)}
-              disabled={!!valor.kitPadreId}
               className="w-3.5 h-3.5 rounded border-white/20 bg-white/5 text-cbvp-red focus:ring-cbvp-red/50"
             />
             Este item es un Kit (bolson/contenedor con materiales adentro)
@@ -234,10 +236,10 @@ export default function MaterialMenor() {
     .filter((it) => it.esKit)
     .map((it) => ({
       id: it.id,
-      label: `${etiquetaUbicacion(it.ubicacion) || 'Sin ubicacion'} - ${String(it.item || 'Kit sin nombre')}`,
+      nombre: String(it.item || 'Kit sin nombre'),
       ubicacion: String(it.ubicacion || ''),
     }))
-    .sort((a, b) => a.label.localeCompare(b.label));
+    .sort((a, b) => a.nombre.localeCompare(b.nombre));
   const kitPorId = new Map(todosLosItems.filter((it) => it.esKit).map((it) => [it.id, it]));
 
   const cambiarTab = (cat: CategoriaMaterialMenor) => {
