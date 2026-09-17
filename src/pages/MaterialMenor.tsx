@@ -24,6 +24,18 @@ function valoresUnicos(items: { item: string; marca: string; modelo: string }[],
   return Array.from(new Set(items.map((i) => i[campo]).filter(Boolean))).sort((a, b) => a.localeCompare(b));
 }
 
+// Formato compacto de una fila: "Item-Serial / Marca Modelo: Ubicacion",
+// omitiendo Serial y/o Marca+Modelo cuando el item no los tiene cargados.
+function formatearItemCompacto(
+  it: { item?: string; serialCodigo?: string; marca?: string; modelo?: string },
+  ubicacionTexto: string
+): string {
+  const itemSerial = [it.item, it.serialCodigo].filter(Boolean).join('-');
+  const marcaModelo = [it.marca, it.modelo].filter(Boolean).join(' ');
+  const principal = marcaModelo ? `${itemSerial} / ${marcaModelo}` : itemSerial;
+  return `${principal}: ${ubicacionTexto || 'Sin asignar'}`;
+}
+
 interface MaterialForm {
   fecha: string;
   item: string;
@@ -472,10 +484,6 @@ export default function MaterialMenor() {
                 <tr className="bg-white/5 border-b border-white/10">
                   <th className="text-left px-3 py-2 font-medium text-white/50">Foto</th>
                   <th className="text-left px-3 py-2 font-medium text-white/50">Item</th>
-                  <th className="text-left px-3 py-2 font-medium text-white/50">Marca / Modelo</th>
-                  <th className="text-left px-3 py-2 font-medium text-white/50">Cantidad</th>
-                  <th className="text-left px-3 py-2 font-medium text-white/50">Ubicacion</th>
-                  <th className="text-left px-3 py-2 font-medium text-white/50">Serial</th>
                   <th className="text-left px-3 py-2 font-medium text-white/50">Acciones</th>
                 </tr>
               </thead>
@@ -500,7 +508,7 @@ export default function MaterialMenor() {
                         <span className={`inline-flex items-center gap-1.5 ${esHijoDeKit ? 'pl-4 text-white/70 font-normal' : ''}`}>
                           {it.esKit && <Boxes className="w-3.5 h-3.5 text-cbvp-blue shrink-0" />}
                           {esHijoDeKit && <CornerDownRight className="w-3 h-3 text-white/25 shrink-0" />}
-                          {it.item || '-'}
+                          {formatearItemCompacto(it, etiquetaUbicacion(it.ubicacion))}
                           {it.esKit && (
                             <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-cbvp-blue/10 text-cbvp-blue">
                               Kit · {todosLosItems.filter((h) => h.kitPadreId === it.id).length} item(s)
@@ -508,10 +516,6 @@ export default function MaterialMenor() {
                           )}
                         </span>
                       </td>
-                      <td className="px-3 py-2 text-white/70 block sm:table-cell"><span className="text-white/30 sm:hidden">Marca/Modelo: </span>{[it.marca, it.modelo].filter(Boolean).join(' ') || '-'}</td>
-                      <td className="px-3 py-2 text-white/70 block sm:table-cell"><span className="text-white/30 sm:hidden">Cantidad: </span>{it.cantidad || '-'}</td>
-                      <td className="px-3 py-2 text-white/70 block sm:table-cell"><span className="text-white/30 sm:hidden">Ubicacion: </span>{etiquetaUbicacion(it.ubicacion) || '-'}</td>
-                      <td className="px-3 py-2 text-white/70 block sm:table-cell"><span className="text-white/30 sm:hidden">Serial: </span>{it.serialCodigo || '-'}</td>
                       <td className="px-3 py-2 block sm:table-cell" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center gap-2 pt-1.5 sm:pt-0 mt-1 sm:mt-0 border-t border-white/5 sm:border-0">
                           <button onClick={() => eliminarItem(it.id)} className="p-2.5 sm:p-1.5 rounded-lg hover:bg-cbvp-red/20 text-white/40 hover:text-cbvp-red transition-colors" title="Eliminar"><Trash2 className="w-3.5 h-3.5" /></button>
@@ -523,7 +527,7 @@ export default function MaterialMenor() {
                     </tr>
                     {editandoId === it.id && (
                       <tr className="border-b border-white/5 bg-white/[0.02]">
-                        <td colSpan={7} className="px-3 py-4">
+                        <td colSpan={3} className="px-3 py-4">
                           <FormularioMaterial
                             valor={editForm}
                             onChange={(campo, v) => setEditForm({ ...editForm, [campo]: v })}
