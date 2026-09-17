@@ -3,7 +3,7 @@ import { trpc } from '@/providers/trpc';
 import { useAuth } from '@/context/AuthContext';
 import { compressImage } from '@/lib/imageCompress';
 import { CATEGORIAS_MATERIAL_MENOR, type CategoriaMaterialMenor } from '@contracts/materialMenor';
-import { Package, Plus, Save, Trash2, RotateCcw, ExternalLink, Camera, Image as ImageIcon, X, Boxes, CornerDownRight, FileSpreadsheet, FileText } from 'lucide-react';
+import { Package, Plus, Save, Trash2, RotateCcw, Camera, Image as ImageIcon, X, Boxes, FileSpreadsheet, FileText, MoreVertical } from 'lucide-react';
 import { exportarInventarioCsv, type FilaInventarioExport } from '@/lib/exportarMaterialMenorCsv';
 import { exportarInventarioPdf } from '@/lib/exportarMaterialMenorPdf';
 import ImagenLightbox from '@/components/ImagenLightbox';
@@ -24,16 +24,13 @@ function valoresUnicos(items: { item: string; marca: string; modelo: string }[],
   return Array.from(new Set(items.map((i) => i[campo]).filter(Boolean))).sort((a, b) => a.localeCompare(b));
 }
 
-// Formato compacto de una fila: "Item-Serial / Marca Modelo: Ubicacion",
-// omitiendo Serial y/o Marca+Modelo cuando el item no los tiene cargados.
-function formatearItemCompacto(
-  it: { item?: string; serialCodigo?: string; marca?: string; modelo?: string },
-  ubicacionTexto: string
-): string {
-  const itemSerial = [it.item, it.serialCodigo].filter(Boolean).join('-');
-  const marcaModelo = [it.marca, it.modelo].filter(Boolean).join(' ');
-  const principal = marcaModelo ? `${itemSerial} / ${marcaModelo}` : itemSerial;
-  return `${principal}: ${ubicacionTexto || 'Sin asignar'}`;
+// Item-Serial y Marca+Modelo para la tarjeta, omitiendo Serial y/o
+// Marca+Modelo cuando el item no los tiene cargados.
+function partesItemCompacto(it: { item?: string; serialCodigo?: string; marca?: string; modelo?: string }) {
+  return {
+    itemSerial: [it.item, it.serialCodigo].filter(Boolean).join('-'),
+    marcaModelo: [it.marca, it.modelo].filter(Boolean).join(' '),
+  };
 }
 
 interface MaterialForm {
@@ -235,6 +232,7 @@ export default function MaterialMenor() {
 
   const [error, setError] = useState('');
   const [imagenAmpliada, setImagenAmpliada] = useState<string | null>(null);
+  const [menuAbiertoId, setMenuAbiertoId] = useState<string | null>(null);
 
   const todosLosItems = listadoData?.items || [];
   // Orden: primero por nombre de Item, y a igual nombre, por Serial/Codigo.
@@ -478,79 +476,91 @@ export default function MaterialMenor() {
         ) : itemsTab.length === 0 ? (
           <div className="p-4 text-sm text-white/40">No hay items registrados en {tabActiva} todavia.</div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm block sm:table">
-              <thead className="hidden sm:table-header-group">
-                <tr className="bg-white/5 border-b border-white/10">
-                  <th className="text-left px-3 py-2 font-medium text-white/50">Foto</th>
-                  <th className="text-left px-3 py-2 font-medium text-white/50">Item</th>
-                  <th className="text-left px-3 py-2 font-medium text-white/50">Acciones</th>
-                </tr>
-              </thead>
-              <tbody className="block sm:table-row-group">
-                {itemsTab.map((it) => {
-                  const esHijoDeKit = !!it.kitPadreId && kitsEnTab.has(it.kitPadreId);
-                  return (
-                  <Fragment key={it.id}>
-                    <tr onClick={() => iniciarEdicion(it as MaterialForm & { id: string; imagen?: string })} className={`border-b border-white/5 hover:bg-white/[0.02] transition-colors cursor-pointer block sm:table-row mb-2 sm:mb-0 bg-white/[0.02] sm:bg-transparent rounded-lg sm:rounded-none p-2 sm:p-0 ${esHijoDeKit ? 'sm:bg-white/[0.015]' : ''}`}>
-                      <td className="px-3 py-2 block sm:table-cell" onClick={(e) => e.stopPropagation()}>
-                        {it.imagen ? (
-                          <button onClick={() => setImagenAmpliada(String(it.imagen))} title="Ver imagen">
-                            <img src={String(it.imagen)} alt={String(it.item || '')} className="w-10 h-10 object-cover rounded-lg border border-white/10 hover:opacity-80 transition-opacity" />
-                          </button>
-                        ) : (
-                          <div className="w-10 h-10 rounded-lg border border-white/10 bg-white/5 flex items-center justify-center">
-                            <ImageIcon className="w-4 h-4 text-white/15" />
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-3 py-2 text-white font-medium block sm:table-cell">
-                        <span className={`inline-flex items-center gap-1.5 ${esHijoDeKit ? 'pl-4 text-white/70 font-normal' : ''}`}>
-                          {it.esKit && <Boxes className="w-3.5 h-3.5 text-cbvp-blue shrink-0" />}
-                          {esHijoDeKit && <CornerDownRight className="w-3 h-3 text-white/25 shrink-0" />}
-                          {formatearItemCompacto(it, etiquetaUbicacion(it.ubicacion))}
-                          {it.esKit && (
-                            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-cbvp-blue/10 text-cbvp-blue">
-                              Kit · {todosLosItems.filter((h) => h.kitPadreId === it.id).length} item(s)
-                            </span>
-                          )}
-                        </span>
-                      </td>
-                      <td className="px-3 py-2 block sm:table-cell" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex items-center gap-2 pt-1.5 sm:pt-0 mt-1 sm:mt-0 border-t border-white/5 sm:border-0">
-                          <button onClick={() => eliminarItem(it.id)} className="p-2.5 sm:p-1.5 rounded-lg hover:bg-cbvp-red/20 text-white/40 hover:text-cbvp-red transition-colors" title="Eliminar"><Trash2 className="w-3.5 h-3.5" /></button>
-                          {it.imagen && (
-                            <a href={it.imagen} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="p-2.5 sm:p-1.5 rounded-lg hover:bg-white/10 text-white/40 hover:text-cbvp-blue transition-colors" title="Ver imagen"><ExternalLink className="w-3.5 h-3.5" /></a>
-                          )}
+          <div className="space-y-2">
+            {itemsTab.map((it) => {
+              const esHijoDeKit = !!it.kitPadreId && kitsEnTab.has(it.kitPadreId);
+              const { itemSerial, marcaModelo } = partesItemCompacto(it);
+              const ubicacionTexto = etiquetaUbicacion(it.ubicacion) || 'Sin asignar';
+              return (
+                <Fragment key={it.id}>
+                  <div
+                    onClick={() => iniciarEdicion(it as MaterialForm & { id: string; imagen?: string })}
+                    className={`flex items-center gap-3 p-3 rounded-xl border border-white/10 bg-white/[0.02] hover:bg-white/[0.04] transition-colors cursor-pointer ${esHijoDeKit ? 'ml-8 border-l-2 border-l-cbvp-blue/20' : ''}`}
+                  >
+                    <button
+                      onClick={(e) => { e.stopPropagation(); if (it.imagen) setImagenAmpliada(String(it.imagen)); }}
+                      title={it.imagen ? 'Ver imagen' : undefined}
+                      className="shrink-0"
+                    >
+                      {it.imagen ? (
+                        <img src={String(it.imagen)} alt={String(it.item || '')} className="w-14 h-14 object-cover rounded-lg border border-white/10 hover:opacity-80 transition-opacity" />
+                      ) : (
+                        <div className="w-14 h-14 rounded-lg border border-white/10 bg-white/5 flex items-center justify-center">
+                          <ImageIcon className="w-5 h-5 text-white/15" />
                         </div>
-                      </td>
-                    </tr>
-                    {editandoId === it.id && (
-                      <tr className="border-b border-white/5 bg-white/[0.02]">
-                        <td colSpan={3} className="px-3 py-4">
-                          <FormularioMaterial
-                            valor={editForm}
-                            onChange={(campo, v) => setEditForm({ ...editForm, [campo]: v })}
-                            onChangeCampos={(cambios) => setEditForm({ ...editForm, ...cambios })}
-                            inputId={`material-editar-${it.id}`}
-                            imagenPreview={editImagenPreview}
-                            onImagen={(file) => { setEditImagen(file); setEditImagenPreview(URL.createObjectURL(file)); }}
-                            sugerencias={sugerencias}
-                            opcionesUbicacion={opcionesUbicacion}
-                            opcionesKit={opcionesKit.filter((k) => k.id !== it.id)}
-                          />
-                          <div className="flex gap-2 mt-3">
-                            <button onClick={guardarEdicion} className="px-4 py-2 bg-cbvp-green hover:bg-cbvp-green/80 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2"><Save className="w-4 h-4" /> Guardar</button>
-                            <button onClick={() => setEditandoId(null)} className="px-4 py-2 bg-white/5 hover:bg-white/10 text-white/60 text-sm rounded-lg transition-colors flex items-center gap-2"><X className="w-4 h-4" /> Cancelar</button>
+                      )}
+                    </button>
+
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-white font-medium truncate flex items-center gap-1.5">
+                        {it.esKit && <Boxes className="w-3.5 h-3.5 text-cbvp-blue shrink-0" />}
+                        {itemSerial || '-'}
+                        {it.esKit && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-cbvp-blue/10 text-cbvp-blue shrink-0">
+                            Kit · {todosLosItems.filter((h) => h.kitPadreId === it.id).length} item(s)
+                          </span>
+                        )}
+                      </p>
+                      {marcaModelo && <p className="text-xs text-white/60 truncate">{marcaModelo}</p>}
+                      <p className="text-xs text-white/40 truncate">{ubicacionTexto}</p>
+                    </div>
+
+                    <div className="relative shrink-0" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        onClick={() => setMenuAbiertoId(menuAbiertoId === it.id ? null : it.id)}
+                        className="p-2 rounded-lg hover:bg-white/10 text-white/40 hover:text-white transition-colors"
+                        title="Acciones"
+                      >
+                        <MoreVertical className="w-4 h-4" />
+                      </button>
+                      {menuAbiertoId === it.id && (
+                        <>
+                          <div className="fixed inset-0 z-10" onClick={() => setMenuAbiertoId(null)} />
+                          <div className="absolute right-0 top-full mt-1 z-20 bg-cbvp-dark-light border border-white/10 rounded-lg shadow-xl overflow-hidden min-w-[140px]">
+                            <button
+                              onClick={() => { setMenuAbiertoId(null); eliminarItem(it.id); }}
+                              className="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-cbvp-red-light hover:bg-white/5 transition-colors text-left"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" /> Eliminar
+                            </button>
                           </div>
-                        </td>
-                      </tr>
-                    )}
-                  </Fragment>
-                  );
-                })}
-              </tbody>
-            </table>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  {editandoId === it.id && (
+                    <div className="p-4 rounded-xl border border-white/10 bg-white/[0.02]">
+                      <FormularioMaterial
+                        valor={editForm}
+                        onChange={(campo, v) => setEditForm({ ...editForm, [campo]: v })}
+                        onChangeCampos={(cambios) => setEditForm({ ...editForm, ...cambios })}
+                        inputId={`material-editar-${it.id}`}
+                        imagenPreview={editImagenPreview}
+                        onImagen={(file) => { setEditImagen(file); setEditImagenPreview(URL.createObjectURL(file)); }}
+                        sugerencias={sugerencias}
+                        opcionesUbicacion={opcionesUbicacion}
+                        opcionesKit={opcionesKit.filter((k) => k.id !== it.id)}
+                      />
+                      <div className="flex gap-2 mt-3">
+                        <button onClick={guardarEdicion} className="px-4 py-2 bg-cbvp-green hover:bg-cbvp-green/80 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2"><Save className="w-4 h-4" /> Guardar</button>
+                        <button onClick={() => setEditandoId(null)} className="px-4 py-2 bg-white/5 hover:bg-white/10 text-white/60 text-sm rounded-lg transition-colors flex items-center gap-2"><X className="w-4 h-4" /> Cancelar</button>
+                      </div>
+                    </div>
+                  )}
+                </Fragment>
+              );
+            })}
           </div>
         )}
       </div>
