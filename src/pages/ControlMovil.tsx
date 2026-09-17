@@ -5,10 +5,12 @@ import { ClipboardCheck, Plus, Save, Trash2, Pencil, X, Truck, Package, CheckCir
 import type { EstadoChecklist } from '@contracts/controlMovil';
 import ImagenLightbox from '@/components/ImagenLightbox';
 
-function detalleMaterial(m: { marca?: string; modelo?: string; serialCodigo?: string }): string {
-  const marcaModelo = [m.marca, m.modelo].filter(Boolean).join(' ');
-  const partes = [marcaModelo, m.serialCodigo ? `S/N: ${m.serialCodigo}` : ''].filter(Boolean);
-  return partes.join(' · ');
+function itemConSerial(m: { item?: string; serialCodigo?: string }): string {
+  return [m.item, m.serialCodigo].filter(Boolean).join('-');
+}
+
+function detalleMaterial(m: { marca?: string; modelo?: string }): string {
+  return [m.marca, m.modelo].filter(Boolean).join(' ');
 }
 
 interface RespuestaChecklist {
@@ -41,7 +43,7 @@ function FilaChecklistMaterial({
             </div>
           )}
           <span className="min-w-0">
-            <span className="block text-sm text-white/80 truncate">{String(material.item || '')}</span>
+            <span className="block text-sm text-white/80 truncate">{itemConSerial(material)}</span>
             {detalle && <span className="block text-xs text-white/40 truncate">{detalle}</span>}
           </span>
         </span>
