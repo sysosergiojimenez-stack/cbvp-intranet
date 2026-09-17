@@ -67,7 +67,10 @@ export async function exportarInventarioPdf(filas: FilaInventarioExport[]) {
     theme: 'grid',
     styles: { fontSize: 7, cellPadding: 1.5 },
     headStyles: { fillColor: [180, 30, 30], textColor: 255, fontSize: 7 },
-    margin: { left: 8, right: 8 },
+    // margin.top se aplica en TODAS las paginas (startY solo en la primera);
+    // sin esto, a partir de la segunda pagina el cuerpo de la tabla arranca
+    // en el margen por defecto y queda tapado por el encabezado.
+    margin: { top: 38, left: 8, right: 8 },
     didDrawPage: () => {
       // El header se repite en cada pagina nueva que agrega autoTable.
       encabezado(doc, logo, escudo);
