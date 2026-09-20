@@ -16,11 +16,14 @@ interface MovilForm {
   foto: string;
   condicion: string;
   tipoCombustible: string;
+  numeroTarjetaFlota: string;
+  proveedorCombustible: string;
 }
 
 const movilVacio: MovilForm = {
   codificacion: '', tipo: '', procedencia: '', anioAdquisicion: '', marca: '', modelo: '',
   anio: '', chasis: '', matricula: '', foto: '', condicion: '', tipoCombustible: '',
+  numeroTarjetaFlota: '', proveedorCombustible: '',
 };
 
 const CAMPOS: { key: keyof MovilForm; label: string }[] = [
@@ -34,6 +37,8 @@ const CAMPOS: { key: keyof MovilForm; label: string }[] = [
   { key: 'chasis', label: 'Chasis' },
   { key: 'matricula', label: 'Matricula' },
   { key: 'tipoCombustible', label: 'Tipo de Combustible' },
+  { key: 'numeroTarjetaFlota', label: 'N° Tarjeta Flota' },
+  { key: 'proveedorCombustible', label: 'Proveedor de Combustible' },
   { key: 'foto', label: 'Foto (URL)' },
 ];
 
@@ -89,6 +94,7 @@ export default function Moviles() {
       anioAdquisicion: m.anioAdquisicion, marca: m.marca, modelo: m.modelo, anio: m.anio,
       chasis: m.chasis, matricula: m.matricula, foto: m.foto, condicion: m.condicion,
       tipoCombustible: m.tipoCombustible,
+      numeroTarjetaFlota: m.numeroTarjetaFlota || '', proveedorCombustible: m.proveedorCombustible || '',
     });
   };
 

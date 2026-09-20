@@ -11,6 +11,7 @@ export const ACCIONES_PERMISO = [
   'gestionar_roles_guardia',
   'crear_bombero',
   'ver_moviles',
+  'ver_direccion_administrativa',
 ] as const;
 
 export type AccionPermiso = (typeof ACCIONES_PERMISO)[number];
@@ -29,6 +30,7 @@ export const DEFAULTS_POR_NIVEL: Record<number, Record<AccionPermiso, boolean>> 
     gestionar_roles_guardia: true,
     crear_bombero: true,
     ver_moviles: true,
+    ver_direccion_administrativa: true,
   },
   4: {
     ver_todo: true,
@@ -43,6 +45,7 @@ export const DEFAULTS_POR_NIVEL: Record<number, Record<AccionPermiso, boolean>> 
     gestionar_roles_guardia: true,
     crear_bombero: true,
     ver_moviles: true,
+    ver_direccion_administrativa: true,
   },
   3: {
     ver_todo: true,
@@ -57,6 +60,7 @@ export const DEFAULTS_POR_NIVEL: Record<number, Record<AccionPermiso, boolean>> 
     gestionar_roles_guardia: false,
     crear_bombero: false,
     ver_moviles: false,
+    ver_direccion_administrativa: true,
   },
   2: {
     ver_todo: true,
@@ -71,6 +75,7 @@ export const DEFAULTS_POR_NIVEL: Record<number, Record<AccionPermiso, boolean>> 
     gestionar_roles_guardia: false,
     crear_bombero: false,
     ver_moviles: false,
+    ver_direccion_administrativa: false,
   },
   1: {
     ver_todo: false,
@@ -85,5 +90,6 @@ export const DEFAULTS_POR_NIVEL: Record<number, Record<AccionPermiso, boolean>> 
     gestionar_roles_guardia: false,
     crear_bombero: false,
     ver_moviles: false,
+    ver_direccion_administrativa: false,
   },
 };

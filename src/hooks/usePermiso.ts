@@ -16,6 +16,7 @@ export function usePermiso() {
     puedeGestionarRolesGuardia: tienePermiso('gestionar_roles_guardia'),
     puedeCrearBombero: tienePermiso('crear_bombero'),
     puedeVerMoviles: tienePermiso('ver_moviles'),
+    puedeVerDireccionAdministrativa: tienePermiso('ver_direccion_administrativa'),
     nivel: usuario?.nivelPermiso || 0,
     cargo: usuario?.cargo || '',
     codigo: usuario?.codigo || '',

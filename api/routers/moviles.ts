@@ -20,6 +20,11 @@ const movilInput = z.object({
   foto: z.string(),
   condicion: z.enum(CONDICIONES_MOVIL_VALIDAS),
   tipoCombustible: z.string(),
+  // Datos fijos usados en el encabezado de la Planilla de Uso de Combustible
+  // (Direccion Administrativa > Rendiciones de Combustible) -- no cambian
+  // mes a mes, por eso viven en la ficha del movil y no en cada rendicion.
+  numeroTarjetaFlota: z.string().optional().default(""),
+  proveedorCombustible: z.string().optional().default(""),
 });
 
 export const movilesRouter = createRouter({

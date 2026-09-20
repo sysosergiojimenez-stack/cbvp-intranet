@@ -24,6 +24,9 @@ export const personalRouter = createRouter({
       rango: string;
       codigoRadial: string;
       nombreCompleto: string;
+      primerNombre: string;
+      primerApellido: string;
+      nroDoc: string;
       nivelPermiso: number;
       situ: string;
       cuota: string;
@@ -55,6 +58,9 @@ export const personalRouter = createRouter({
         rango: String(fila.rango || ""),
         codigoRadial: String(fila.codigoRadial || ""),
         nombreCompleto,
+        primerNombre,
+        primerApellido,
+        nroDoc: String(fila.nroDoc || ""),
         nivelPermiso: nivelRaw >= 1 && nivelRaw <= 5 ? nivelRaw : 1,
         situ: String(fila.situ || ""),
         cuota: normalizarMesAnio(String(fila.cuota || "")),
