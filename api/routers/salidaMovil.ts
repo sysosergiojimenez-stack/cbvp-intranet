@@ -19,6 +19,60 @@ function normalizarAnio(y: string): string {
   return y.length === 2 ? `20${y}` : y;
 }
 
+// El frontend usa <input type="date">, que exige exactamente DD/MM/AAAA
+// (dia y mes con 2 digitos, anio con 4) para poder mostrar el valor en el
+// picker -- si no coincide, el campo se ve vacio en la UI aunque el dato
+// siga guardado como texto. Gemini normalmente ya devuelve este formato
+// (se lo pide el prompt), pero puede variar: sin cero a la izquierda, con
+// "-" o "." como separador, con anio de 2 digitos, o en formato ISO. Se
+// normaliza aca para blindar el contrato con el picker sin depender 100%
+// de que el modelo siga la instruccion al pie de la letra.
+function normalizarFechaDDMMYYYY(valor: string): string {
+  const v = valor.trim();
+  if (!v) return "";
+
+  // DD/MM/AAAA, DD-MM-AAAA o DD.MM.AAAA (con o sin ceros a la izquierda,
+  // anio de 2 o 4 digitos)
+  const conSeparador = v.match(/^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2,4})$/);
+  if (conSeparador) {
+    const [, d, m, y] = conSeparador;
+    return `${d.padStart(2, "0")}/${m.padStart(2, "0")}/${normalizarAnio(y)}`;
+  }
+
+  // AAAA-MM-DD (ISO), por si el modelo devuelve este formato en vez del pedido
+  const iso = v.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (iso) {
+    const [, y, m, d] = iso;
+    return `${d.padStart(2, "0")}/${m.padStart(2, "0")}/${y}`;
+  }
+
+  // No reconocido: se deja tal cual (visible en el JSON crudo / editable a
+  // mano) en vez de descartarlo, seria peor perder el dato que Gemini leyo.
+  return v;
+}
+
+// <input type="time"> exige HH:mm exacto (24hs, sin segundos ni AM/PM).
+function normalizarHoraHHmm(valor: string): string {
+  const v = valor.trim();
+  if (!v) return "";
+
+  const conAmPm = v.match(/^(\d{1,2}):(\d{1,2})(?::\d{1,2})?\s*([AaPp])\.?[Mm]\.?$/);
+  if (conAmPm) {
+    let [, h, min, ampm] = conAmPm;
+    let hora = parseInt(h, 10) % 12;
+    if (ampm.toLowerCase() === "p") hora += 12;
+    return `${String(hora).padStart(2, "0")}:${min.padStart(2, "0")}`;
+  }
+
+  const simple = v.match(/^(\d{1,2}):(\d{1,2})(?::\d{1,2})?$/);
+  if (simple) {
+    const [, h, min] = simple;
+    return `${h.padStart(2, "0")}:${min.padStart(2, "0")}`;
+  }
+
+  return v;
+}
+
 function generateId(): string {
   const now = new Date();
   return now.getFullYear().toString() +
@@ -74,12 +128,12 @@ export const salidaMovilRouter = createRouter({
           oficialACargo: String(r.oficialACargo || "").trim(),
           nroTripulantes: String(r.nroTripulantes || "").trim(),
           tipoServicio: normalizarTipoServicio(String(r.tipoServicio || "")),
-          fechaSalida: String(r.fechaSalida || "").trim(),
-          horaSalida: String(r.horaSalida || "").trim(),
+          fechaSalida: normalizarFechaDDMMYYYY(String(r.fechaSalida || "")),
+          horaSalida: normalizarHoraHHmm(String(r.horaSalida || "")),
           kilometrajeSalida: String(r.kilometrajeSalida || "").trim(),
           direccion: String(r.direccion || "").trim(),
-          fechaLlegada: String(r.fechaLlegada || "").trim(),
-          horaLlegada: String(r.horaLlegada || "").trim(),
+          fechaLlegada: normalizarFechaDDMMYYYY(String(r.fechaLlegada || "")),
+          horaLlegada: normalizarHoraHHmm(String(r.horaLlegada || "")),
           kilometrajeLlegada: String(r.kilometrajeLlegada || "").trim(),
         }))
         .filter((r: RegistroMovil) => r.movil || r.conductor || r.fechaSalida);
@@ -148,6 +202,10 @@ export const salidaMovilRouter = createRouter({
           idPlanilla,
           fechaCarga,
           ...r,
+          fechaSalida: normalizarFechaDDMMYYYY(r.fechaSalida),
+          horaSalida: normalizarHoraHHmm(r.horaSalida),
+          fechaLlegada: normalizarFechaDDMMYYYY(r.fechaLlegada),
+          horaLlegada: normalizarHoraHHmm(r.horaLlegada),
           urlImagenes: input.imageUrls,
           creadoEn: Firestore.FieldValue.serverTimestamp(),
         });
@@ -291,7 +349,13 @@ export const salidaMovilRouter = createRouter({
     )
     .mutation(async ({ input }) => {
       const { id, ...campos } = input;
-      await salidasMovilCollection().doc(id).update(campos);
+      await salidasMovilCollection().doc(id).update({
+        ...campos,
+        fechaSalida: normalizarFechaDDMMYYYY(campos.fechaSalida),
+        horaSalida: normalizarHoraHHmm(campos.horaSalida),
+        fechaLlegada: normalizarFechaDDMMYYYY(campos.fechaLlegada),
+        horaLlegada: normalizarHoraHHmm(campos.horaLlegada),
+      });
       return { exito: true as const, mensaje: "Registro actualizado" };
     }),
 

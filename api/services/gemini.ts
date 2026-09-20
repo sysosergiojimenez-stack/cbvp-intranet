@@ -339,12 +339,12 @@ Para cada registro numerado CON DATOS, extrae:
 - tipoServicio: la seccion "TIPO DE SERVICIO" es una lista de casilleros (checkboxes) con codigo de radio + nombre. Identifica CUAL casillero esta marcado/tildado y devuelve su texto EXACTO tal como aparece impreso (codigo y nombre juntos). Los unicos valores posibles son:
 ${TIPOS_SERVICIO_VALIDOS.map(t => `  - "${t}"`).join("\n")}
   Si ningun casillero esta marcado o no se puede determinar cual, usa string vacio "". Nunca inventes un valor que no este en esta lista.
-- fechaSalida: fecha en la fila "DATOS DE SALIDA", columna FECHA. Formato DD/MM/YYYY.
-- horaSalida: hora en la fila "DATOS DE SALIDA", columna HORA.
+- fechaSalida: fecha en la fila "DATOS DE SALIDA", columna FECHA. Formato exacto DD/MM/YYYY (dia y mes con 2 digitos, anio con 4 digitos).
+- horaSalida: hora en la fila "DATOS DE SALIDA", columna HORA. Formato exacto HH:mm de 24 horas (2 digitos, sin AM/PM, sin segundos). Ej: "08:05", "14:30".
 - kilometrajeSalida: numero en la fila "DATOS DE SALIDA", columna KILOMETRAJE.
 - direccion: texto en la fila "DATOS DE SALIDA", columna DIRECCION.
-- fechaLlegada: fecha en la fila "DATOS DE LLEGADA", columna FECHA. Formato DD/MM/YYYY.
-- horaLlegada: hora en la fila "DATOS DE LLEGADA", columna HORA.
+- fechaLlegada: fecha en la fila "DATOS DE LLEGADA", columna FECHA. Formato exacto DD/MM/YYYY (dia y mes con 2 digitos, anio con 4 digitos).
+- horaLlegada: hora en la fila "DATOS DE LLEGADA", columna HORA. Formato exacto HH:mm de 24 horas (2 digitos, sin AM/PM, sin segundos). Ej: "08:05", "14:30".
 - kilometrajeLlegada: numero en la fila "DATOS DE LLEGADA", columna KILOMETRAJE.
 
 Si un campo esta vacio o no es legible, usa string vacio "". NO inventes datos.
