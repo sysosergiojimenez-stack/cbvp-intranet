@@ -80,6 +80,15 @@ export default function SalidaMovil() {
   const utils = trpc.useUtils();
   const extraerMutation = trpc.salidaMovil.extraer.useMutation();
   const guardarMutation = trpc.salidaMovil.guardar.useMutation();
+  const { data: personalData } = trpc.personal.list.useQuery();
+  // Nombre simple (sin rango/categoria) para que coincida con el formato ya
+  // guardado en conductor/oficialACargo y con el cruce por nombre que hace
+  // Rendiciones de Combustible; la etiqueta que se ve en la sugerencia si
+  // muestra el nombre completo, para que sea mas facil de reconocer.
+  const sugerenciasPersonal = (personalData?.personal || [])
+    .map(p => ({ value: `${p.primerNombre} ${p.primerApellido}`.trim(), label: p.nombreCompleto }))
+    .filter(p => p.value)
+    .sort((a, b) => a.label.localeCompare(b.label));
   const [filtroFechaDesde, setFiltroFechaDesde] = useState('');
   const [filtroFechaHasta, setFiltroFechaHasta] = useState('');
   const [filtroMovil, setFiltroMovil] = useState('');
@@ -301,6 +310,9 @@ export default function SalidaMovil() {
 
   return (
     <div className="animate-fade-in space-y-6">
+      <datalist id="salida-movil-personal">
+        {sugerenciasPersonal.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+      </datalist>
       {escaneandoActual && (
         <DocumentScanModal
           file={escaneandoActual}
@@ -410,8 +422,8 @@ export default function SalidaMovil() {
                   </div>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                     <div><label className="text-xs text-white/40 mb-1 block">Movil</label><select value={r.movil} onChange={e => actualizarRegistro(idx, 'movil', e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none">{MOVILES_VALIDOS.map(m => <option key={m} value={m}>{m}</option>)}</select></div>
-                    <div><label className="text-xs text-white/40 mb-1 block">Conductor</label><input type="text" value={r.conductor} onChange={e => actualizarRegistro(idx, 'conductor', e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
-                    <div><label className="text-xs text-white/40 mb-1 block">Oficial a Cargo</label><input type="text" value={r.oficialACargo} onChange={e => actualizarRegistro(idx, 'oficialACargo', e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
+                    <div><label className="text-xs text-white/40 mb-1 block">Conductor</label><input type="text" list="salida-movil-personal" value={r.conductor} onChange={e => actualizarRegistro(idx, 'conductor', e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
+                    <div><label className="text-xs text-white/40 mb-1 block">Oficial a Cargo</label><input type="text" list="salida-movil-personal" value={r.oficialACargo} onChange={e => actualizarRegistro(idx, 'oficialACargo', e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
                     <div><label className="text-xs text-white/40 mb-1 block">Nro Tripulantes</label><input type="text" value={r.nroTripulantes} onChange={e => actualizarRegistro(idx, 'nroTripulantes', e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
                   </div>
                   <div><label className="text-xs text-white/40 mb-1 block">Tipo de Servicio</label><select value={r.tipoServicio} onChange={e => actualizarRegistro(idx, 'tipoServicio', e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none"><option value="">-- Seleccionar --</option>{TIPOS_SERVICIO_VALIDOS.map(t => <option key={t} value={t}>{t}</option>)}</select></div>
@@ -573,8 +585,8 @@ export default function SalidaMovil() {
                         <td colSpan={8} className="px-3 py-4">
                           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
                             <div><label className="text-xs text-white/40 mb-1 block">Movil</label><select value={editForm.movil} onChange={e => setEditForm({ ...editForm, movil: e.target.value as MovilValido })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none">{!(MOVILES_VALIDOS as readonly string[]).includes(editForm.movil) && editForm.movil && <option value={editForm.movil}>{editForm.movil} (anterior)</option>}{MOVILES_VALIDOS.map(m => <option key={m} value={m}>{m}</option>)}</select></div>
-                            <div><label className="text-xs text-white/40 mb-1 block">Conductor</label><input type="text" value={editForm.conductor} onChange={e => setEditForm({ ...editForm, conductor: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
-                            <div><label className="text-xs text-white/40 mb-1 block">A Cargo</label><input type="text" value={editForm.oficialACargo} onChange={e => setEditForm({ ...editForm, oficialACargo: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
+                            <div><label className="text-xs text-white/40 mb-1 block">Conductor</label><input type="text" list="salida-movil-personal" value={editForm.conductor} onChange={e => setEditForm({ ...editForm, conductor: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
+                            <div><label className="text-xs text-white/40 mb-1 block">A Cargo</label><input type="text" list="salida-movil-personal" value={editForm.oficialACargo} onChange={e => setEditForm({ ...editForm, oficialACargo: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
                             <div><label className="text-xs text-white/40 mb-1 block">Tripulantes</label><input type="text" value={editForm.nroTripulantes} onChange={e => setEditForm({ ...editForm, nroTripulantes: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
                             <div className="col-span-2 md:col-span-4"><label className="text-xs text-white/40 mb-1 block">Tipo Servicio</label><select value={editForm.tipoServicio} onChange={e => setEditForm({ ...editForm, tipoServicio: e.target.value as TipoServicioValido })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none"><option value="">-- Seleccionar --</option>{!(TIPOS_SERVICIO_VALIDOS as readonly string[]).includes(editForm.tipoServicio) && editForm.tipoServicio && <option value={editForm.tipoServicio}>{editForm.tipoServicio} (anterior)</option>}{TIPOS_SERVICIO_VALIDOS.map(t => <option key={t} value={t}>{t}</option>)}</select></div>
                             <div><label className="text-xs text-white/40 mb-1 block">Fecha Salida</label><input type="date" value={fechaDDMMYYYYaISO(editForm.fechaSalida)} onChange={e => setEditForm({ ...editForm, fechaSalida: fechaISOaDDMMYYYY(e.target.value) })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none [color-scheme:dark]" /></div>
