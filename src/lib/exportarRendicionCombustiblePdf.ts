@@ -61,18 +61,18 @@ export async function exportarRendicionCombustiblePdf(
   anio: number,
   filas: FilaRendicionCombustible[]
 ) {
-  const logo = await cargarImagenBase64('/insignia.jpg');
+  const escudo = await cargarImagenBase64('/escudo-cbvp.png');
   const doc = new jsPDF('landscape', 'mm', 'a4');
   const pageWidth = doc.internal.pageSize.getWidth();
 
   let y = 10;
-  if (logo) {
+  if (escudo) {
     try {
-      const props = doc.getImageProperties(logo);
+      const props = doc.getImageProperties(escudo);
       const ratio = props.width / props.height || 1;
       const h = 18;
       const w = h * ratio;
-      doc.addImage(logo, 'JPEG', pageWidth / 2 - w / 2, y, w, h);
+      doc.addImage(escudo, 'PNG', pageWidth / 2 - w / 2, y, w, h);
       y += h + 3;
     } catch {
       /* ignore */
@@ -151,15 +151,23 @@ export async function exportarRendicionCombustiblePdf(
       6: { halign: 'left' },
       9: { halign: 'left' },
     },
-    margin: { left: 10, right: 10, bottom: 18 },
-    didDrawPage: () => {
-      const pageHeight = doc.internal.pageSize.getHeight();
-      doc.setFontSize(8);
-      doc.setFont('helvetica', 'normal');
-      doc.text('SELLO DE LA COMPAÑÍA:', 15, pageHeight - 10);
-      doc.text('FIRMA Y ACLARACIÓN DEL COMANDANTE', pageWidth - 15, pageHeight - 10, { align: 'right' });
-    },
+    margin: { left: 10, right: 10 },
   });
+
+  // Pie de firma: una sola vez, al final real de la planilla (no en cada
+  // pagina) -- si no entra en la pagina donde termino la tabla, se agrega
+  // una pagina nueva para no superponerlo con la ultima fila.
+  const pageHeight = doc.internal.pageSize.getHeight();
+  // @ts-expect-error lastAutoTable se agrega dinamicamente por el plugin
+  let yFirma = doc.lastAutoTable.finalY + 14;
+  if (yFirma > pageHeight - 16) {
+    doc.addPage();
+    yFirma = 20;
+  }
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  doc.text('SELLO DE LA COMPAÑÍA:', 15, yFirma);
+  doc.text('FIRMA Y ACLARACIÓN DEL COMANDANTE', pageWidth - 15, yFirma, { align: 'right' });
 
   const nombreArchivo = `RENDICION_DE_COMBUSTIBLE_${MESES[mes - 1]}_${anio}_${movil.codificacion}.pdf`;
   doc.save(nombreArchivo);
