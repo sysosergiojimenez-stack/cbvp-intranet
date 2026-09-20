@@ -16,6 +16,35 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
   return btoa(binary);
 }
 
+// Las fechas se guardan como DD/MM/AAAA (formato usado en toda la app), pero
+// <input type="date"> nativo exige AAAA-MM-DD -- se convierte en los dos
+// sentidos solo para mostrar/leer el picker, sin tocar el formato guardado.
+function fechaDDMMYYYYaISO(fecha: string): string {
+  const partes = fecha.split('/');
+  if (partes.length !== 3) return '';
+  const [d, m, y] = partes;
+  const yyyy = y.length === 2 ? `20${y}` : y;
+  if (!/^\d{4}$/.test(yyyy) || !/^\d{1,2}$/.test(m) || !/^\d{1,2}$/.test(d)) return '';
+  return `${yyyy}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+}
+
+function fechaISOaDDMMYYYY(iso: string): string {
+  const partes = iso.split('-');
+  if (partes.length !== 3) return '';
+  const [y, m, d] = partes;
+  return `${d}/${m}/${y}`;
+}
+
+function hoyDDMMYYYY(): string {
+  const d = new Date();
+  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+}
+
+function ahoraHHmm(): string {
+  const d = new Date();
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
 interface RegistroMovil {
   movil: MovilValido;
   conductor: string;
@@ -36,6 +65,13 @@ const registroVacio: RegistroMovil = {
   fechaSalida: '', horaSalida: '', kilometrajeSalida: '', direccion: '',
   fechaLlegada: '', horaLlegada: '', kilometrajeLlegada: '',
 };
+
+// Un registro nuevo (manual o agregado durante la revision) arranca con la
+// fecha y hora de salida en el momento actual -- se editan si corresponde
+// otro dato, pero lo mas comun es que la salida se cargue en el momento.
+function registroConDefaults(): RegistroMovil {
+  return { ...registroVacio, fechaSalida: hoyDDMMYYYY(), horaSalida: ahoraHHmm() };
+}
 
 const MAX_SIZE = 15 * 1024 * 1024;
 
@@ -65,7 +101,7 @@ export default function SalidaMovil() {
     return cargo === 'SEGUNDO OFICIAL' || cargo === 'DESARROLLADOR';
   })();
   const iniciarSalidaManual = () => {
-    setError(''); setExtraccion({ imageUrls: [], registros: [{ ...registroVacio }] });
+    setError(''); setExtraccion({ imageUrls: [], registros: [registroConDefaults()] });
   };
   const [editandoId, setEditandoId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<RegistroMovil>({ ...registroVacio });
@@ -229,7 +265,7 @@ export default function SalidaMovil() {
 
   const agregarRegistro = () => {
     if (!extraccion) return;
-    setExtraccion({ ...extraccion, registros: [...extraccion.registros, { ...registroVacio }] });
+    setExtraccion({ ...extraccion, registros: [...extraccion.registros, registroConDefaults()] });
   };
 
   const confirmarGuardar = async () => {
@@ -383,8 +419,8 @@ export default function SalidaMovil() {
                   <div className="border-t border-white/5 pt-3">
                     <p className="text-xs font-semibold text-white/30 uppercase mb-2">Datos de Salida</p>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                      <div><label className="text-xs text-white/40 mb-1 block">Fecha</label><input type="text" value={r.fechaSalida} onChange={e => actualizarRegistro(idx, 'fechaSalida', e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
-                      <div><label className="text-xs text-white/40 mb-1 block">Hora</label><input type="text" value={r.horaSalida} onChange={e => actualizarRegistro(idx, 'horaSalida', e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
+                      <div><label className="text-xs text-white/40 mb-1 block">Fecha</label><input type="date" value={fechaDDMMYYYYaISO(r.fechaSalida)} onChange={e => actualizarRegistro(idx, 'fechaSalida', fechaISOaDDMMYYYY(e.target.value))} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none [color-scheme:dark]" /></div>
+                      <div><label className="text-xs text-white/40 mb-1 block">Hora</label><input type="time" value={r.horaSalida} onChange={e => actualizarRegistro(idx, 'horaSalida', e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none [color-scheme:dark]" /></div>
                       <div><label className="text-xs text-white/40 mb-1 block">Kilometraje</label><input type="text" value={r.kilometrajeSalida} onChange={e => actualizarRegistro(idx, 'kilometrajeSalida', e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
                       <div><label className="text-xs text-white/40 mb-1 block">Direccion</label><input type="text" value={r.direccion} onChange={e => actualizarRegistro(idx, 'direccion', e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
                     </div>
@@ -393,8 +429,8 @@ export default function SalidaMovil() {
                   <div className="border-t border-white/5 pt-3">
                     <p className="text-xs font-semibold text-white/30 uppercase mb-2">Datos de Llegada</p>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                      <div><label className="text-xs text-white/40 mb-1 block">Fecha</label><input type="text" value={r.fechaLlegada} onChange={e => actualizarRegistro(idx, 'fechaLlegada', e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
-                      <div><label className="text-xs text-white/40 mb-1 block">Hora</label><input type="text" value={r.horaLlegada} onChange={e => actualizarRegistro(idx, 'horaLlegada', e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
+                      <div><label className="text-xs text-white/40 mb-1 block">Fecha</label><input type="date" value={fechaDDMMYYYYaISO(r.fechaLlegada)} onChange={e => actualizarRegistro(idx, 'fechaLlegada', fechaISOaDDMMYYYY(e.target.value))} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none [color-scheme:dark]" /></div>
+                      <div><label className="text-xs text-white/40 mb-1 block">Hora</label><input type="time" value={r.horaLlegada} onChange={e => actualizarRegistro(idx, 'horaLlegada', e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none [color-scheme:dark]" /></div>
                       <div><label className="text-xs text-white/40 mb-1 block">Kilometraje</label><input type="text" value={r.kilometrajeLlegada} onChange={e => actualizarRegistro(idx, 'kilometrajeLlegada', e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
                     </div>
                   </div>
@@ -541,12 +577,12 @@ export default function SalidaMovil() {
                             <div><label className="text-xs text-white/40 mb-1 block">A Cargo</label><input type="text" value={editForm.oficialACargo} onChange={e => setEditForm({ ...editForm, oficialACargo: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
                             <div><label className="text-xs text-white/40 mb-1 block">Tripulantes</label><input type="text" value={editForm.nroTripulantes} onChange={e => setEditForm({ ...editForm, nroTripulantes: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
                             <div className="col-span-2 md:col-span-4"><label className="text-xs text-white/40 mb-1 block">Tipo Servicio</label><select value={editForm.tipoServicio} onChange={e => setEditForm({ ...editForm, tipoServicio: e.target.value as TipoServicioValido })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none"><option value="">-- Seleccionar --</option>{!(TIPOS_SERVICIO_VALIDOS as readonly string[]).includes(editForm.tipoServicio) && editForm.tipoServicio && <option value={editForm.tipoServicio}>{editForm.tipoServicio} (anterior)</option>}{TIPOS_SERVICIO_VALIDOS.map(t => <option key={t} value={t}>{t}</option>)}</select></div>
-                            <div><label className="text-xs text-white/40 mb-1 block">Fecha Salida</label><input type="text" value={editForm.fechaSalida} onChange={e => setEditForm({ ...editForm, fechaSalida: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
-                            <div><label className="text-xs text-white/40 mb-1 block">Hora Salida</label><input type="text" value={editForm.horaSalida} onChange={e => setEditForm({ ...editForm, horaSalida: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
+                            <div><label className="text-xs text-white/40 mb-1 block">Fecha Salida</label><input type="date" value={fechaDDMMYYYYaISO(editForm.fechaSalida)} onChange={e => setEditForm({ ...editForm, fechaSalida: fechaISOaDDMMYYYY(e.target.value) })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none [color-scheme:dark]" /></div>
+                            <div><label className="text-xs text-white/40 mb-1 block">Hora Salida</label><input type="time" value={editForm.horaSalida} onChange={e => setEditForm({ ...editForm, horaSalida: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none [color-scheme:dark]" /></div>
                             <div><label className="text-xs text-white/40 mb-1 block">Km Salida</label><input type="text" value={editForm.kilometrajeSalida} onChange={e => setEditForm({ ...editForm, kilometrajeSalida: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
                             <div><label className="text-xs text-white/40 mb-1 block">Direccion</label><input type="text" value={editForm.direccion} onChange={e => setEditForm({ ...editForm, direccion: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
-                            <div><label className="text-xs text-white/40 mb-1 block">Fecha Llegada</label><input type="text" value={editForm.fechaLlegada} onChange={e => setEditForm({ ...editForm, fechaLlegada: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
-                            <div><label className="text-xs text-white/40 mb-1 block">Hora Llegada</label><input type="text" value={editForm.horaLlegada} onChange={e => setEditForm({ ...editForm, horaLlegada: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
+                            <div><label className="text-xs text-white/40 mb-1 block">Fecha Llegada</label><input type="date" value={fechaDDMMYYYYaISO(editForm.fechaLlegada)} onChange={e => setEditForm({ ...editForm, fechaLlegada: fechaISOaDDMMYYYY(e.target.value) })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none [color-scheme:dark]" /></div>
+                            <div><label className="text-xs text-white/40 mb-1 block">Hora Llegada</label><input type="time" value={editForm.horaLlegada} onChange={e => setEditForm({ ...editForm, horaLlegada: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none [color-scheme:dark]" /></div>
                             <div><label className="text-xs text-white/40 mb-1 block">Km Llegada</label><input type="text" value={editForm.kilometrajeLlegada} onChange={e => setEditForm({ ...editForm, kilometrajeLlegada: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
                           </div>
                           <div className="flex gap-2">
