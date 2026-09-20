@@ -12,6 +12,7 @@ export const ACCIONES_PERMISO = [
   'crear_bombero',
   'ver_moviles',
   'ver_direccion_administrativa',
+  'ver_comandante_compania',
 ] as const;
 
 export type AccionPermiso = (typeof ACCIONES_PERMISO)[number];
@@ -31,6 +32,7 @@ export const DEFAULTS_POR_NIVEL: Record<number, Record<AccionPermiso, boolean>> 
     crear_bombero: true,
     ver_moviles: true,
     ver_direccion_administrativa: true,
+    ver_comandante_compania: true,
   },
   4: {
     ver_todo: true,
@@ -46,6 +48,7 @@ export const DEFAULTS_POR_NIVEL: Record<number, Record<AccionPermiso, boolean>> 
     crear_bombero: true,
     ver_moviles: true,
     ver_direccion_administrativa: true,
+    ver_comandante_compania: true,
   },
   3: {
     ver_todo: true,
@@ -61,6 +64,7 @@ export const DEFAULTS_POR_NIVEL: Record<number, Record<AccionPermiso, boolean>> 
     crear_bombero: false,
     ver_moviles: false,
     ver_direccion_administrativa: true,
+    ver_comandante_compania: false,
   },
   2: {
     ver_todo: true,
@@ -76,6 +80,7 @@ export const DEFAULTS_POR_NIVEL: Record<number, Record<AccionPermiso, boolean>> 
     crear_bombero: false,
     ver_moviles: false,
     ver_direccion_administrativa: false,
+    ver_comandante_compania: false,
   },
   1: {
     ver_todo: false,
@@ -91,5 +96,6 @@ export const DEFAULTS_POR_NIVEL: Record<number, Record<AccionPermiso, boolean>> 
     crear_bombero: false,
     ver_moviles: false,
     ver_direccion_administrativa: false,
+    ver_comandante_compania: false,
   },
 };

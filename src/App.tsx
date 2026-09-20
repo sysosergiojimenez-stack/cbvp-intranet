@@ -20,6 +20,7 @@ import Moviles from '@/pages/Moviles';
 import MaterialMenor from '@/pages/MaterialMenor';
 import ControlMovil from '@/pages/ControlMovil';
 import RendicionesCombustible from '@/pages/RendicionesCombustible';
+import InformeIncendio from '@/pages/InformeIncendio';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { usuario } = useAuth();
@@ -121,6 +122,11 @@ function AppRoutes() {
         <Route path="/rendiciones-combustible" element={
           <ProtectedRoute>
             {permisos.puedeVerDireccionAdministrativa ? <RendicionesCombustible /> : <Navigate to="/" replace />}
+          </ProtectedRoute>
+        } />
+        <Route path="/informe-servicios" element={
+          <ProtectedRoute>
+            {permisos.puedeVerComandanteCompania ? <InformeIncendio /> : <Navigate to="/" replace />}
           </ProtectedRoute>
         } />
         <Route path="/configuracion" element={

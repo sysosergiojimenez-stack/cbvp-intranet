@@ -8,7 +8,7 @@ import {
   LayoutDashboard, ClipboardList,
   Users, Settings, LogOut, Shield, Menu, X,
   ChevronLeft, ChevronRight, ChevronDown, Flame, Crown,
-  UserCircle, Lock, BookOpen, Truck, WifiOff, ClipboardCheck, Package, Fuel, Building2
+  UserCircle, Lock, BookOpen, Truck, WifiOff, ClipboardCheck, Package, Fuel, Building2, ShieldCheck
 } from 'lucide-react';
 
 interface NavItem {
@@ -49,6 +49,13 @@ const NAV_ITEMS: NavItem[] = [
     checkAccess: (p) => p.puedeVerDireccionAdministrativa,
     children: [
       { path: '/rendiciones-combustible', label: 'Rendiciones de Combustible', icon: Fuel, checkAccess: p => p.puedeVerDireccionAdministrativa },
+    ],
+  },
+  {
+    path: '/comandante-compania', label: 'Comandante de Compania', icon: ShieldCheck,
+    checkAccess: (p) => p.puedeVerComandanteCompania,
+    children: [
+      { path: '/informe-servicios', label: 'Informe de Servicios', icon: Flame, checkAccess: p => p.puedeVerComandanteCompania },
     ],
   },
   { path: '/configuracion', label: 'Configuracion', icon: Settings, checkAccess: p => p.puedeConfiguracion },

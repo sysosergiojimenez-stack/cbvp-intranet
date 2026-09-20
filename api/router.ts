@@ -10,6 +10,7 @@ import { movilesRouter } from "./routers/moviles";
 import { materialMenorRouter } from "./routers/materialMenor";
 import { controlMovilRouter } from "./routers/controlMovil";
 import { rendicionCombustibleRouter } from "./routers/rendicionCombustible";
+import { informeIncendioRouter } from "./routers/informeIncendio";
 
 export const appRouter = createRouter({
   ping: publicQuery.query(() => ({ ok: true, ts: Date.now() })),
@@ -25,6 +26,7 @@ export const appRouter = createRouter({
   materialMenor: materialMenorRouter,
   controlMovil: controlMovilRouter,
   rendicionCombustible: rendicionCombustibleRouter,
+  informeIncendio: informeIncendioRouter,
 });
 
 export type AppRouter = typeof appRouter;

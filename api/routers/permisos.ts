@@ -22,6 +22,7 @@ const COLUMNAS_PERMISO: AccionPermiso[] = [
   'gestionar_roles_guardia',
   'crear_bombero',
   'ver_direccion_administrativa',
+  'ver_comandante_compania',
 ];
 
 function parseBool(value: unknown): boolean {
@@ -82,6 +83,7 @@ export const permisosRouter = createRouter({
         gestionar_roles_guardia: z.boolean(),
         crear_bombero: z.boolean(),
         ver_direccion_administrativa: z.boolean(),
+        ver_comandante_compania: z.boolean(),
       })
     )
     .mutation(async ({ input }) => {
