@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Bell, UserCircle, Shield, Circle } from 'lucide-react';
+import { Bell, Circle } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { trpc } from '@/providers/trpc';
 import { formatearTiempoRelativo } from '@/lib/fechas';
@@ -136,7 +136,6 @@ function NotificationBell() {
 
 export default function Header() {
   const location = useLocation();
-  const { usuario } = useAuth();
   const page = getPageTitle(location.pathname);
 
   return (
@@ -146,23 +145,7 @@ export default function Header() {
         <p className="text-xs text-white/40 mt-0.5">{page.subtitle}</p>
       </div>
 
-      <div className="flex items-center gap-3">
-        <NotificationBell />
-
-        {/* User pill */}
-        <div className="hidden sm:flex items-center gap-2.5 px-3 py-1.5 rounded-full bg-white/[0.03] border border-white/5">
-          <div className="w-7 h-7 rounded-full bg-cbvp-red/10 flex items-center justify-center">
-            <UserCircle className="w-4 h-4 text-cbvp-red/70" />
-          </div>
-          <div className="flex flex-col">
-            <span className="text-xs font-medium text-white leading-tight">{usuario?.nombreCompleto}</span>
-            <span className="text-[10px] text-white/30 leading-tight flex items-center gap-1">
-              <Shield className="w-2.5 h-2.5" />
-              {usuario?.rango}
-            </span>
-          </div>
-        </div>
-      </div>
+      <NotificationBell />
     </header>
   );
 }
