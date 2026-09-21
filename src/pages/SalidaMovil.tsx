@@ -1,4 +1,4 @@
-import { useState, Fragment } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { trpc } from '@/providers/trpc';
 import { useAuth } from '@/context/AuthContext';
@@ -610,54 +610,34 @@ export default function SalidaMovil() {
         ) : !listadoData?.registros || listadoData.registros.length === 0 ? (
           <div className="p-4 text-sm text-white/40">{hayFiltrosActivos ? 'No hay registros que coincidan con los filtros' : 'No hay registros todavia'}</div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm block sm:table">
-              <thead className="hidden sm:table-header-group">
-                <tr className="bg-white/5 border-b border-white/10">
-                  <th className="text-left px-3 py-2 font-medium text-white/50 whitespace-nowrap">Fecha y Hora Salida</th>
-                  <th className="text-left px-3 py-2 font-medium text-white/50">Movil</th>
-                  <th className="text-left px-3 py-2 font-medium text-white/50">Tipo Servicio</th>
-                  <th className="text-left px-3 py-2 font-medium text-white/50">Direccion</th>
-                  <th className="text-left px-3 py-2 font-medium text-white/50">Conductor</th>
-                  <th className="text-left px-3 py-2 font-medium text-white/50">A Cargo</th>
-                  <th className="text-left px-3 py-2 font-medium text-white/50 whitespace-nowrap">Km Llegada</th>
-                  <th className="text-left px-3 py-2 font-medium text-white/50">Acciones</th>
-                </tr>
-              </thead>
-              <tbody className="block sm:table-row-group">
-                {listadoData.registros.map(r => (
-                  <Fragment key={r.id}>
-                    <tr onClick={() => iniciarEdicion(r)} className="border-b border-white/5 hover:bg-white/[0.02] transition-colors cursor-pointer block sm:table-row mb-2 sm:mb-0 bg-white/[0.02] sm:bg-transparent rounded-lg sm:rounded-none p-2 sm:p-0">
-                      <td className="px-3 py-2 text-white/70 whitespace-nowrap block sm:table-cell font-medium text-white">{r.fechaSalida} {r.horaSalida}</td>
-                      <td className="px-3 py-2 text-white block sm:table-cell"><span className="text-white/30 sm:hidden">Movil: </span>{r.movil || '-'}</td>
-                      <td className="px-3 py-2 text-white/70 block sm:table-cell"><span className="text-white/30 sm:hidden">Servicio: </span>{r.tipoServicio || '-'}</td>
-                      <td className="px-3 py-2 text-white/70 block sm:table-cell"><span className="text-white/30 sm:hidden">Direccion: </span>{r.direccion || '-'}</td>
-                      <td className="px-3 py-2 text-white/70 block sm:table-cell"><span className="text-white/30 sm:hidden">Conductor: </span>{r.conductor || '-'}</td>
-                      <td className="px-3 py-2 text-white/70 block sm:table-cell"><span className="text-white/30 sm:hidden">A cargo: </span>{r.oficialACargo || '-'}</td>
-                      <td className="px-3 py-2 text-white/70 block sm:table-cell"><span className="text-white/30 sm:hidden">Km llegada: </span>{r.kilometrajeLlegada || '-'}</td>
-                      <td className="px-3 py-2 block sm:table-cell" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex items-center gap-2 pt-1.5 sm:pt-0 mt-1 sm:mt-0 border-t border-white/5 sm:border-0">
-                          {r.tipoServicio.startsWith('10:40') && (
-                            <button
-                              onClick={() => abrirInforme(r.id)}
-                              className="px-2 py-1 rounded-lg bg-cbvp-red/10 hover:bg-cbvp-red/20 text-cbvp-red-light text-[11px] font-medium whitespace-nowrap flex items-center gap-1 transition-colors"
-                              title={informePorSalida.get(r.id) ? 'Editar informe de servicio' : 'Cargar informe de servicio'}
-                            >
-                              <Flame className="w-3 h-3" />
-                              {informePorSalida.get(r.id)?.nServicio ? `N° ${informePorSalida.get(r.id)?.nServicio}` : 'Informe'}
-                            </button>
-                          )}
-                          <button onClick={() => eliminarFila(r.id)} className="p-2.5 sm:p-1.5 rounded-lg hover:bg-cbvp-red/20 text-white/40 hover:text-cbvp-red transition-colors" title="Eliminar"><Trash2 className="w-3.5 h-3.5" /></button>
-                          {r.imageUrls.length > 0 && (
-                            <a href={r.imageUrls[0]} target="_blank" rel="noopener noreferrer" className="p-2.5 sm:p-1.5 rounded-lg hover:bg-white/10 text-white/40 hover:text-cbvp-blue transition-colors" title="Ver imagen"><ExternalLink className="w-3.5 h-3.5" /></a>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                    {editandoId === r.id && (
-                      <tr className="border-b border-white/5 bg-white/[0.02]">
-                        <td colSpan={8} className="px-3 py-4">
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+          <div className="p-4 space-y-2">
+            {listadoData.registros.map(r => (
+              <div key={r.id} className="rounded-xl border border-white/10 bg-white/[0.02]">
+                <div className="flex items-center justify-between gap-3 p-3">
+                  <button onClick={() => iniciarEdicion(r)} className="min-w-0 text-left flex-1">
+                    <p className="text-sm text-white">{r.fechaSalida} {r.horaSalida} · {r.movil || '-'} · <span className="text-cbvp-red-light">{r.tipoServicio || '-'}</span></p>
+                    <p className="text-xs text-white/40 truncate">{r.direccion || '-'} — Conductor: {r.conductor || '-'}{r.oficialACargo ? ` — A cargo: ${r.oficialACargo}` : ''}{r.kilometrajeLlegada ? ` — Km: ${r.kilometrajeLlegada}` : ''}</p>
+                  </button>
+                  <div className="flex items-center gap-1 shrink-0">
+                    {r.tipoServicio.startsWith('10:40') && (
+                      <button
+                        onClick={() => abrirInforme(r.id)}
+                        className="px-2 py-1 rounded-lg bg-cbvp-red/10 hover:bg-cbvp-red/20 text-cbvp-red-light text-[11px] font-medium whitespace-nowrap flex items-center gap-1 transition-colors"
+                        title={informePorSalida.get(r.id) ? 'Editar informe de servicio' : 'Cargar informe de servicio'}
+                      >
+                        <Flame className="w-3 h-3" />
+                        {informePorSalida.get(r.id)?.nServicio ? `N° ${informePorSalida.get(r.id)?.nServicio}` : 'Informe'}
+                      </button>
+                    )}
+                    <button onClick={() => eliminarFila(r.id)} className="p-2 rounded-lg hover:bg-cbvp-red/20 text-white/40 hover:text-cbvp-red transition-colors" title="Eliminar"><Trash2 className="w-3.5 h-3.5" /></button>
+                    {r.imageUrls.length > 0 && (
+                      <a href={r.imageUrls[0]} target="_blank" rel="noopener noreferrer" className="p-2 rounded-lg hover:bg-white/10 text-white/40 hover:text-cbvp-blue transition-colors" title="Ver imagen"><ExternalLink className="w-3.5 h-3.5" /></a>
+                    )}
+                  </div>
+                </div>
+                {editandoId === r.id && (
+                  <div className="px-3 pb-4 border-t border-white/5 pt-3">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
                             <div><label className="text-xs text-white/40 mb-1 block">Movil</label><select value={editForm.movil} onChange={e => setEditForm({ ...editForm, movil: e.target.value as MovilValido })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none">{!(MOVILES_VALIDOS as readonly string[]).includes(editForm.movil) && editForm.movil && <option value={editForm.movil}>{editForm.movil} (anterior)</option>}{MOVILES_VALIDOS.map(m => <option key={m} value={m}>{m}</option>)}</select></div>
                             <div><label className="text-xs text-white/40 mb-1 block">Conductor</label><input type="text" list="salida-movil-personal" value={editForm.conductor} onChange={e => setEditForm({ ...editForm, conductor: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
                             <div><label className="text-xs text-white/40 mb-1 block">A Cargo</label><input type="text" list="salida-movil-personal" value={editForm.oficialACargo} onChange={e => setEditForm({ ...editForm, oficialACargo: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
@@ -671,17 +651,14 @@ export default function SalidaMovil() {
                             <div><label className="text-xs text-white/40 mb-1 block">Hora Llegada</label><input type="time" value={editForm.horaLlegada} onChange={e => setEditForm({ ...editForm, horaLlegada: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none [color-scheme:dark]" /></div>
                             <div><label className="text-xs text-white/40 mb-1 block">Km Llegada</label><input type="text" value={editForm.kilometrajeLlegada} onChange={e => setEditForm({ ...editForm, kilometrajeLlegada: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
                           </div>
-                          <div className="flex gap-2">
-                            <button onClick={guardarEdicion} className="px-4 py-2 bg-cbvp-green hover:bg-cbvp-green/80 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2"><Save className="w-4 h-4" /> Guardar</button>
-                            <button onClick={() => setEditandoRowIndex(null)} className="px-4 py-2 bg-white/5 hover:bg-white/10 text-white/60 text-sm rounded-lg transition-colors">Cancelar</button>
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                  </Fragment>
-                ))}
-              </tbody>
-            </table>
+                    <div className="flex gap-2">
+                      <button onClick={guardarEdicion} className="px-4 py-2 bg-cbvp-green hover:bg-cbvp-green/80 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2"><Save className="w-4 h-4" /> Guardar</button>
+                      <button onClick={() => setEditandoId(null)} className="px-4 py-2 bg-white/5 hover:bg-white/10 text-white/60 text-sm rounded-lg transition-colors">Cancelar</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
         )}
       </div>
