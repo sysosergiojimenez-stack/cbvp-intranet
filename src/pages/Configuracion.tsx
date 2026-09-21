@@ -6,7 +6,7 @@ import { Switch } from '@/components/ui/switch';
 import { ACCIONES_PERMISO, type AccionPermiso } from '@contracts/permisos';
 import { setAdminCredentials, clearAdminCredentials } from '@/lib/adminAuth';
 import {
-  AlertTriangle, CheckCircle, Save, Search, Shield, SlidersHorizontal, Users, Lock,
+  AlertTriangle, CheckCircle, Save, Search, Shield, SlidersHorizontal, Users, Lock, Bell, Send,
 } from 'lucide-react';
 
 type PermisoFlags = Record<AccionPermiso, boolean>;
@@ -55,7 +55,7 @@ export default function Configuracion() {
   const { usuario, syncUsuario } = useAuth();
   const { puedeConfiguracion } = usePermiso();
   const utils = trpc.useUtils();
-  const [tab, setTab] = useState<'permisos' | 'usuarios'>('permisos');
+  const [tab, setTab] = useState<'permisos' | 'usuarios' | 'notificaciones'>('permisos');
   const [nivelSeleccionado, setNivelSeleccionado] = useState(5);
   const [permisosEdit, setPermisosEdit] = useState<PermisoFlags | null>(null);
   const [permisosMsg, setPermisosMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
@@ -64,6 +64,11 @@ export default function Configuracion() {
   const [savingCodigo, setSavingCodigo] = useState<string | null>(null);
   const [usuarioMsg, setUsuarioMsg] = useState<{ codigo: string; type: 'ok' | 'err'; text: string } | null>(null);
   const [adminPassword, setAdminPassword] = useState('');
+  const [notifDestinatario, setNotifDestinatario] = useState('');
+  const [notifTitulo, setNotifTitulo] = useState('');
+  const [notifMensaje, setNotifMensaje] = useState('');
+  const [notifLink, setNotifLink] = useState('');
+  const [notifMsg, setNotifMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
 
   useEffect(() => {
     if (adminPassword && usuario?.correo) {
@@ -116,6 +121,24 @@ export default function Configuracion() {
     onError: (err, vars) => {
       setSavingCodigo(null);
       setUsuarioMsg({ codigo: vars.codigo, type: 'err', text: err.message });
+      if (err.message?.toLowerCase().includes('autorizado') || err.message?.includes('prohibido')) {
+        setAdminPassword('');
+        clearAdminCredentials();
+      }
+    },
+  });
+
+  const enviarNotificacion = trpc.notificaciones.enviar.useMutation({
+    onSuccess: () => {
+      setNotifMsg({ type: 'ok', text: 'Notificacion enviada' });
+      setNotifTitulo('');
+      setNotifMensaje('');
+      setNotifLink('');
+      setNotifDestinatario('');
+      setTimeout(() => setNotifMsg(null), 3000);
+    },
+    onError: (err) => {
+      setNotifMsg({ type: 'err', text: err.message });
       if (err.message?.toLowerCase().includes('autorizado') || err.message?.includes('prohibido')) {
         setAdminPassword('');
         clearAdminCredentials();
@@ -178,6 +201,21 @@ export default function Configuracion() {
     actualizarRol.mutate({ codigo, cargo: edit.cargo, nivelPermiso: edit.nivelPermiso });
   };
 
+  const enviarAnuncio = () => {
+    if (!notifTitulo.trim() || !notifMensaje.trim()) {
+      setNotifMsg({ type: 'err', text: 'Completa el titulo y el mensaje' });
+      return;
+    }
+    setNotifMsg(null);
+    enviarNotificacion.mutate({
+      destinatarioCodigo: notifDestinatario,
+      titulo: notifTitulo.trim(),
+      mensaje: notifMensaje.trim(),
+      link: notifLink.trim(),
+      creadaPor: usuario?.codigo,
+    });
+  };
+
   if (!puedeConfiguracion) {
     return (
       <div className="animate-fade-in">
@@ -234,6 +272,15 @@ export default function Configuracion() {
         >
           <Users className="w-4 h-4" />
           Roles de Usuarios
+        </button>
+        <button
+          onClick={() => setTab('notificaciones')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+            tab === 'notificaciones' ? 'bg-cbvp-red/20 text-white' : 'text-white/50 hover:text-white'
+          }`}
+        >
+          <Bell className="w-4 h-4" />
+          Enviar Anuncio
         </button>
       </div>
 
@@ -469,6 +516,90 @@ export default function Configuracion() {
               </p>
             </>
           )}
+        </div>
+      )}
+
+      {tab === 'notificaciones' && (
+        <div className="bg-white/[0.03] border border-white/5 rounded-xl p-5 max-w-xl">
+          <p className="text-sm text-white/50 mb-4">
+            Envia un anuncio que aparecera en la campanita de notificaciones de los usuarios. Dejando el destinatario
+            vacio, llega a todo el personal.
+          </p>
+
+          {notifMsg && (
+            <div className={`mb-4 p-3 rounded-lg text-sm flex items-center gap-2 ${
+              notifMsg.type === 'ok'
+                ? 'bg-cbvp-green/10 border border-cbvp-green/20 text-cbvp-green'
+                : 'bg-cbvp-red/10 border border-cbvp-red/20 text-cbvp-red-light'
+            }`}>
+              {notifMsg.type === 'ok' ? <CheckCircle className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />}
+              {notifMsg.text}
+            </div>
+          )}
+
+          <div className="space-y-3">
+            <div>
+              <label className="text-[10px] text-white/40 uppercase tracking-wider block mb-1.5">
+                Destinatario (opcional)
+              </label>
+              <select
+                value={notifDestinatario}
+                onChange={e => setNotifDestinatario(e.target.value)}
+                className="w-full px-3 py-2.5 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-cbvp-red/50"
+              >
+                <option value="">Todos los bomberos</option>
+                {personal.map(p => (
+                  <option key={p.codigo} value={p.codigo}>{p.nombreCompleto} ({p.codigo})</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="text-[10px] text-white/40 uppercase tracking-wider block mb-1.5">Titulo</label>
+              <input
+                type="text"
+                value={notifTitulo}
+                onChange={e => setNotifTitulo(e.target.value)}
+                placeholder="Ej: Reunion de Directorio"
+                maxLength={120}
+                className="w-full px-3 py-2.5 rounded-lg bg-white/5 border border-white/10 text-white placeholder-white/30 text-sm focus:outline-none focus:border-cbvp-red/50"
+              />
+            </div>
+
+            <div>
+              <label className="text-[10px] text-white/40 uppercase tracking-wider block mb-1.5">Mensaje</label>
+              <textarea
+                value={notifMensaje}
+                onChange={e => setNotifMensaje(e.target.value)}
+                placeholder="Detalle del anuncio..."
+                maxLength={1000}
+                rows={4}
+                className="w-full px-3 py-2.5 rounded-lg bg-white/5 border border-white/10 text-white placeholder-white/30 text-sm focus:outline-none focus:border-cbvp-red/50 resize-none"
+              />
+            </div>
+
+            <div>
+              <label className="text-[10px] text-white/40 uppercase tracking-wider block mb-1.5">
+                Enlace al hacer click (opcional)
+              </label>
+              <input
+                type="text"
+                value={notifLink}
+                onChange={e => setNotifLink(e.target.value)}
+                placeholder="Ej: /roles-guardia"
+                className="w-full px-3 py-2.5 rounded-lg bg-white/5 border border-white/10 text-white placeholder-white/30 text-sm focus:outline-none focus:border-cbvp-red/50"
+              />
+            </div>
+
+            <button
+              onClick={enviarAnuncio}
+              disabled={enviarNotificacion.isPending || !adminPassword || !notifTitulo.trim() || !notifMensaje.trim()}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-cbvp-red hover:bg-cbvp-red-light text-white text-sm font-medium transition-colors disabled:opacity-50"
+            >
+              <Send className="w-4 h-4" />
+              {enviarNotificacion.isPending ? 'Enviando...' : 'Enviar Anuncio'}
+            </button>
+          </div>
         </div>
       )}
     </div>
