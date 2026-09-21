@@ -6,6 +6,7 @@ import DocumentScanModal from '@/components/DocumentScanModal';
 import { Upload, X, FileText, Clock, Zap, AlertTriangle, CheckCircle, ExternalLink, Edit3, RotateCcw, Save, Trash2, Plus, Camera, Image as ImageIcon, Filter, Flame } from 'lucide-react';
 import { MOVILES_VALIDOS, type MovilValido } from '@contracts/moviles';
 import { TIPOS_SERVICIO_VALIDOS, type TipoServicioValido } from '@contracts/tiposServicio';
+import { normalizarFechaISO } from '@/lib/fechas';
 
 function arrayBufferToBase64(buffer: ArrayBuffer): string {
   let binary = '';
@@ -99,6 +100,10 @@ export default function SalidaMovil() {
   const limpiarFiltros = () => {
     setFiltroFechaDesde(''); setFiltroFechaHasta(''); setFiltroMovil(''); setFiltroTipoServicio('');
   };
+  const { data: informesData } = trpc.informeIncendio.listado.useQuery();
+  const informePorSalida = new Map(
+    (informesData?.informes || []).filter(i => i.salidaId).map(i => [i.salidaId, i])
+  );
   const { data: listadoData, isLoading: listadoLoading } = trpc.salidaMovil.listado.useQuery({
     fechaDesde: filtroFechaDesde || undefined,
     fechaHasta: filtroFechaHasta || undefined,
@@ -116,6 +121,39 @@ export default function SalidaMovil() {
   };
   const [editandoId, setEditandoId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<RegistroMovil>({ ...registroVacio });
+
+  const abrirInforme = async (salidaId: string) => {
+    const existente = await utils.client.informeIncendio.porSalida.query({ salidaId });
+    if (existente.exito && existente.informe) {
+      const informe = existente.informe as { id: string; fecha?: string };
+      navigate('/informe-servicios', {
+        state: {
+          desdeSalida: true,
+          form: { ...existente.informe, id: informe.id, fecha: normalizarFechaISO(String(informe.fecha || '')) },
+        },
+      });
+      return;
+    }
+    const salida = await utils.client.informeIncendio.datosDesdeSalida.query({ salidaId });
+    if (!salida.exito) return;
+    navigate('/informe-servicios', {
+      state: {
+        desdeSalida: true,
+        form: {
+          salidaId,
+          movil: salida.datos.movil,
+          fecha: normalizarFechaISO(salida.datos.fecha),
+          horaSalida: salida.datos.horaSalida,
+          horaLlegada: salida.datos.horaLlegada,
+          direccion: salida.datos.direccion,
+          aCargoDeLaCompania: salida.datos.aCargoDeLaCompania,
+          nominaConductores: salida.datos.conductor
+            ? [{ movil: salida.datos.movil, conductor: salida.datos.conductor, codigo: salida.datos.codigoConductor }]
+            : [],
+        },
+      },
+    });
+  };
 
   const iniciarEdicion = (r: NonNullable<typeof listadoData>['registros'][number]) => {
     setEditandoId(r.id);
@@ -324,16 +362,13 @@ export default function SalidaMovil() {
         />
       )}
       <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-6">
-        <div className="flex justify-end gap-2 mb-3 flex-wrap">
-          <button onClick={() => navigate('/informe-servicios')} className="px-3 py-2 bg-cbvp-red/10 hover:bg-cbvp-red/20 text-cbvp-red-light rounded-lg text-xs flex items-center gap-2 transition-colors">
-            <Flame className="w-3.5 h-3.5" /> Informes de Servicio
-          </button>
-          {puedeAgregarManual && !extraccion && (
+        {puedeAgregarManual && !extraccion && (
+          <div className="flex justify-end mb-3">
             <button onClick={iniciarSalidaManual} className="px-3 py-2 bg-cbvp-blue/10 hover:bg-cbvp-blue/20 text-cbvp-blue rounded-lg text-xs flex items-center gap-2 transition-colors">
               <Plus className="w-3.5 h-3.5" /> Agregar Salida Manualmente
             </button>
-          )}
-        </div>
+          </div>
+        )}
         <div
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
@@ -578,6 +613,16 @@ export default function SalidaMovil() {
                       <td className="px-3 py-2 text-white/70 block sm:table-cell"><span className="text-white/30 sm:hidden">Km llegada: </span>{r.kilometrajeLlegada || '-'}</td>
                       <td className="px-3 py-2 block sm:table-cell" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center gap-2 pt-1.5 sm:pt-0 mt-1 sm:mt-0 border-t border-white/5 sm:border-0">
+                          {r.tipoServicio.startsWith('10:40') && (
+                            <button
+                              onClick={() => abrirInforme(r.id)}
+                              className="px-2 py-1 rounded-lg bg-cbvp-red/10 hover:bg-cbvp-red/20 text-cbvp-red-light text-[11px] font-medium whitespace-nowrap flex items-center gap-1 transition-colors"
+                              title={informePorSalida.get(r.id) ? 'Editar informe de servicio' : 'Cargar informe de servicio'}
+                            >
+                              <Flame className="w-3 h-3" />
+                              {informePorSalida.get(r.id)?.nServicio ? `N° ${informePorSalida.get(r.id)?.nServicio}` : 'Informe'}
+                            </button>
+                          )}
                           <button onClick={() => eliminarFila(r.id)} className="p-2.5 sm:p-1.5 rounded-lg hover:bg-cbvp-red/20 text-white/40 hover:text-cbvp-red transition-colors" title="Eliminar"><Trash2 className="w-3.5 h-3.5" /></button>
                           {r.imageUrls.length > 0 && (
                             <a href={r.imageUrls[0]} target="_blank" rel="noopener noreferrer" className="p-2.5 sm:p-1.5 rounded-lg hover:bg-white/10 text-white/40 hover:text-cbvp-blue transition-colors" title="Ver imagen"><ExternalLink className="w-3.5 h-3.5" /></a>

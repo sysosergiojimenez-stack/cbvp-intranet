@@ -152,6 +152,52 @@ const informeIncendioInput = z.object({
 
 export type InformeIncendioInput = z.infer<typeof informeIncendioInput>;
 
+function normalizarFechaDDMMYYYY(valor: string): string {
+  const v = valor.trim();
+  if (!v) return "";
+  const iso = v.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (iso) {
+    const [, y, m, d] = iso;
+    return `${d.padStart(2, "0")}/${m.padStart(2, "0")}/${y}`;
+  }
+  const dmy = v.match(/^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2,4})$/);
+  if (dmy) {
+    const [, d, m, y] = dmy;
+    const anio = y.length === 2 ? `20${y}` : y;
+    return `${d.padStart(2, "0")}/${m.padStart(2, "0")}/${anio}`;
+  }
+  return v;
+}
+
+function numeroDe(valor: unknown): number {
+  const n = parseInt(String(valor || "").replace(/\D/g, ""), 10);
+  return Number.isFinite(n) ? n : 0;
+}
+
+// El primer informe de la compania arranca en 1. Si ya habia informes con
+// un N° cargado a mano, el contador continua desde el mayor de esos.
+async function asignarNumeroCorrelativo(): Promise<string> {
+  const db = getFirestoreClient();
+  const ref = db.collection("contadores").doc("informesServicio");
+  const previo = await ref.get();
+  let base = 0;
+  if (!previo.exists) {
+    const existentes = await informesIncendioCollection().get();
+    existentes.forEach((doc) => {
+      base = Math.max(base, numeroDe(doc.data().nServicio));
+    });
+  }
+
+  const siguiente = await db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    const ultimo = snap.exists ? numeroDe(snap.data()?.ultimo) : base;
+    const n = ultimo + 1;
+    tx.set(ref, { ultimo: n }, { merge: true });
+    return n;
+  });
+  return String(siguiente);
+}
+
 function generateId(): string {
   const now = new Date();
   return now.getFullYear().toString() +
@@ -246,15 +292,25 @@ export const informeIncendioRouter = createRouter({
       .map((doc) => ({ id: doc.id, ...doc.data() } as Record<string, any>))
       .map((i) => ({
         id: i.id,
+        salidaId: String(i.salidaId || ""),
         nServicio: String(i.nServicio || ""),
         fecha: String(i.fecha || ""),
         direccion: String(i.direccion || ""),
         movil: String(i.movil || ""),
         magnitud: String(i.magnitud || ""),
       }))
-      .sort((a, b) => b.fecha.localeCompare(a.fecha));
+      .sort((a, b) => numeroDe(b.nServicio) - numeroDe(a.nServicio));
     return { exito: true as const, informes };
   }),
+
+  porSalida: publicQuery
+    .input(z.object({ salidaId: z.string() }))
+    .query(async ({ input }) => {
+      const snap = await informesIncendioCollection().where("salidaId", "==", input.salidaId).limit(1).get();
+      if (snap.empty) return { exito: true as const, informe: null };
+      const doc = snap.docs[0];
+      return { exito: true as const, informe: { id: doc.id, ...doc.data() } };
+    }),
 
   obtener: publicQuery
     .input(z.object({ id: z.string() }))
@@ -268,12 +324,36 @@ export const informeIncendioRouter = createRouter({
     .input(informeIncendioInput)
     .mutation(async ({ input }) => {
       const { id, ...datos } = input;
-      const docId = id || generateId();
+      let docId = id || "";
+      let nServicio = datos.nServicio.trim();
+
+      // Una salida 10:40 tiene un solo informe. Si se vuelve a guardar
+      // desde el boton de la salida, se actualiza el mismo documento y
+      // conserva el numero que ya se le asigno.
+      if (datos.salidaId) {
+        const existentes = await informesIncendioCollection().where("salidaId", "==", datos.salidaId).limit(1).get();
+        if (!existentes.empty) {
+          const previo = existentes.docs[0];
+          if (!docId || docId === previo.id) {
+            docId = previo.id;
+            if (!nServicio) nServicio = String(previo.data().nServicio || "");
+          }
+        }
+      }
+
+      if (!nServicio) nServicio = await asignarNumeroCorrelativo();
+      docId = docId || generateId();
+
       await informesIncendioCollection().doc(docId).set(
-        { ...datos, actualizadoEn: new Date().toISOString() },
+        {
+          ...datos,
+          nServicio,
+          fecha: normalizarFechaDDMMYYYY(datos.fecha),
+          actualizadoEn: new Date().toISOString(),
+        },
         { merge: true }
       );
-      return { exito: true as const, id: docId };
+      return { exito: true as const, id: docId, nServicio };
     }),
 
   eliminar: publicQuery

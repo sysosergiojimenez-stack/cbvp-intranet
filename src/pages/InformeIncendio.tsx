@@ -1,7 +1,9 @@
 import { useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { trpc } from '@/providers/trpc';
 import { Flame, Plus, Save, Trash2, X, ArrowLeft, FileDown, Pencil, ClipboardList } from 'lucide-react';
 import { exportarInformeIncendioPdf } from '@/lib/exportarInformeIncendioPdf';
+import { normalizarFechaISO } from '@/lib/fechas';
 
 interface Persona { nombre: string; ci: string; edad: string; nacionalidad: string }
 interface VoluntarioConductor { movil: string; conductor: string; codigo: string }
@@ -130,6 +132,16 @@ const ESTADOS_FUEGO = [
   { n: 10, label: 'Remocion' },
 ];
 
+function fechaParaInput(valor: string): string {
+  return normalizarFechaISO(valor);
+}
+
+function fechaParaGuardar(valor: string): string {
+  const iso = valor.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!iso) return valor;
+  return `${iso[3]}/${iso[2]}/${iso[1]}`;
+}
+
 const inputCls = 'w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none [color-scheme:dark]';
 const labelCls = 'text-xs text-white/40 mb-1 block';
 
@@ -154,12 +166,15 @@ function Seccion({ titulo, children }: { titulo: string; children: React.ReactNo
 }
 
 export default function InformeIncendio() {
-  const [vista, setVista] = useState<'lista' | 'formulario'>('lista');
-  const [form, setForm] = useState<InformeForm>({ ...formVacio });
+  const navigate = useNavigate();
+  const location = useLocation();
+  const llegada = location.state as { form?: InformeForm; desdeSalida?: boolean } | null;
+  const desdeSalida = !!llegada?.desdeSalida;
+  const [vista, setVista] = useState<'lista' | 'formulario'>(llegada?.form ? 'formulario' : 'lista');
+  const [form, setForm] = useState<InformeForm>(llegada?.form ? { ...formVacio, ...llegada.form } : { ...formVacio });
   const [error, setError] = useState('');
 
   const utils = trpc.useUtils();
-  const { data: pendientesData, isLoading: cargandoPendientes } = trpc.informeIncendio.salidasPendientes.useQuery(undefined, { enabled: vista === 'lista' });
   const { data: informesData, isLoading: cargandoInformes } = trpc.informeIncendio.listado.useQuery(undefined, { enabled: vista === 'lista' });
   const { data: personalData } = trpc.personal.list.useQuery();
   const guardarMutation = trpc.informeIncendio.guardar.useMutation();
@@ -170,31 +185,12 @@ export default function InformeIncendio() {
     .filter(p => p.value)
     .sort((a, b) => a.label.localeCompare(b.label));
 
-  const iniciarNuevoInforme = async (salidaId: string, movil: string) => {
-    setError('');
-    const resp = await utils.client.informeIncendio.datosDesdeSalida.query({ salidaId });
-    if (!resp.exito) { setError('No se pudo cargar la salida seleccionada.'); return; }
-    setForm({
-      ...formVacio,
-      salidaId,
-      movil,
-      fecha: resp.datos.fecha,
-      horaSalida: resp.datos.horaSalida,
-      horaLlegada: resp.datos.horaLlegada,
-      direccion: resp.datos.direccion,
-      aCargoDeLaCompania: resp.datos.aCargoDeLaCompania,
-      nominaConductores: resp.datos.conductor
-        ? [{ movil, conductor: resp.datos.conductor, codigo: resp.datos.codigoConductor }]
-        : [],
-    });
-    setVista('formulario');
-  };
-
   const abrirInformeExistente = async (id: string) => {
     setError('');
     const resp = await utils.client.informeIncendio.obtener.query({ id });
     if (!resp.exito) { setError('No se pudo cargar el informe.'); return; }
-    setForm({ ...formVacio, ...(resp.informe as Partial<InformeForm>), id });
+    const informe = resp.informe as Partial<InformeForm>;
+    setForm({ ...formVacio, ...informe, id, fecha: fechaParaInput(String(informe.fecha || '')) });
     setVista('formulario');
   };
 
@@ -250,12 +246,12 @@ export default function InformeIncendio() {
   const guardar = async () => {
     setError('');
     try {
-      const resp = await guardarMutation.mutateAsync(form as any);
+      const resp = await guardarMutation.mutateAsync({ ...form, fecha: fechaParaGuardar(form.fecha) } as any);
       if (!resp.exito) throw new Error('Error al guardar');
-      setForm(f => ({ ...f, id: resp.id }));
+      setForm(f => ({ ...f, id: resp.id, nServicio: resp.nServicio }));
       utils.informeIncendio.listado.invalidate();
       utils.informeIncendio.salidasPendientes.invalidate();
-      alert('Informe guardado.');
+      alert(`Informe N° ${resp.nServicio} guardado.`);
     } catch (err: unknown) {
       setError('Error al guardar: ' + (err instanceof Error ? err.message : 'desconocido'));
     }
@@ -274,13 +270,12 @@ export default function InformeIncendio() {
 
   const exportar = async () => {
     try {
-      await exportarInformeIncendioPdf(form);
+      await exportarInformeIncendioPdf({ ...form, fecha: fechaParaGuardar(form.fecha) });
     } catch (err: unknown) {
       alert('Error al exportar: ' + (err instanceof Error ? err.message : 'desconocido'));
     }
   };
 
-  const pendientes = pendientesData?.salidas || [];
   const informes = informesData?.informes || [];
 
   if (vista === 'lista') {
@@ -294,40 +289,17 @@ export default function InformeIncendio() {
         </div>
 
         <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-6">
-          <h2 className="text-sm font-semibold text-white/60 uppercase tracking-wider mb-4">Salidas pendientes de informe</h2>
-          {cargandoPendientes ? (
-            <p className="text-sm text-white/40">Cargando...</p>
-          ) : pendientes.length === 0 ? (
-            <p className="text-sm text-white/40">No hay salidas de tipo incendio sin informe generado.</p>
-          ) : (
-            <div className="space-y-2">
-              {pendientes.map(s => (
-                <div key={s.id} className="flex items-center justify-between gap-3 p-3 rounded-xl border border-white/10 bg-white/[0.02]">
-                  <div className="min-w-0">
-                    <p className="text-sm text-white">{s.fechaSalida} {s.horaSalida} · {s.movil} · <span className="text-cbvp-red-light">{s.tipoServicio}</span></p>
-                    <p className="text-xs text-white/40 truncate">{s.direccion} — Conductor: {s.conductor || '-'}</p>
-                  </div>
-                  <button onClick={() => iniciarNuevoInforme(s.id, s.movil)} className="px-3 py-2 bg-cbvp-red/10 hover:bg-cbvp-red/20 text-cbvp-red-light rounded-lg text-xs flex items-center gap-2 transition-colors shrink-0">
-                    <Plus className="w-3.5 h-3.5" /> Generar Informe
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-6">
-          <h2 className="text-sm font-semibold text-white/60 uppercase tracking-wider mb-4 flex items-center gap-2"><ClipboardList className="w-4 h-4" /> Informes generados</h2>
+          <h2 className="text-sm font-semibold text-white/60 uppercase tracking-wider mb-4 flex items-center gap-2"><ClipboardList className="w-4 h-4" /> Informes cargados</h2>
           {cargandoInformes ? (
             <p className="text-sm text-white/40">Cargando...</p>
           ) : informes.length === 0 ? (
-            <p className="text-sm text-white/40">Todavia no se genero ningun Informe de Incendio.</p>
+            <p className="text-sm text-white/40">Todavia no hay informes. Se cargan desde el boton Informe de cada salida 10:40 en Salidas de Movil.</p>
           ) : (
             <div className="space-y-2">
               {informes.map(i => (
                 <div key={i.id} className="flex items-center justify-between gap-3 p-3 rounded-xl border border-white/10 bg-white/[0.02]">
                   <div className="min-w-0">
-                    <p className="text-sm text-white">{i.nServicio || 'Sin N° de Servicio'} — {i.fecha} · {i.movil}</p>
+                    <p className="text-sm text-white">N° {i.nServicio || '—'} — {i.fecha} · {i.movil}</p>
                     <p className="text-xs text-white/40 truncate">{i.direccion} {i.magnitud && `· Magnitud: ${i.magnitud}`}</p>
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
@@ -349,8 +321,8 @@ export default function InformeIncendio() {
         {sugerenciasPersonal.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
       </datalist>
       <div className="flex items-center justify-between">
-        <button onClick={() => setVista('lista')} className="flex items-center gap-2 text-white/60 hover:text-white transition-colors text-sm">
-          <ArrowLeft className="w-4 h-4" /> Volver
+        <button onClick={() => desdeSalida ? navigate('/salida-movil') : setVista('lista')} className="flex items-center gap-2 text-white/60 hover:text-white transition-colors text-sm">
+          <ArrowLeft className="w-4 h-4" /> {desdeSalida ? 'Volver a Salidas' : 'Volver'}
         </button>
         <div className="flex items-center gap-2">
           {form.id && (
@@ -368,7 +340,10 @@ export default function InformeIncendio() {
 
       <Seccion titulo="Encabezado">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <Campo label="N° Servicio" value={form.nServicio} onChange={v => setForm({ ...form, nServicio: v })} />
+          <div>
+            <label className={labelCls}>N° Servicio</label>
+            <input type="text" value={form.nServicio || 'Se asigna al guardar'} disabled className={`${inputCls} opacity-60`} />
+          </div>
           <div>
             <label className={labelCls}>Movil</label>
             <input type="text" value={form.movil} disabled className={`${inputCls} opacity-60`} />
