@@ -7,6 +7,7 @@ import { extractSalidaMovilData } from "../services/gemini";
 import { uploadFile as uploadToGCS } from "../services/storage";
 import { MOVILES_VALIDOS, normalizarMovil } from "@contracts/moviles";
 import { TIPOS_SERVICIO_VALIDOS, normalizarTipoServicio } from "@contracts/tiposServicio";
+import { crearNotificacion } from "../services/notificacionesFirestore";
 
 function salidasMovilCollection() {
   return getFirestoreClient().collection("salidasMovil");
@@ -211,6 +212,25 @@ export const salidaMovilRouter = createRouter({
         });
       });
       await batch.commit();
+
+      // Toda salida "10:40 X" es un incendio (Edificio, Vivienda, Pastizal,
+      // etc. -- ver contracts/tiposServicio.ts) y queda pendiente de un
+      // Informe de Servicios en el modulo del Comandante de Compania. Se
+      // avisa con una sola notificacion aunque la planilla traiga varias.
+      const direccionesIncendio = input.registros
+        .filter((r) => r.tipoServicio.startsWith("10:40 "))
+        .map((r) => r.direccion.trim())
+        .filter(Boolean);
+      if (direccionesIncendio.length > 0) {
+        const listado = direccionesIncendio.slice(0, 3).join(", ");
+        const restantes = direccionesIncendio.length - 3;
+        await crearNotificacion({
+          tipo: "informe_incendio",
+          titulo: direccionesIncendio.length === 1 ? "Nueva salida de incendio" : `${direccionesIncendio.length} nuevas salidas de incendio`,
+          mensaje: `Pendiente de Informe de Servicios: ${listado}${restantes > 0 ? ` y ${restantes} mas` : ""}.`,
+          link: "/informe-servicios",
+        });
+      }
 
       return {
         exito: true as const,

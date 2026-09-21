@@ -4,6 +4,7 @@ import { createRouter, publicQuery } from "../middleware";
 import { getFirestoreClient } from "../services/firestore";
 import { obtenerUsuariosComoFilas } from "../services/usuariosFirestore";
 import { normalizarFechaISO } from "../lib/fechas";
+import { crearNotificacion } from "../services/notificacionesFirestore";
 
 function generateId(): string {
   const now = new Date();
@@ -28,6 +29,22 @@ const colCalendario = () => db().collection("rolesGuardiaCalendario");
 
 function idCalendario(idGrupo: string, anio: number, mes: number): string {
   return `${idGrupo}_${anio}_${mes}`;
+}
+
+// Etiqueta legible del Rol ("Enero - Febrero 2027"), usada en las
+// notificaciones de asignacion para dar contexto sin obligar al bombero a
+// abrir el Rol para saber a que periodo corresponde.
+async function etiquetaRol(idRol: string): Promise<string> {
+  const doc = await colCabecera().doc(idRol).get();
+  if (!doc.exists) return "";
+  const fila = doc.data()!;
+  const mesInicio = Number(fila.mesInicio) || 1;
+  const anioInicio = Number(fila.anioInicio) || 0;
+  const mesFin = Number(fila.mesFin) || 1;
+  const anioFin = Number(fila.anioFin) || 0;
+  return anioInicio === anioFin
+    ? `${MESES[mesInicio - 1]} - ${MESES[mesFin - 1]} ${anioFin}`
+    : `${MESES[mesInicio - 1]} ${anioInicio} - ${MESES[mesFin - 1]} ${anioFin}`;
 }
 
 export const rolesGuardiaRouter = createRouter({
@@ -257,6 +274,14 @@ export const rolesGuardiaRouter = createRouter({
         idRol: input.idRol, codigo: input.codigo, radial: input.radial || "",
         asignacion: input.asignacion || "", observaciones: input.observaciones || "",
       });
+      const etiqueta = await etiquetaRol(input.idRol);
+      await crearNotificacion({
+        destinatarioCodigo: input.codigo,
+        tipo: "rol_guardia",
+        titulo: "Asignacion a Guardia Especial",
+        mensaje: `Fuiste agregado a Guardias Especiales del Rol de Guardia${etiqueta ? ` ${etiqueta}` : ""}.`,
+        link: `/roles-guardia/${input.idRol}`,
+      });
       return { exito: true as const, id };
     }),
 
@@ -295,6 +320,14 @@ export const rolesGuardiaRouter = createRouter({
       await colActivos().doc(id).set({
         idRol: input.idRol, codigo: input.codigo, radial: input.radial || "",
         asignacion: input.asignacion || "", observaciones: input.observaciones || "",
+      });
+      const etiqueta = await etiquetaRol(input.idRol);
+      await crearNotificacion({
+        destinatarioCodigo: input.codigo,
+        tipo: "rol_guardia",
+        titulo: "Asignacion a Activos",
+        mensaje: `Fuiste agregado a Activos del Rol de Guardia${etiqueta ? ` ${etiqueta}` : ""}.`,
+        link: `/roles-guardia/${input.idRol}`,
       });
       return { exito: true as const, id };
     }),
@@ -381,6 +414,22 @@ export const rolesGuardiaRouter = createRouter({
         asignacion: input.asignacion || "",
         orden: maxOrden + 1,
       });
+
+      const [grupoDoc, etiqueta] = await Promise.all([
+        colGrupos().doc(input.idGrupo).get(),
+        etiquetaRol(input.idRol),
+      ]);
+      const nombreGrupo = grupoDoc.exists ? String(grupoDoc.data()!.nombreGrupo || "") : "";
+      await crearNotificacion({
+        destinatarioCodigo: input.codigo,
+        tipo: "rol_guardia",
+        titulo: "Asignacion a Rol de Guardia",
+        mensaje: nombreGrupo
+          ? `Fuiste asignado al grupo "${nombreGrupo}"${etiqueta ? ` del Rol de Guardia ${etiqueta}` : ""}.`
+          : `Fuiste asignado a un grupo del Rol de Guardia${etiqueta ? ` ${etiqueta}` : ""}.`,
+        link: `/roles-guardia/${input.idRol}`,
+      });
+
       return { exito: true as const, id };
     }),
 
