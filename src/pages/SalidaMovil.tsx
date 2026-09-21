@@ -101,7 +101,6 @@ export default function SalidaMovil() {
     setFiltroFechaDesde(''); setFiltroFechaHasta(''); setFiltroMovil(''); setFiltroTipoServicio('');
   };
   const { data: informesData } = trpc.informeIncendio.listado.useQuery();
-  const { data: pendientesData, isLoading: cargandoPendientes } = trpc.informeIncendio.salidasPendientes.useQuery();
   const informePorSalida = new Map(
     (informesData?.informes || []).filter(i => i.salidaId).map(i => [i.salidaId, i])
   );
@@ -515,29 +514,6 @@ export default function SalidaMovil() {
             <div className="text-xs text-white/60">
               <span className="text-white/30">ID:</span> {result.idPlanilla} - <span className="text-white/30">Registros:</span> {result.totalRegistros}
             </div>
-          </div>
-        )}
-      </div>
-
-      <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-6">
-        <h2 className="text-sm font-semibold text-white/60 uppercase tracking-wider mb-4">Salidas pendientes de informe</h2>
-        {cargandoPendientes ? (
-          <p className="text-sm text-white/40">Cargando...</p>
-        ) : (pendientesData?.salidas || []).length === 0 ? (
-          <p className="text-sm text-white/40">No hay salidas 10:40 sin informe.</p>
-        ) : (
-          <div className="space-y-2">
-            {(pendientesData?.salidas || []).map(s => (
-              <div key={s.id} className="flex items-center justify-between gap-3 p-3 rounded-xl border border-white/10 bg-white/[0.02]">
-                <div className="min-w-0">
-                  <p className="text-sm text-white">{s.fechaSalida} {s.horaSalida} · {s.movil} · <span className="text-cbvp-red-light">{s.tipoServicio}</span></p>
-                  <p className="text-xs text-white/40 truncate">{s.direccion || '-'} — Conductor: {s.conductor || '-'}</p>
-                </div>
-                <button onClick={() => abrirInforme(s.id)} className="px-3 py-2 bg-cbvp-red/10 hover:bg-cbvp-red/20 text-cbvp-red-light rounded-lg text-xs flex items-center gap-2 transition-colors shrink-0">
-                  <Plus className="w-3.5 h-3.5" /> Cargar Informe
-                </button>
-              </div>
-            ))}
           </div>
         )}
       </div>
