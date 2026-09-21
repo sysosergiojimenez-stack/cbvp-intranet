@@ -1,8 +1,9 @@
 import { useState, Fragment } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { trpc } from '@/providers/trpc';
 import { useAuth } from '@/context/AuthContext';
 import DocumentScanModal from '@/components/DocumentScanModal';
-import { Truck, Upload, X, FileText, Clock, Zap, AlertTriangle, CheckCircle, ExternalLink, Edit3, RotateCcw, Save, Trash2, Plus, Camera, Image as ImageIcon, Filter } from 'lucide-react';
+import { Upload, X, FileText, Clock, Zap, AlertTriangle, CheckCircle, ExternalLink, Edit3, RotateCcw, Save, Trash2, Plus, Camera, Image as ImageIcon, Filter, Flame } from 'lucide-react';
 import { MOVILES_VALIDOS, type MovilValido } from '@contracts/moviles';
 import { TIPOS_SERVICIO_VALIDOS, type TipoServicioValido } from '@contracts/tiposServicio';
 
@@ -77,6 +78,7 @@ const MAX_SIZE = 15 * 1024 * 1024;
 
 export default function SalidaMovil() {
   const { usuario } = useAuth();
+  const navigate = useNavigate();
   const utils = trpc.useUtils();
   const extraerMutation = trpc.salidaMovil.extraer.useMutation();
   const guardarMutation = trpc.salidaMovil.guardar.useMutation();
@@ -322,13 +324,16 @@ export default function SalidaMovil() {
         />
       )}
       <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-6">
-        {puedeAgregarManual && !extraccion && (
-          <div className="flex justify-end mb-3">
+        <div className="flex justify-end gap-2 mb-3 flex-wrap">
+          <button onClick={() => navigate('/informe-servicios')} className="px-3 py-2 bg-cbvp-red/10 hover:bg-cbvp-red/20 text-cbvp-red-light rounded-lg text-xs flex items-center gap-2 transition-colors">
+            <Flame className="w-3.5 h-3.5" /> Informes de Servicio
+          </button>
+          {puedeAgregarManual && !extraccion && (
             <button onClick={iniciarSalidaManual} className="px-3 py-2 bg-cbvp-blue/10 hover:bg-cbvp-blue/20 text-cbvp-blue rounded-lg text-xs flex items-center gap-2 transition-colors">
               <Plus className="w-3.5 h-3.5" /> Agregar Salida Manualmente
             </button>
-          </div>
-        )}
+          )}
+        </div>
         <div
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}

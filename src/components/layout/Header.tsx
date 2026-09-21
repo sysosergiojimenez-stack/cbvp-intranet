@@ -19,6 +19,7 @@ const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
   '/configuracion': { title: 'Configuracion', subtitle: 'Roles, permisos y ajustes del sistema' },
   '/configurar-acceso': { title: 'Configurar Acceso', subtitle: '' },
   '/notificaciones': { title: 'Notificaciones', subtitle: 'Avisos y novedades del sistema' },
+  '/informe-servicios': { title: 'Informes de Servicio', subtitle: 'Informes generados a partir de las salidas de movil' },
 };
 
 function getPageTitle(pathname: string): { title: string; subtitle: string } {

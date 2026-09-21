@@ -127,7 +127,7 @@ function AppRoutes() {
         } />
         <Route path="/informe-servicios" element={
           <ProtectedRoute>
-            {permisos.puedeVerComandanteCompania ? <InformeIncendio /> : <Navigate to="/" replace />}
+            {permisos.puedeCargarPlanillas ? <InformeIncendio /> : <Navigate to="/" replace />}
           </ProtectedRoute>
         } />
         <Route path="/configuracion" element={
