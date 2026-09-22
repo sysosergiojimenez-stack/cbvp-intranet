@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { formatearNombreCompleto } from "../lib/nombres";
-import { normalizarFechaISO } from "../lib/fechas";
+import { normalizarFechaISO, normalizarFechaDDMMYYYY, normalizarTipoActividad } from "../lib/fechas";
 import { createRouter, publicQuery } from "../middleware";
 import { colAsistenciaEncabezado, colAsistenciaPersonal, obtenerTipoPorPlanillaAsistencia, obtenerAsistenciaPersonalComoFilas } from "../services/asistenciaFirestore";
 import { obtenerUsuariosComoFilas } from "../services/usuariosFirestore";
@@ -95,20 +95,19 @@ export const asistenciaRouter = createRouter({
         return { exito: false as const, error: "No se pudieron extraer datos de las imagenes" };
       }
 
-      const tipoActividad = String(extractedData.tipoActividad || "").trim().toUpperCase();
+      const tipoActividad = normalizarTipoActividad(String(extractedData.tipoActividad || ""));
       const otroTipo = String(extractedData.otroTipo || "").trim();
-      const fechaActividad = String(extractedData.fechaActividad || "").trim();
+      const fechaActividad = normalizarFechaDDMMYYYY(String(extractedData.fechaActividad || ""));
       const inicioActividad = String(extractedData.inicioActividad || "").trim();
       const finalizaActividad = String(extractedData.finalizaActividad || "").trim();
       const acargoActividad = String(extractedData.acargoActividad || "").trim();
       const detalles = String(extractedData.detalles || "").trim();
 
       const validTypes = ["PRACTICA", "CITACION", "REUNION DE Cia", "OTRO"];
-      const tipoNormalizado = tipoActividad === "REUNION DE CIA" ? "REUNION DE Cia" : tipoActividad;
-      if (!validTypes.includes(tipoNormalizado)) {
+      if (!validTypes.includes(tipoActividad) && !tipoActividad.startsWith("OTRO")) {
         return { exito: false as const, error: `Tipo de actividad no reconocido: ${tipoActividad}` };
       }
-      const tipoFinal = tipoNormalizado === "OTRO" && otroTipo ? `OTRO: ${otroTipo}` : tipoNormalizado;
+      const tipoFinal = tipoActividad === "OTRO" && otroTipo ? `OTRO: ${otroTipo}` : tipoActividad;
 
       const imageUrls: string[] = [];
       let uploadError = "";
@@ -203,7 +202,11 @@ export const asistenciaRouter = createRouter({
     .mutation(async ({ input }) => {
       const idPlanilla = generateId();
       const fechaCarga = new Date().toLocaleDateString("es-ES");
-      const d = input.datos;
+      const d = {
+        ...input.datos,
+        tipoActividad: normalizarTipoActividad(input.datos.tipoActividad),
+        fechaActividad: normalizarFechaDDMMYYYY(input.datos.fechaActividad),
+      };
 
       const db = getFirestoreClient();
       const batch = db.batch();
@@ -471,14 +474,23 @@ export const asistenciaRouter = createRouter({
       }
 
       const campos: Record<string, string> = {};
-      if (input.fechaActividad !== undefined) campos.fechaActividad = input.fechaActividad;
-      if (input.tipoActividad !== undefined) campos.tipoActividad = input.tipoActividad;
+      if (input.fechaActividad !== undefined) campos.fechaActividad = normalizarFechaDDMMYYYY(input.fechaActividad);
+      if (input.tipoActividad !== undefined) campos.tipoActividad = normalizarTipoActividad(input.tipoActividad);
       if (input.inicioActividad !== undefined) campos.inicioActividad = input.inicioActividad;
       if (input.finalizaActividad !== undefined) campos.finalizaActividad = input.finalizaActividad;
       if (input.acargoActividad !== undefined) campos.acargoActividad = input.acargoActividad;
       if (input.detalles !== undefined) campos.detalles = input.detalles;
 
       await colAsistenciaEncabezado().doc(idPlanilla).update(campos);
+
+      if (campos.fechaActividad) {
+        const persSnapshot = await colAsistenciaPersonal().where("idPlanilla", "==", idPlanilla).get();
+        if (!persSnapshot.empty) {
+          const batch = getFirestoreClient().batch();
+          persSnapshot.forEach((doc) => batch.update(doc.ref, { fechaActividad: campos.fechaActividad }));
+          await batch.commit();
+        }
+      }
 
       return { exito: true as const, mensaje: "Planilla actualizada correctamente" };
     }),

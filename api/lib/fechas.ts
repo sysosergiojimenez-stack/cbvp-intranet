@@ -54,3 +54,49 @@ export function normalizarMesAnio(valor: string): string {
 
   return "";
 }
+
+// Fecha de planilla de asistencia: se guarda y se compara siempre como
+// DD/MM/AAAA. Gemini o la carga manual pueden traer guiones, puntos,
+// ISO o anio de 2 digitos -- se unifica aca y si no se reconoce se deja
+// el texto original.
+export function normalizarFechaDDMMYYYY(valor: string): string {
+  const v = valor.trim();
+  if (!v) return "";
+
+  const conSeparador = v.match(/^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2,4})$/);
+  if (conSeparador) {
+    const [, d, m, y] = conSeparador;
+    const anio = y.length === 2 ? `20${y}` : y;
+    return `${d.padStart(2, "0")}/${m.padStart(2, "0")}/${anio}`;
+  }
+
+  const iso = v.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (iso) {
+    const [, y, m, d] = iso;
+    return `${d.padStart(2, "0")}/${m.padStart(2, "0")}/${y}`;
+  }
+
+  return v;
+}
+
+// Tipo de actividad de Practicas y Citaciones: sin tildes, en el catalogo
+// fijo (PRACTICA / CITACION / REUNION DE Cia / OTRO), para que
+// tipo.includes("PRACTICA") del informe mensual no falle con "PRÁCTICA".
+export function normalizarTipoActividad(valor: string): string {
+  const raw = valor.trim();
+  if (!raw) return "";
+  const upper = raw
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase()
+    .replace(/\s+/g, " ");
+
+  if (upper.startsWith("PRACTICA")) return "PRACTICA";
+  if (upper.startsWith("CITACION")) return "CITACION";
+  if (upper.includes("REUNION")) return "REUNION DE Cia";
+  if (upper.startsWith("OTRO")) {
+    const detalle = raw.replace(/^otro\s*:?\s*/i, "").trim();
+    return detalle && !/^otro$/i.test(detalle) ? `OTRO: ${detalle}` : "OTRO";
+  }
+  return upper;
+}

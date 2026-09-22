@@ -1,4 +1,5 @@
 import { getFirestoreClient } from "./firestore";
+import { normalizarFechaDDMMYYYY, normalizarTipoActividad } from "../lib/fechas";
 
 export const colAsistenciaEncabezado = () => getFirestoreClient().collection("asistenciaEncabezado");
 export const colAsistenciaPersonal = () => getFirestoreClient().collection("asistenciaPersonal");
@@ -19,7 +20,7 @@ export async function obtenerAsistenciaPersonalComoFilas(): Promise<unknown[][]>
       doc.id,             // 0 idFila
       f.idPlanilla,       // 1
       f.fechaCarga,       // 2
-      f.fechaActividad,   // 3
+      normalizarFechaDDMMYYYY(String(f.fechaActividad || "")),   // 3
       "",                 // 4 (no usado, columna vacia en el original)
       "",                 // 5 (no usado, columna vacia en el original)
       f.codigo,           // 6
@@ -38,7 +39,7 @@ export async function obtenerTipoPorPlanillaAsistencia(): Promise<Map<string, st
   const snapshot = await colAsistenciaEncabezado().get();
   const tipoPorPlanilla = new Map<string, string>();
   snapshot.forEach((doc) => {
-    const tipo = String(doc.data().tipoActividad || "").trim().toUpperCase();
+    const tipo = normalizarTipoActividad(String(doc.data().tipoActividad || ""));
     if (tipo) tipoPorPlanilla.set(doc.id, tipo);
   });
   return tipoPorPlanilla;
