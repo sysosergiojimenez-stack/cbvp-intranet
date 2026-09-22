@@ -8,6 +8,8 @@ import { uploadFile as uploadToGCS } from "../services/storage";
 import { MOVILES_VALIDOS, normalizarMovil } from "@contracts/moviles";
 import { TIPOS_SERVICIO_VALIDOS, normalizarTipoServicio } from "@contracts/tiposServicio";
 import { crearNotificacion } from "../services/notificacionesFirestore";
+import { enviarNotificacion } from "../services/pushNotifications";
+import { getCodigosPorNivelMinimo } from "../lib/notificacionesHelpers";
 
 function salidasMovilCollection() {
   return getFirestoreClient().collection("salidasMovil");
@@ -224,12 +226,24 @@ export const salidaMovilRouter = createRouter({
       if (direccionesIncendio.length > 0) {
         const listado = direccionesIncendio.slice(0, 3).join(", ");
         const restantes = direccionesIncendio.length - 3;
+        const tituloIncendio = direccionesIncendio.length === 1 ? "Nueva salida de incendio" : `${direccionesIncendio.length} nuevas salidas de incendio`;
+        const mensajeIncendio = `Pendiente de Informe de Servicios: ${listado}${restantes > 0 ? ` y ${restantes} mas` : ""}.`;
         await crearNotificacion({
           tipo: "informe_incendio",
-          titulo: direccionesIncendio.length === 1 ? "Nueva salida de incendio" : `${direccionesIncendio.length} nuevas salidas de incendio`,
-          mensaje: `Pendiente de Informe de Servicios: ${listado}${restantes > 0 ? ` y ${restantes} mas` : ""}.`,
+          titulo: tituloIncendio,
+          mensaje: mensajeIncendio,
           link: "/informe-servicios",
         });
+        // El push (a diferencia de la notificacion en la app, que es visible
+        // para todos) se limita a nivel 3+ -- son quienes gestionan el
+        // Informe de Servicios, no hace falta interrumpir a todo el personal.
+        getCodigosPorNivelMinimo(3)
+          .then((codigos) => enviarNotificacion(codigos, {
+            title: tituloIncendio,
+            body: mensajeIncendio,
+            url: "/informe-servicios",
+          }))
+          .catch((err) => console.error("Error enviando push de salida de incendio:", err));
       }
 
       return {

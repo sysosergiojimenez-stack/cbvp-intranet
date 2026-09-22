@@ -10,6 +10,7 @@ import { serve } from "@hono/node-server";
 import { serveStaticFiles } from "./lib/vite";
 import { getSheetsClient } from "./services/googleAuth";
 import { uploadFile } from "./services/drive";
+import { enviarRecordatoriosGuardia } from "./services/recordatoriosGuardia";
 
 const app = new Hono<{ Bindings: HttpBindings }>();
 
@@ -61,6 +62,20 @@ app.get("/debug/drive", async (c) => {
       folderId: env.DRIVE_FOLDER_ID,
       error: err instanceof Error ? err.message : String(err),
     }, 500);
+  }
+});
+
+// Disparado por Cloud Scheduler 1 vez al dia. No es un usuario de la app (no
+// tiene JWT), se autentica con un secreto compartido via header.
+app.post("/api/cron/recordatorios-guardia", async (c) => {
+  if (!env.CRON_SECRET || c.req.header("x-cron-secret") !== env.CRON_SECRET) {
+    return c.json({ error: "No autorizado" }, 401);
+  }
+  try {
+    const resultado = await enviarRecordatoriosGuardia();
+    return c.json({ ok: true, ...resultado }, 200);
+  } catch (err: unknown) {
+    return c.json({ ok: false, error: err instanceof Error ? err.message : String(err) }, 500);
   }
 });
 

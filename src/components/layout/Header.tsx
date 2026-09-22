@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Bell, Circle } from 'lucide-react';
+import { Bell, BellOff, BellRing, Circle } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { trpc } from '@/providers/trpc';
 import { formatearTiempoRelativo } from '@/lib/fechas';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
 
 const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
   '/': { title: 'Dashboard', subtitle: 'Resumen general del sistema' },
@@ -65,6 +66,8 @@ function NotificationBell() {
   const noLeidas = countData?.exito ? countData.cantidad : 0;
   const notificaciones = listaData?.exito ? listaData.notificaciones : [];
 
+  const { soportado: pushSoportado, suscrito: pushSuscrito, cargando: pushCargando, activar: activarPush, desactivar: desactivarPush } = usePushNotifications(codigo);
+
   const abrir = (n: { id: string; leida: boolean; link: string }) => {
     if (!n.leida) marcarLeida.mutate({ id: n.id, codigo });
     setOpen(false);
@@ -122,6 +125,17 @@ function NotificationBell() {
               ))
             )}
           </div>
+
+          {pushSoportado && (
+            <button
+              onClick={() => (pushSuscrito ? desactivarPush() : activarPush())}
+              disabled={pushCargando}
+              className="w-full flex items-center gap-2 px-4 py-2.5 text-xs text-white/50 hover:text-white border-t border-white/5 transition-colors disabled:opacity-50"
+            >
+              {pushSuscrito ? <BellRing className="w-3.5 h-3.5 text-cbvp-red-light" /> : <BellOff className="w-3.5 h-3.5" />}
+              {pushCargando ? 'Un momento...' : pushSuscrito ? 'Notificaciones push activadas' : 'Activar notificaciones push'}
+            </button>
+          )}
 
           <button
             onClick={() => { setOpen(false); navigate('/notificaciones'); }}

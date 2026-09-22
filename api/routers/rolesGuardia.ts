@@ -5,6 +5,7 @@ import { getFirestoreClient } from "../services/firestore";
 import { obtenerUsuariosComoFilas } from "../services/usuariosFirestore";
 import { normalizarFechaISO } from "../lib/fechas";
 import { crearNotificacion } from "../services/notificacionesFirestore";
+import { enviarNotificacion } from "../services/pushNotifications";
 
 function generateId(): string {
   const now = new Date();
@@ -275,13 +276,19 @@ export const rolesGuardiaRouter = createRouter({
         asignacion: input.asignacion || "", observaciones: input.observaciones || "",
       });
       const etiqueta = await etiquetaRol(input.idRol);
+      const mensajeEspecial = `Fuiste agregado a Guardias Especiales del Rol de Guardia${etiqueta ? ` ${etiqueta}` : ""}.`;
       await crearNotificacion({
         destinatarioCodigo: input.codigo,
         tipo: "rol_guardia",
         titulo: "Asignacion a Guardia Especial",
-        mensaje: `Fuiste agregado a Guardias Especiales del Rol de Guardia${etiqueta ? ` ${etiqueta}` : ""}.`,
+        mensaje: mensajeEspecial,
         link: `/roles-guardia/${input.idRol}`,
       });
+      enviarNotificacion([input.codigo], {
+        title: "Asignacion a Guardia Especial",
+        body: mensajeEspecial,
+        url: `/roles-guardia/${input.idRol}`,
+      }).catch((err) => console.error("Error enviando push de guardia especial:", err));
       return { exito: true as const, id };
     }),
 
@@ -322,13 +329,19 @@ export const rolesGuardiaRouter = createRouter({
         asignacion: input.asignacion || "", observaciones: input.observaciones || "",
       });
       const etiqueta = await etiquetaRol(input.idRol);
+      const mensajeActivo = `Fuiste agregado a Activos del Rol de Guardia${etiqueta ? ` ${etiqueta}` : ""}.`;
       await crearNotificacion({
         destinatarioCodigo: input.codigo,
         tipo: "rol_guardia",
         titulo: "Asignacion a Activos",
-        mensaje: `Fuiste agregado a Activos del Rol de Guardia${etiqueta ? ` ${etiqueta}` : ""}.`,
+        mensaje: mensajeActivo,
         link: `/roles-guardia/${input.idRol}`,
       });
+      enviarNotificacion([input.codigo], {
+        title: "Asignacion a Activos",
+        body: mensajeActivo,
+        url: `/roles-guardia/${input.idRol}`,
+      }).catch((err) => console.error("Error enviando push de activos:", err));
       return { exito: true as const, id };
     }),
 
@@ -420,15 +433,21 @@ export const rolesGuardiaRouter = createRouter({
         etiquetaRol(input.idRol),
       ]);
       const nombreGrupo = grupoDoc.exists ? String(grupoDoc.data()!.nombreGrupo || "") : "";
+      const mensajePersonal = nombreGrupo
+        ? `Fuiste asignado al grupo "${nombreGrupo}"${etiqueta ? ` del Rol de Guardia ${etiqueta}` : ""}.`
+        : `Fuiste asignado a un grupo del Rol de Guardia${etiqueta ? ` ${etiqueta}` : ""}.`;
       await crearNotificacion({
         destinatarioCodigo: input.codigo,
         tipo: "rol_guardia",
         titulo: "Asignacion a Rol de Guardia",
-        mensaje: nombreGrupo
-          ? `Fuiste asignado al grupo "${nombreGrupo}"${etiqueta ? ` del Rol de Guardia ${etiqueta}` : ""}.`
-          : `Fuiste asignado a un grupo del Rol de Guardia${etiqueta ? ` ${etiqueta}` : ""}.`,
+        mensaje: mensajePersonal,
         link: `/roles-guardia/${input.idRol}`,
       });
+      enviarNotificacion([input.codigo], {
+        title: "Nuevo rol de guardia asignado",
+        body: mensajePersonal,
+        url: `/roles-guardia/${input.idRol}`,
+      }).catch((err) => console.error("Error enviando push de rol asignado:", err));
 
       return { exito: true as const, id };
     }),

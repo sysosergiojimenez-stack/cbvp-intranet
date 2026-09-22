@@ -3,9 +3,14 @@ import { Firestore } from "@google-cloud/firestore";
 import { createRouter, publicQuery, adminProcedure } from "../middleware";
 import { getFirestoreClient } from "../services/firestore";
 import { colNotificaciones, crearNotificacion } from "../services/notificacionesFirestore";
+import { env } from "../lib/env";
 import type { NotificacionResumen } from "@contracts/notificaciones";
 
 const LIMITE_DEFAULT = 50;
+
+function colSuscripciones() {
+  return getFirestoreClient().collection("pushSubscriptions");
+}
 
 // Una notificacion es visible para un codigo si fue dirigida a el
 // especificamente, o si es un broadcast (destinatarioCodigo === "").
@@ -102,6 +107,53 @@ export const notificacionesRouter = createRouter({
         link: input.link || "",
         creadaPor: input.creadaPor,
       });
+      return { exito: true as const };
+    }),
+
+  // Clave publica VAPID que el navegador necesita para pushManager.subscribe.
+  // No es secreta (viaja en cada suscripcion), pero se sirve desde el
+  // servidor para no hardcodearla en el frontend.
+  vapidPublicKey: publicQuery.query(() => {
+    return { exito: true as const, publicKey: env.VAPID_PUBLIC_KEY };
+  }),
+
+  // Guarda o actualiza la suscripcion push de un dispositivo. Se identifica
+  // por endpoint (unico por navegador/dispositivo) para poder reemplazar la
+  // suscripcion si el mismo usuario vuelve a suscribirse desde el mismo
+  // dispositivo (ej. permiso revocado y vuelto a otorgar).
+  suscribir: publicQuery
+    .input(
+      z.object({
+        userId: z.string().min(1),
+        endpoint: z.string().min(1),
+        keys: z.object({ p256dh: z.string().min(1), auth: z.string().min(1) }),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const existente = await colSuscripciones().where("endpoint", "==", input.endpoint).limit(1).get();
+      const data = {
+        userId: input.userId,
+        endpoint: input.endpoint,
+        keys: input.keys,
+        actualizadoEn: new Date().toISOString(),
+      };
+      if (!existente.empty) {
+        await existente.docs[0].ref.set(data, { merge: true });
+      } else {
+        await colSuscripciones().add({ ...data, creadoEn: new Date().toISOString() });
+      }
+      return { exito: true as const };
+    }),
+
+  desuscribir: publicQuery
+    .input(z.object({ endpoint: z.string().min(1) }))
+    .mutation(async ({ input }) => {
+      const snap = await colSuscripciones().where("endpoint", "==", input.endpoint).get();
+      if (!snap.empty) {
+        const batch = getFirestoreClient().batch();
+        snap.forEach((doc) => batch.delete(doc.ref));
+        await batch.commit();
+      }
       return { exito: true as const };
     }),
 });

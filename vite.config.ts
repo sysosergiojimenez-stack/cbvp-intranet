@@ -14,6 +14,15 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg'],
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
+      injectManifest: {
+        // El bundle del sw.ts custom ya incluye todo lo necesario; algunos
+        // assets grandes (imagenes de informes, etc.) no hace falta
+        // precachearlos para que la app funcione offline.
+        maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
+      },
       manifest: {
         name: 'Fire Intranet',
         short_name: 'Fire Intranet',
