@@ -147,17 +147,16 @@ export default function CuotasBomberos() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
           <div>
             <label className="block text-xs text-white/40 uppercase tracking-wider mb-1">Bombero</label>
-            <input
-              type="text"
-              list="dl-bomberos-cuota"
+            <select
               value={codigo}
               onChange={(e) => { setCodigo(e.target.value); setDatos(null); }}
-              placeholder="Codigo o nombre..."
               className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none"
-            />
-            <datalist id="dl-bomberos-cuota">
-              {personal.map((p) => <option key={p.codigo} value={p.codigo} label={p.nombreCompleto} />)}
-            </datalist>
+            >
+              <option value="">Seleccionar...</option>
+              {[...personal].sort((a, b) => a.nombreCompleto.localeCompare(b.nombreCompleto)).map((p) => (
+                <option key={p.codigo} value={p.codigo}>{p.nombreCompleto} ({p.codigo})</option>
+              ))}
+            </select>
             {bomberoSeleccionado && (
               <p className="text-xs text-white/40 mt-1">
                 {bomberoSeleccionado.nombreCompleto} · Cuota al dia hasta: {formatearMesAnio(bomberoSeleccionado.cuota)}
