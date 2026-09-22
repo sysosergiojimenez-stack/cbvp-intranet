@@ -426,3 +426,85 @@ INSTRUCCION FINAL: Analiza todas las imagenes, extrae SOLO los registros numerad
     throw new Error("Failed to parse Gemini response as JSON");
   }
 }
+
+export async function extractCuotaData(
+  base64Content: string,
+  mimeType: string
+): Promise<Record<string, unknown>> {
+  const apiKey = env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error("GEMINI_API_KEY not configured in .env");
+  }
+
+  const prompt = `Sos un sistema experto en leer facturas y recibos de pago de cuota de bomberos del ${ORGANIZACION.nombreCompleto} (${ORGANIZACION.nombreCorto}). Tu tarea es extraer los datos del documento y devolver SOLO un JSON valido, sin explicaciones ni markdown.
+
+=== DATOS A EXTRAER ===
+
+- **fechaEmision**: Fecha de emision de la factura o recibo. Formato exacto DD/MM/AAAA (dia y mes con 2 digitos, anio con 4 digitos).
+- **nroFactura**: Numero de factura o de recibo, tal como aparece impreso (puede incluir guiones o letras).
+- **monto**: Monto total abonado, SOLO el numero, sin puntos de miles, sin "Gs", sin simbolos. Ej: si dice "20.000 Gs" devolve 20000.
+
+Si algun campo no es legible o no esta presente, usa string vacio "" (o 0 para monto). NO inventes datos.
+
+=== FORMATO DE RESPUESTA (SOLO JSON) ===
+
+{
+  "fechaEmision": "15/03/2026",
+  "nroFactura": "0001-234567",
+  "monto": 20000
+}
+
+INSTRUCCION FINAL: Analiza el documento y devolve UNICAMENTE el JSON, sin texto adicional, sin markdown, sin explicaciones.`;
+
+  const payload = {
+    contents: [
+      {
+        parts: [
+          { text: prompt } as GeminiPart,
+          {
+            inline_data: {
+              mime_type: mimeType,
+              data: base64Content,
+            },
+          } as unknown as GeminiPart,
+        ],
+      },
+    ],
+    generationConfig: {
+      temperature: 0.1,
+      topP: 0.1,
+      topK: 1,
+      responseMimeType: "application/json",
+    },
+  };
+
+  const url = `${GEMINI_API_URL}?key=${apiKey}`;
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
+  }
+
+  const result = (await response.json()) as GeminiResponse;
+
+  if (result.error) {
+    throw new Error(`Gemini API error: ${result.error.message}`);
+  }
+
+  const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!text) {
+    throw new Error("No content in Gemini response");
+  }
+
+  const jsonClean = text.replace(/```json\s*|```\s*|```/g, "").trim();
+  try {
+    return JSON.parse(jsonClean) as Record<string, unknown>;
+  } catch {
+    throw new Error("Failed to parse Gemini response as JSON");
+  }
+}

@@ -79,6 +79,21 @@ export function normalizarFechaDDMMYYYY(valor: string): string {
   return v;
 }
 
+// Suma (o resta, con un numero negativo) una cantidad de meses a un valor
+// YYYY-MM y devuelve el resultado en el mismo formato -- usado para calcular
+// "cuota al dia hasta" a partir de un pago (pagar 4 meses corre la fecha 4
+// meses hacia adelante desde donde estaba al dia).
+export function sumarMesesAMesAnio(mesAnio: string, meses: number): string {
+  const match = mesAnio.match(/^(\d{4})-(\d{2})$/);
+  if (!match) return "";
+  const anio = parseInt(match[1], 10);
+  const mes = parseInt(match[2], 10);
+  const total = anio * 12 + (mes - 1) + meses;
+  const nuevoAnio = Math.floor(total / 12);
+  const nuevoMes = (total % 12) + 1;
+  return `${nuevoAnio}-${String(nuevoMes).padStart(2, "0")}`;
+}
+
 // Tipo de actividad de Practicas y Citaciones: sin tildes, en el catalogo
 // fijo (PRACTICA / CITACION / REUNION DE Cia / OTRO), para que
 // tipo.includes("PRACTICA") del informe mensual no falle con "PRÁCTICA".

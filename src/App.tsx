@@ -20,6 +20,7 @@ import Moviles from '@/pages/Moviles';
 import MaterialMenor from '@/pages/MaterialMenor';
 import ControlMovil from '@/pages/ControlMovil';
 import RendicionesCombustible from '@/pages/RendicionesCombustible';
+import CuotasBomberos from '@/pages/CuotasBomberos';
 import InformeIncendio from '@/pages/InformeIncendio';
 import Notificaciones from '@/pages/Notificaciones';
 
@@ -123,6 +124,11 @@ function AppRoutes() {
         <Route path="/rendiciones-combustible" element={
           <ProtectedRoute>
             {permisos.puedeVerDireccionAdministrativa ? <RendicionesCombustible /> : <Navigate to="/" replace />}
+          </ProtectedRoute>
+        } />
+        <Route path="/cuotas-bomberos" element={
+          <ProtectedRoute>
+            {permisos.puedeVerDireccionAdministrativa ? <CuotasBomberos /> : <Navigate to="/" replace />}
           </ProtectedRoute>
         } />
         <Route path="/informe-servicios" element={

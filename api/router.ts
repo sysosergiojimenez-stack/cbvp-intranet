@@ -12,6 +12,7 @@ import { controlMovilRouter } from "./routers/controlMovil";
 import { rendicionCombustibleRouter } from "./routers/rendicionCombustible";
 import { informeIncendioRouter } from "./routers/informeIncendio";
 import { notificacionesRouter } from "./routers/notificaciones";
+import { cuotasBomberosRouter } from "./routers/cuotasBomberos";
 
 export const appRouter = createRouter({
   ping: publicQuery.query(() => ({ ok: true, ts: Date.now() })),
@@ -29,6 +30,7 @@ export const appRouter = createRouter({
   rendicionCombustible: rendicionCombustibleRouter,
   informeIncendio: informeIncendioRouter,
   notificaciones: notificacionesRouter,
+  cuotasBomberos: cuotasBomberosRouter,
 });
 
 export type AppRouter = typeof appRouter;
