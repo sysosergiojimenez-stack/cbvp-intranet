@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { trpc } from '@/providers/trpc';
 import {
-  User, Shield, Award, Calendar, Hash, Radio,
+  User, Shield, Award, Calendar, Hash,
   ClipboardCheck, TrendingUp, Flame, Star,
   ChevronRight, Clock, AlertTriangle, FileText,
   CheckCircle, Briefcase, HelpCircle, Zap, X, Wallet
@@ -67,8 +67,6 @@ export default function MiDashboard() {
   const rango = usuario?.rango || '-';
   const codigo = usuario?.codigo || '-';
   const nombreCompleto = usuario?.nombreCompleto || '-';
-  const correo = usuario?.correo || '-';
-  const nivelPermiso = usuario?.nivelPermiso || '-';
   const cuota = miData?.cuota || '';
 
   // Asistencia stats cards
@@ -153,28 +151,6 @@ export default function MiDashboard() {
               <div>
                 <p className="text-[10px] text-white/30 uppercase">Codigo Radial</p>
                 <p className="text-sm text-white font-mono">{codigoRadial}</p>
-              </div>
-            </div>
-
-            {/* Nivel de Permiso */}
-            <div className="flex items-center gap-3 bg-white/[0.02] rounded-lg p-3">
-              <div className="w-8 h-8 rounded-lg bg-cbvp-purple/8 flex items-center justify-center shrink-0">
-                <Radio className="w-4 h-4 text-cbvp-purple/60" />
-              </div>
-              <div>
-                <p className="text-[10px] text-white/30 uppercase">Nivel de Permiso</p>
-                <p className="text-sm text-white">{nivelPermiso}</p>
-              </div>
-            </div>
-
-            {/* Correo */}
-            <div className="flex items-center gap-3 bg-white/[0.02] rounded-lg p-3">
-              <div className="w-8 h-8 rounded-lg bg-cbvp-yellow/8 flex items-center justify-center shrink-0">
-                <Shield className="w-4 h-4 text-cbvp-yellow/60" />
-              </div>
-              <div>
-                <p className="text-[10px] text-white/30 uppercase">Correo</p>
-                <p className="text-sm text-white truncate">{correo}</p>
               </div>
             </div>
 
