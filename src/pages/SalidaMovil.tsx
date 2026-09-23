@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { trpc } from '@/providers/trpc';
-import { useAuth } from '@/context/AuthContext';
 import DocumentScanModal from '@/components/DocumentScanModal';
 import { Upload, X, FileText, Clock, Zap, AlertTriangle, CheckCircle, ExternalLink, Edit3, RotateCcw, Save, Trash2, Plus, Camera, Image as ImageIcon, Filter, Flame } from 'lucide-react';
 import { MOVILES_VALIDOS, type MovilValido } from '@contracts/moviles';
@@ -78,7 +77,6 @@ function registroConDefaults(): RegistroMovil {
 const MAX_SIZE = 15 * 1024 * 1024;
 
 export default function SalidaMovil() {
-  const { usuario } = useAuth();
   const navigate = useNavigate();
   const utils = trpc.useUtils();
   const extraerMutation = trpc.salidaMovil.extraer.useMutation();
@@ -112,10 +110,6 @@ export default function SalidaMovil() {
   });
   const editarMutation = trpc.salidaMovil.editar.useMutation();
   const eliminarMutation = trpc.salidaMovil.eliminar.useMutation();
-  const puedeAgregarManual = (() => {
-    const cargo = (usuario?.cargo || '').trim().toUpperCase();
-    return cargo === 'SEGUNDO OFICIAL' || cargo === 'DESARROLLADOR';
-  })();
   const iniciarSalidaManual = () => {
     setError(''); setExtraccion({ imageUrls: [], registros: [registroConDefaults()] });
   };
@@ -362,7 +356,7 @@ export default function SalidaMovil() {
         />
       )}
       <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-6">
-        {puedeAgregarManual && !extraccion && (
+        {!extraccion && (
           <div className="flex justify-end mb-3">
             <button onClick={iniciarSalidaManual} className="px-3 py-2 bg-cbvp-blue/10 hover:bg-cbvp-blue/20 text-cbvp-blue rounded-lg text-xs flex items-center gap-2 transition-colors">
               <Plus className="w-3.5 h-3.5" /> Agregar Salida Manualmente
