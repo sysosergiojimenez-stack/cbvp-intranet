@@ -6,7 +6,7 @@ import { ORGANIZACION } from '@/config/organizacion';
 
 export default function Login() {
   const { login, isLoading, error } = useAuth();
-  const [correo, setCorreo] = useState('');
+  const [codigo, setCodigo] = useState('');
   const [contrasena, setContrasena] = useState('');
   const [localError, setLocalError] = useState('');
   const [recordarme, setRecordarme] = useState(false);
@@ -16,13 +16,13 @@ export default function Login() {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setLocalError('');
-    if (!correo.trim() || !contrasena.trim()) {
+    if (!codigo.trim() || !contrasena.trim()) {
       setLocalError('Complete todos los campos');
       return;
     }
-    const success = await login(correo, contrasena, recordarme);
+    const success = await login(codigo, contrasena, recordarme);
     if (!success) {
-      setLocalError(error || 'Correo o contrasena incorrectos');
+      setLocalError(error || 'Codigo o contrasena incorrectos');
     }
   };
 
@@ -41,10 +41,10 @@ export default function Login() {
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
               <input
-                type="email"
-                value={correo}
-                onChange={e => setCorreo(e.target.value)}
-                placeholder="Correo electronico"
+                type="text"
+                value={codigo}
+                onChange={e => setCodigo(e.target.value)}
+                placeholder="Codigo de Bombero"
                 className="w-full px-4 py-3.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:border-cbvp-red/50 focus:ring-1 focus:ring-cbvp-red/30 transition-all text-sm"
                 disabled={isLoading}
               />

@@ -31,7 +31,7 @@ interface Usuario {
 
 interface AuthContextType {
   usuario: Usuario | null;
-  login: (correo: string, contrasena: string, recordar?: boolean) => Promise<boolean>;
+  login: (codigo: string, contrasena: string, recordar?: boolean) => Promise<boolean>;
   logout: () => void;
   syncUsuario: (cambios: Partial<Usuario>) => void;
   tienePermiso: (accion: AccionPermiso) => boolean;
@@ -71,13 +71,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const loginMutation = trpc.auth.login.useMutation();
 
-  const login = useCallback(async (correo: string, contrasena: string, recordar = false): Promise<boolean> => {
+  const login = useCallback(async (codigo: string, contrasena: string, recordar = false): Promise<boolean> => {
     setIsLoading(true);
     setError(null);
 
     try {
       const result = await loginMutation.mutateAsync({
-        correo: correo.trim().toLowerCase(),
+        codigo: codigo.trim(),
         contrasena: contrasena.trim(),
       });
 
@@ -110,7 +110,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setIsLoading(false);
         return true;
       } else {
-        setError(result.mensaje || 'Correo o contrasena incorrectos');
+        setError(result.mensaje || 'Codigo o contrasena incorrectos');
         setIsLoading(false);
         return false;
       }

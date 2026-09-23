@@ -293,33 +293,33 @@ export const personalRouter = createRouter({
   cambiarAcceso: publicQuery
     .input(
       z.object({
-        correoActual: z.string().email(),
-        correoNuevo: z.string().email(),
+        codigo: z.string().min(1),
         contrasenaActual: z.string().min(1),
         contrasenaNueva: z.string().min(1),
+        correo: z.string().email().optional().or(z.literal('')),
       })
     )
     .mutation(async ({ input }) => {
-      // Buscar por correo+contrasena en vez de por codigo
-      // Asi solo puedes modificar tu propia fila
+      // Se exige la contrasena actual (no solo el codigo, que es publico)
+      // para confirmar que quien pide el cambio es el dueno de la cuenta.
+      const searchNum = extractNumber(input.codigo);
       const snapshot = await colUsuarios().get();
       let docId: string | null = null;
       for (const doc of snapshot.docs) {
         const fila = doc.data();
-        const storedEmail = String(fila.correo || "").trim();
+        const codigoFila = String(fila.codigo || "").trim();
         const storedPassword = String(fila.contrasena || "").trim();
-        if (storedEmail === input.correoActual.trim() && storedPassword === input.contrasenaActual.trim()) {
+        if (extractNumber(codigoFila) === searchNum && storedPassword === input.contrasenaActual.trim()) {
           docId = doc.id;
           break;
         }
       }
       if (!docId) {
-        return { exito: false as const, error: "Correo o contrasena actual incorrectos" };
+        return { exito: false as const, error: "Codigo o contrasena actual incorrectos" };
       }
-      await colUsuarios().doc(docId).update({
-        correo: input.correoNuevo.trim(),
-        contrasena: input.contrasenaNueva.trim(),
-      });
+      const cambios: Record<string, string> = { contrasena: input.contrasenaNueva.trim() };
+      if (input.correo) cambios.correo = input.correo.trim().toLowerCase();
+      await colUsuarios().doc(docId).update(cambios);
       return { exito: true as const, mensaje: "Datos de acceso actualizados correctamente" };
     }),
 

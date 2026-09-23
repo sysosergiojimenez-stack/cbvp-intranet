@@ -1,16 +1,15 @@
 import { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { trpc } from '@/providers/trpc';
-import { Lock, Mail, Eye, EyeOff, Save, AlertTriangle, CheckCircle } from 'lucide-react';
+import { Lock, Eye, EyeOff, Save, AlertTriangle, CheckCircle } from 'lucide-react';
 
 export default function ConfigurarAcceso() {
   const { usuario } = useAuth();
   const [form, setForm] = useState({
-    correoActual: '',
-    correoNuevo: '',
     contrasenaActual: '',
     contrasenaNueva: '',
     confirmarContrasena: '',
+    correo: usuario?.correo || '',
   });
   const [showPasswords, setShowPasswords] = useState({
     actual: false,
@@ -25,7 +24,7 @@ export default function ConfigurarAcceso() {
       if (res.exito) {
         setSuccess(res.mensaje);
         setError('');
-        setForm({ correoActual: '', correoNuevo: '', contrasenaActual: '', contrasenaNueva: '', confirmarContrasena: '' });
+        setForm(f => ({ ...f, contrasenaActual: '', contrasenaNueva: '', confirmarContrasena: '' }));
         setTimeout(() => setSuccess(''), 4000);
       } else {
         setError(res.error || 'Error al actualizar');
@@ -43,7 +42,7 @@ export default function ConfigurarAcceso() {
     setError('');
     setSuccess('');
 
-    if (!form.correoActual || !form.correoNuevo || !form.contrasenaActual || !form.contrasenaNueva) {
+    if (!usuario?.codigo || !form.contrasenaActual || !form.contrasenaNueva) {
       setError('Complete todos los campos');
       return;
     }
@@ -57,10 +56,10 @@ export default function ConfigurarAcceso() {
     }
 
     cambiarMutation.mutate({
-      correoActual: form.correoActual,
-      correoNuevo: form.correoNuevo,
+      codigo: usuario.codigo,
       contrasenaActual: form.contrasenaActual,
       contrasenaNueva: form.contrasenaNueva,
+      correo: form.correo,
     });
   };
 
@@ -81,21 +80,15 @@ export default function ConfigurarAcceso() {
       )}
 
       <form onSubmit={handleSubmit} className="bg-white/[0.03] border border-white/5 rounded-xl p-5 space-y-5">
-        {/* Datos actuales */}
+        {/* Verificacion de identidad */}
         <div>
           <h2 className="text-sm font-semibold text-white/60 uppercase tracking-wider border-b border-white/5 pb-2 mb-4 flex items-center gap-2">
-            <Mail className="w-4 h-4 text-cbvp-red" /> Verificacion de Identidad
+            <Lock className="w-4 h-4 text-cbvp-red" /> Verificacion de Identidad
           </h2>
           <div className="space-y-4">
             <div>
-              <label className={labelClass}>Correo Actual *</label>
-              <input
-                type="email"
-                value={form.correoActual}
-                onChange={e => setForm(f => ({ ...f, correoActual: e.target.value }))}
-                placeholder="correo@actual.com"
-                className={inputClass}
-              />
+              <label className={labelClass}>Codigo de Bombero</label>
+              <input type="text" value={usuario?.codigo || ''} disabled className={`${inputClass} opacity-50 cursor-not-allowed`} />
             </div>
             <div className="relative">
               <label className={labelClass}>Contrasena Actual *</label>
@@ -120,12 +113,12 @@ export default function ConfigurarAcceso() {
           </h2>
           <div className="space-y-4">
             <div>
-              <label className={labelClass}>Nuevo Correo *</label>
+              <label className={labelClass}>Correo de Contacto (opcional)</label>
               <input
                 type="email"
-                value={form.correoNuevo}
-                onChange={e => setForm(f => ({ ...f, correoNuevo: e.target.value }))}
-                placeholder="nuevo@correo.com"
+                value={form.correo}
+                onChange={e => setForm(f => ({ ...f, correo: e.target.value }))}
+                placeholder="tu@correo.com"
                 className={inputClass}
               />
             </div>

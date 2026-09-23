@@ -71,13 +71,13 @@ export default function Configuracion() {
   const [notifMsg, setNotifMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
 
   useEffect(() => {
-    if (adminPassword && usuario?.correo) {
-      setAdminCredentials(usuario.correo, adminPassword);
+    if (adminPassword && usuario?.codigo) {
+      setAdminCredentials(usuario.codigo, adminPassword);
     } else {
       clearAdminCredentials();
     }
     return () => clearAdminCredentials();
-  }, [adminPassword, usuario?.correo]);
+  }, [adminPassword, usuario?.codigo]);
 
   const { data: nivelesData, isLoading: loadingNiveles } = trpc.permisos.obtenerNiveles.useQuery(
     undefined,

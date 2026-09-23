@@ -3,6 +3,11 @@ import { formatearNombreCompleto } from "../lib/nombres";
 import { createRouter, publicQuery } from "../middleware";
 import { colUsuarios, colRoles } from "../services/usuariosFirestore";
 
+function extractNumber(code: string): string {
+  const match = code.match(/\d+/);
+  return match ? match[0] : "";
+}
+
 async function obtenerNivelPermiso(cargo: string) {
   try {
     const cargoBusqueda = cargo.toString().trim();
@@ -24,22 +29,22 @@ export const authRouter = createRouter({
   login: publicQuery
     .input(
       z.object({
-        correo: z.string().email(),
+        codigo: z.string().min(1),
         contrasena: z.string().min(1),
       })
     )
     .mutation(async ({ input }) => {
-      const correoInput = input.correo.trim().toLowerCase();
+      const numeroInput = extractNumber(input.codigo.trim());
       const passInput = input.contrasena.trim();
 
       const snapshot = await colUsuarios().get();
 
       for (const doc of snapshot.docs) {
         const fila = doc.data();
-        const correoFila = fila.correo ? String(fila.correo).trim().toLowerCase() : "";
+        const codigoFila = fila.codigo ? String(fila.codigo).trim() : "";
         const passFila = fila.contrasena ? String(fila.contrasena).trim() : "";
 
-        if (correoFila === correoInput && passFila === passInput) {
+        if (numeroInput && extractNumber(codigoFila) === numeroInput && passFila === passInput) {
           const cargo = fila.cargo ? String(fila.cargo).trim() : "Voluntario(a)";
           const permiso = await obtenerNivelPermiso(cargo);
           const nivelColP = parseInt(String(fila.nivelPermiso || ""), 10);
@@ -68,14 +73,14 @@ export const authRouter = createRouter({
             descripcionPermiso: permiso.exito ? permiso.descripcion : "",
             accesosPermiso: permiso.exito ? permiso.accesos : "",
             nombreCompleto,
-            correo: correoFila,
+            correo: fila.correo ? String(fila.correo).trim() : "",
           };
         }
       }
 
       return {
         exito: false as const,
-        mensaje: "Correo o contrasena incorrectos",
+        mensaje: "Codigo o contrasena incorrectos",
       };
     }),
 
