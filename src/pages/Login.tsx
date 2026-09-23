@@ -1,8 +1,16 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { Flame, AlertCircle, Eye, EyeOff } from 'lucide-react';
+import { Flame, AlertCircle, Eye, EyeOff, Smartphone } from 'lucide-react';
 import { ORGANIZACION } from '@/config/organizacion';
+import { QRCodeSVG } from 'qrcode.react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
 
 export default function Login() {
   const { login, isLoading, error } = useAuth();
@@ -12,6 +20,8 @@ export default function Login() {
   const [recordarme, setRecordarme] = useState(false);
   const [mostrarPassword, setMostrarPassword] = useState(false);
   const [mostrarAyuda, setMostrarAyuda] = useState(false);
+  const [mostrarQR, setMostrarQR] = useState(false);
+  const loginUrl = `${window.location.origin}/login`;
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -116,9 +126,31 @@ export default function Login() {
             </button>
           </form>
 
+          <button
+            type="button"
+            onClick={() => setMostrarQR(true)}
+            className="w-full mt-4 py-3 flex items-center justify-center gap-2 text-sm text-white/50 hover:text-white/80 border border-white/10 hover:border-white/20 rounded-xl transition-all"
+          >
+            <Smartphone className="w-4 h-4" />
+            Acceso desde celular
+          </button>
         </div>
         <p className="text-center text-xs text-white/20 mt-4">Desarrollado por Sergio Jimenez</p>
       </div>
+
+      <Dialog open={mostrarQR} onOpenChange={setMostrarQR}>
+        <DialogContent className="sm:max-w-xs">
+          <DialogHeader>
+            <DialogTitle>Acceso desde celular</DialogTitle>
+            <DialogDescription>
+              Escanea este codigo con la camara de tu celular para abrir el login.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-center p-4 bg-white rounded-xl">
+            <QRCodeSVG value={loginUrl} size={200} />
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
