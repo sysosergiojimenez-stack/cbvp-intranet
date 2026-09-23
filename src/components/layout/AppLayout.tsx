@@ -28,6 +28,21 @@ const NAV_ITEMS: NavItem[] = [
   { path: '/practicas-citaciones', label: 'Practicas y Citaciones', icon: BookOpen, checkAccess: p => p.puedeCargarPlanillas },
   { path: '/salida-movil', label: 'Salidas de Movil', icon: Truck, checkAccess: p => p.puedeCargarPlanillas },
   {
+    path: '/comandante-compania', label: 'Comandante de Compania', icon: ShieldCheck,
+    checkAccess: (p) => p.puedeVerComandanteCompania,
+    children: [
+      { path: '/informe-servicios', label: 'Informe de Servicios', icon: Flame, checkAccess: p => p.puedeVerComandanteCompania },
+    ],
+  },
+  {
+    path: '/direccion-administrativa', label: 'Direccion Administrativa', icon: Building2,
+    checkAccess: (p) => p.puedeVerDireccionAdministrativa,
+    children: [
+      { path: '/rendiciones-combustible', label: 'Rendiciones de Combustible', icon: Fuel, checkAccess: p => p.puedeVerDireccionAdministrativa },
+      { path: '/cuotas-bomberos', label: 'Cuotas de Bomberos', icon: Wallet, checkAccess: p => p.puedeVerDireccionAdministrativa },
+    ],
+  },
+  {
     path: '/primer-oficial', label: 'Primer Oficial', icon: Crown,
     checkAccess: (p) => p.puedeVerMoviles,
     children: [
@@ -42,21 +57,6 @@ const NAV_ITEMS: NavItem[] = [
       { path: '/personal', label: 'Listado de Personal', icon: Users, checkAccess: p => p.puedeVerPersonal },
       { path: '/roles-guardia', label: 'Roles de Guardia', icon: Shield, checkAccess: p => p.puedeGestionarRolesGuardia },
       { path: '/informe-asistencia', label: 'Informe Mensual', icon: ClipboardCheck, checkAccess: p => p.puedeVerInformes },
-    ],
-  },
-  {
-    path: '/direccion-administrativa', label: 'Direccion Administrativa', icon: Building2,
-    checkAccess: (p) => p.puedeVerDireccionAdministrativa,
-    children: [
-      { path: '/rendiciones-combustible', label: 'Rendiciones de Combustible', icon: Fuel, checkAccess: p => p.puedeVerDireccionAdministrativa },
-      { path: '/cuotas-bomberos', label: 'Cuotas de Bomberos', icon: Wallet, checkAccess: p => p.puedeVerDireccionAdministrativa },
-    ],
-  },
-  {
-    path: '/comandante-compania', label: 'Comandante de Compania', icon: ShieldCheck,
-    checkAccess: (p) => p.puedeVerComandanteCompania,
-    children: [
-      { path: '/informe-servicios', label: 'Informe de Servicios', icon: Flame, checkAccess: p => p.puedeVerComandanteCompania },
     ],
   },
   { path: '/notificaciones', label: 'Notificaciones', icon: Bell, checkAccess: () => true },
