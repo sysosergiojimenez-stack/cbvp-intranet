@@ -29,11 +29,12 @@ const PERMISO_LABELS: Record<AccionPermiso, string> = {
 const PERMISO_KEYS = ACCIONES_PERMISO;
 
 const CARGOS = [
-  'Voluntario(a)',
+  'DESARROLLADOR',
   'COMANDANTE',
+  'DIRECTOR ADMINISTRATIVO',
   'PRIMER OFICIAL',
   'SEGUNDO OFICIAL',
-  'DESARROLLADOR',
+  'Voluntario(a)',
 ];
 
 const NIVEL_LABELS: Record<number, string> = {
