@@ -5,9 +5,18 @@ import {
   User, Shield, Award, Calendar, Hash, Radio,
   ClipboardCheck, TrendingUp, Flame, Star,
   ChevronRight, Clock, AlertTriangle, FileText,
-  CheckCircle, Briefcase, HelpCircle, Zap, X
+  CheckCircle, Briefcase, HelpCircle, Zap, X, Wallet
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+
+function formatearMesAnio(mesAnio: string): string {
+  if (!mesAnio) return '-';
+  const MESES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+  const [anio, mes] = mesAnio.split('-');
+  const idx = parseInt(mes, 10) - 1;
+  if (isNaN(idx) || idx < 0 || idx > 11) return mesAnio;
+  return `${MESES[idx]} ${anio}`;
+}
 
 export default function MiDashboard() {
   const { usuario } = useAuth();
@@ -60,6 +69,7 @@ export default function MiDashboard() {
   const nombreCompleto = usuario?.nombreCompleto || '-';
   const correo = usuario?.correo || '-';
   const nivelPermiso = usuario?.nivelPermiso || '-';
+  const cuota = miData?.cuota || '';
 
   // Asistencia stats cards
   const totalGuardiasCard = { key: 'total', label: 'Total Guardias', value: metricas?.totalGuardias ?? 0, icon: ClipboardCheck, color: 'text-cbvp-red', bg: 'bg-cbvp-red/8', border: 'border-cbvp-red/20', bar: 'bg-cbvp-red' };
@@ -165,6 +175,17 @@ export default function MiDashboard() {
               <div>
                 <p className="text-[10px] text-white/30 uppercase">Correo</p>
                 <p className="text-sm text-white truncate">{correo}</p>
+              </div>
+            </div>
+
+            {/* Cuota al dia hasta */}
+            <div className="flex items-center gap-3 bg-white/[0.02] rounded-lg p-3">
+              <div className="w-8 h-8 rounded-lg bg-cbvp-green/8 flex items-center justify-center shrink-0">
+                <Wallet className="w-4 h-4 text-cbvp-green/60" />
+              </div>
+              <div>
+                <p className="text-[10px] text-white/30 uppercase">Cuota al dia hasta</p>
+                <p className="text-sm text-white">{formatearMesAnio(cuota)}</p>
               </div>
             </div>
           </div>
