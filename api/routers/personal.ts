@@ -395,4 +395,32 @@ export const personalRouter = createRouter({
       await colUsuarios().doc(docId).update({ cargo: input.cargo, nivelPermiso: input.nivelPermiso });
       return { exito: true as const };
     }),
+
+  // Asigna una contrasena nueva a un bombero sin necesitar la anterior --
+  // para bomberos que todavia no generaron la suya, o que la olvidaron.
+  // Requiere identidad de administrador (nivel 5 o DESARROLLADOR).
+  restablecerContrasena: adminProcedure
+    .input(
+      z.object({
+        codigo: z.string().min(1),
+        contrasenaNueva: z.string().min(4),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const snapshot = await colUsuarios().get();
+      const searchNum = extractNumber(input.codigo);
+      let docId: string | null = null;
+      for (const doc of snapshot.docs) {
+        const codigoFila = String(doc.data().codigo || "").trim();
+        if (extractNumber(codigoFila) === searchNum) {
+          docId = doc.id;
+          break;
+        }
+      }
+      if (!docId) {
+        return { exito: false as const, error: "Bombero no encontrado" };
+      }
+      await colUsuarios().doc(docId).update({ contrasena: input.contrasenaNueva.trim() });
+      return { exito: true as const, mensaje: "Contrasena actualizada correctamente" };
+    }),
 });

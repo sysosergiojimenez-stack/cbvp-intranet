@@ -1,21 +1,31 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { usePermiso } from '@/hooks/usePermiso';
+import { useAuth } from '@/context/AuthContext';
 import { trpc } from '@/providers/trpc';
+import { setAdminCredentials, clearAdminCredentials } from '@/lib/adminAuth';
 import AgregarBomberoModal from '@/components/AgregarBomberoModal';
 import type { Personal, GuardiaHistorial, EstadisticasGuardias } from '@/types';
 import {
   Search, User, Shield, Award, Calendar, Hash, Radio,
-  Mail, FileText, X, Flame, UserPlus,
+  Mail, FileText, X, Flame, UserPlus, Key, Eye, EyeOff, Save,
   Clock, Users, AlertTriangle, ChevronDown, ChevronUp, Pencil
 } from 'lucide-react';
 
 export default function PersonalPage() {
   const navigate = useNavigate();
+  const { usuario } = useAuth();
   const { puedeVerPersonal, puedeCrearBombero } = usePermiso();
   const [search, setSearch] = useState('');
   const [selectedBombero, setSelectedBombero] = useState<Personal | null>(null);
   const [mostrarAgregar, setMostrarAgregar] = useState(false);
+  const [restablecerBombero, setRestablecerBombero] = useState<Personal | null>(null);
+  const [nuevaContrasena, setNuevaContrasena] = useState('');
+  const [confirmarNuevaContrasena, setConfirmarNuevaContrasena] = useState('');
+  const [miContrasenaAdmin, setMiContrasenaAdmin] = useState('');
+  const [mostrarPasswords, setMostrarPasswords] = useState({ nueva: false, confirmar: false, admin: false });
+  const [errorReset, setErrorReset] = useState('');
+  const restablecerMutation = trpc.personal.restablecerContrasena.useMutation();
   const { data: metricasData } = trpc.planillas.misMetricas.useQuery(
     { codigo: selectedBombero?.codigo || '' },
     { enabled: !!selectedBombero }
@@ -62,6 +72,46 @@ export default function PersonalPage() {
 
   const handleVerFicha = (bombero: Personal) => {
     setSelectedBombero(bombero);
+  };
+
+  const cerrarModalReset = () => {
+    setRestablecerBombero(null);
+    setNuevaContrasena('');
+    setConfirmarNuevaContrasena('');
+    setMiContrasenaAdmin('');
+    setErrorReset('');
+    clearAdminCredentials();
+  };
+
+  const handleRestablecerContrasena = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorReset('');
+    if (!restablecerBombero || !usuario?.codigo) return;
+    if (!nuevaContrasena || !miContrasenaAdmin) {
+      setErrorReset('Complete todos los campos');
+      return;
+    }
+    if (nuevaContrasena !== confirmarNuevaContrasena) {
+      setErrorReset('Las contrasenas no coinciden');
+      return;
+    }
+    if (nuevaContrasena.length < 4) {
+      setErrorReset('La contrasena debe tener al menos 4 caracteres');
+      return;
+    }
+    setAdminCredentials(usuario.codigo, miContrasenaAdmin);
+    try {
+      const res = await restablecerMutation.mutateAsync({ codigo: restablecerBombero.codigo, contrasenaNueva: nuevaContrasena });
+      if (res.exito) {
+        cerrarModalReset();
+      } else {
+        setErrorReset(res.error);
+      }
+    } catch (err: unknown) {
+      setErrorReset(err instanceof Error ? err.message : 'Error al restablecer la contrasena');
+    } finally {
+      clearAdminCredentials();
+    }
   };
 
   const getTipoBadge = (tipo: string) => {
@@ -200,13 +250,24 @@ export default function PersonalPage() {
                         <p className="text-white font-medium truncate">{bombero.nombreCompleto}</p>
                         <p className="text-xs text-white/40">{bombero.categoria}</p>
                       </div>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); navigate(`/editar-bombero/${bombero.codigo}`); }}
-                        className="p-2 rounded-lg bg-white/5 hover:bg-cbvp-blue/20 text-white/40 hover:text-cbvp-blue transition-colors shrink-0"
-                        title="Editar bombero"
-                      >
-                        <Pencil className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center gap-1 shrink-0">
+                        {puedeCrearBombero && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setRestablecerBombero(bombero); }}
+                            className="p-2 rounded-lg bg-white/5 hover:bg-cbvp-orange/20 text-white/40 hover:text-cbvp-orange transition-colors"
+                            title="Restablecer contrasena"
+                          >
+                            <Key className="w-4 h-4" />
+                          </button>
+                        )}
+                        <button
+                          onClick={(e) => { e.stopPropagation(); navigate(`/editar-bombero/${bombero.codigo}`); }}
+                          className="p-2 rounded-lg bg-white/5 hover:bg-cbvp-blue/20 text-white/40 hover:text-cbvp-blue transition-colors"
+                          title="Editar bombero"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                     <div className="flex items-center gap-2 flex-wrap text-xs">
                       <span className="bg-white/5 px-2 py-0.5 rounded flex items-center gap-1">
@@ -262,13 +323,24 @@ export default function PersonalPage() {
                           <span className="text-white font-medium group-hover:text-cbvp-red transition-colors">{bombero.nombreCompleto}</span>
                         </td>
                         <td className="px-3 py-3">
-                          <button
-                            onClick={(e) => { e.stopPropagation(); navigate(`/editar-bombero/${bombero.codigo}`); }}
-                            className="p-2.5 sm:p-1.5 rounded-lg bg-white/5 hover:bg-cbvp-blue/20 text-white/40 hover:text-cbvp-blue transition-colors"
-                            title="Editar bombero"
-                          >
-                            <Pencil className="w-3.5 h-3.5" />
-                          </button>
+                          <div className="flex items-center gap-1">
+                            {puedeCrearBombero && (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setRestablecerBombero(bombero); }}
+                                className="p-2.5 sm:p-1.5 rounded-lg bg-white/5 hover:bg-cbvp-orange/20 text-white/40 hover:text-cbvp-orange transition-colors"
+                                title="Restablecer contrasena"
+                              >
+                                <Key className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                            <button
+                              onClick={(e) => { e.stopPropagation(); navigate(`/editar-bombero/${bombero.codigo}`); }}
+                              className="p-2.5 sm:p-1.5 rounded-lg bg-white/5 hover:bg-cbvp-blue/20 text-white/40 hover:text-cbvp-blue transition-colors"
+                              title="Editar bombero"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))
@@ -415,6 +487,90 @@ export default function PersonalPage() {
       )}
 
       {mostrarAgregar && <AgregarBomberoModal onClose={() => setMostrarAgregar(false)} />}
+
+      {/* Modal Restablecer Contrasena */}
+      {restablecerBombero && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4" onClick={cerrarModalReset}>
+          <div className="bg-cbvp-dark-light border border-white/10 rounded-2xl max-w-md w-full" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-5 border-b border-white/5">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-cbvp-orange/10 flex items-center justify-center">
+                  <Key className="w-5 h-5 text-cbvp-orange" />
+                </div>
+                <div>
+                  <h2 className="text-base font-semibold text-white">Restablecer Contrasena</h2>
+                  <p className="text-xs text-white/40">{restablecerBombero.nombreCompleto} ({restablecerBombero.codigo})</p>
+                </div>
+              </div>
+              <button onClick={cerrarModalReset} className="p-2 rounded-lg hover:bg-white/5 text-white/40 hover:text-white transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleRestablecerContrasena} className="p-5 space-y-4">
+              <div className="relative">
+                <label className="text-[10px] text-white/40 uppercase tracking-wider mb-1.5 block">Nueva Contrasena *</label>
+                <input
+                  type={mostrarPasswords.nueva ? 'text' : 'password'}
+                  value={nuevaContrasena}
+                  onChange={e => setNuevaContrasena(e.target.value)}
+                  placeholder="Minimo 4 caracteres"
+                  className="w-full px-3 py-2.5 pr-10 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-cbvp-red/50 transition-colors"
+                />
+                <button type="button" onClick={() => setMostrarPasswords(p => ({ ...p, nueva: !p.nueva }))} className="absolute right-3 top-[34px] text-white/30 hover:text-white/60 transition-colors">
+                  {mostrarPasswords.nueva ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+              <div className="relative">
+                <label className="text-[10px] text-white/40 uppercase tracking-wider mb-1.5 block">Confirmar Nueva Contrasena *</label>
+                <input
+                  type={mostrarPasswords.confirmar ? 'text' : 'password'}
+                  value={confirmarNuevaContrasena}
+                  onChange={e => setConfirmarNuevaContrasena(e.target.value)}
+                  placeholder="Repite la contrasena"
+                  className="w-full px-3 py-2.5 pr-10 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-cbvp-red/50 transition-colors"
+                />
+                <button type="button" onClick={() => setMostrarPasswords(p => ({ ...p, confirmar: !p.confirmar }))} className="absolute right-3 top-[34px] text-white/30 hover:text-white/60 transition-colors">
+                  {mostrarPasswords.confirmar ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+
+              <div className="border-t border-white/5 pt-4">
+                <p className="text-[10px] text-white/40 uppercase tracking-wider mb-2">Confirmar tu identidad de administrador</p>
+                <p className="text-xs text-white/50 mb-2">{usuario?.nombreCompleto} ({usuario?.codigo})</p>
+                <div className="relative">
+                  <input
+                    type={mostrarPasswords.admin ? 'text' : 'password'}
+                    value={miContrasenaAdmin}
+                    onChange={e => setMiContrasenaAdmin(e.target.value)}
+                    placeholder="Tu contrasena actual"
+                    className="w-full px-3 py-2.5 pr-10 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-cbvp-red/50 transition-colors"
+                  />
+                  <button type="button" onClick={() => setMostrarPasswords(p => ({ ...p, admin: !p.admin }))} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition-colors">
+                    {mostrarPasswords.admin ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              {errorReset && (
+                <div className="flex items-center gap-2 text-cbvp-red-light text-sm bg-cbvp-red/10 rounded-lg px-3 py-2.5">
+                  <AlertTriangle className="w-4 h-4 shrink-0" />
+                  <span>{errorReset}</span>
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={restablecerMutation.isPending}
+                className="w-full py-3 bg-cbvp-orange hover:bg-cbvp-orange/80 disabled:opacity-50 text-white font-semibold rounded-xl transition-all flex items-center justify-center gap-2"
+              >
+                <Save className="w-4 h-4" />
+                {restablecerMutation.isPending ? 'Guardando...' : 'Restablecer Contrasena'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
