@@ -564,6 +564,7 @@ export const planillasRouter = createRouter({
         const rango = fila[5] ? String(fila[5]).trim() : "";
         const nombre = formatearNombreCompleto(rango, categoria, primerNombre, primerApellido);
         const situ = String(fila[17] || "RN").trim() || "RN";
+        if (situ === "RENTADO") continue;
         const numero = (codigo.match(/\d+/) || [""])[0];
         personasBase.push({
           codigo,
@@ -792,6 +793,7 @@ export const planillasRouter = createRouter({
         const rango = fila[5] ? String(fila[5]).trim() : "";
         const nombre = formatearNombreCompleto(rango, categoria, primerNombre, primerApellido);
         const situ = String(fila[17] || "RN").trim() || "RN";
+        if (situ === "RENTADO") continue;
         const cuota = normalizarMesAnio(String(fila[18] || "").trim());
         const numero = (codigo.match(/\d+/) || [""])[0];
         personasBase.push({

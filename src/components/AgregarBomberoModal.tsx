@@ -125,6 +125,7 @@ export default function AgregarBomberoModal({ onClose }: { onClose: () => void }
                   <option value="B10A">B10A - Beneficios 10 años</option>
                   <option value="B15A">B15A - Beneficios 15 años</option>
                   <option value="B20A">B20A - Beneficios 20 años</option>
+                  <option value="RENTADO">RENTADO - Rentado</option>
                 </select>
               </div>
               {(form.situ === 'LC' || form.situ === 'LM') && (
