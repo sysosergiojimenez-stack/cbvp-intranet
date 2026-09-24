@@ -488,9 +488,6 @@ export async function exportarMiAsistenciaPdf(params: {
     cursorY = tablaDias(doc, 'Guardias Especiales', params.especiales, diasArr, cursorY, true);
   }
 
-  doc.addPage('a4', 'portrait');
-  encabezado(doc, logo, sub, escudo);
-  cursorY = 42;
   if (!esActivo && params.practicas.length > 0) {
     cursorY = tablaDias(doc, 'Practicas (sabados del mes)', params.practicas, params.sabados, cursorY, false);
   }
