@@ -88,20 +88,31 @@ export default function MiDashboard() {
     if (!dia || mes !== mesAsistencia || anio !== anioAsistencia) return null;
     return dia;
   };
-  const diasRefuerzo = new Set(
+  const diasDeTipo = (tipo: string, asistenciaBuscada?: string) => new Set(
     guardiasList
-      .filter(g => g.tipo === 'REFUERZO')
+      .filter(g => g.tipo === tipo && (!asistenciaBuscada || g.asistencia === asistenciaBuscada))
       .map(g => diaDeGuardia(g.fechaGuardia))
       .filter((d): d is number => d !== null)
   );
-  const conRefuerzos = <T extends { dias: string[] }>(filas: T[]): T[] =>
-    diasRefuerzo.size === 0 ? filas : filas.map(f => ({
+  const diasRefuerzo = diasDeTipo('REFUERZO');
+  // "Ausente con reemplazo" ya cuenta como "P" en asistenciaMensualDetallada
+  // (el informe oficial no distingue), pero en Mi Dashboard se marca aparte.
+  const diasReemplazoNormal = diasDeTipo('GUARDIA NORMAL', 'AUSENTE CON REEMPLAZO');
+  const diasReemplazoEspecial = diasDeTipo('GUARDIA ESPECIAL', 'AUSENTE CON REEMPLAZO');
+
+  const conMarcadores = <T extends { dias: string[] }>(filas: T[], diasReemplazo: Set<number>): T[] =>
+    filas.map(f => ({
       ...f,
-      dias: f.dias.map((d, i) => (!d && diasRefuerzo.has(i + 1)) ? 'R' : d),
+      dias: f.dias.map((d, i) => {
+        const dia = i + 1;
+        if (!d && diasRefuerzo.has(dia)) return 'R';
+        if (d === 'P' && diasReemplazo.has(dia)) return 'C';
+        return d;
+      }),
     }));
 
-  const misNormales = conRefuerzos(soloYo(dataAsistencia?.normales));
-  const misEspeciales = conRefuerzos(soloYo(dataAsistencia?.especiales));
+  const misNormales = conMarcadores(soloYo(dataAsistencia?.normales), diasReemplazoNormal);
+  const misEspeciales = conMarcadores(soloYo(dataAsistencia?.especiales), diasReemplazoEspecial);
   const misPracticas = soloYo(dataPC?.practicas);
   const misCitaciones = soloYo(dataPC?.citaciones);
   const miTotal = soloYo(dataTotal?.filas);
@@ -304,6 +315,7 @@ export default function MiDashboard() {
           <div className="flex items-center gap-3 ml-auto text-[11px] text-white/40">
             <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-cbvp-green/40" />Presente</span>
             <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-cbvp-red/40" />Ausente</span>
+            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-cbvp-orange/40" />Ausente c/Reemplazo</span>
             <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-cbvp-blue/40" />Exento</span>
             <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-cbvp-purple/40" />Refuerzo</span>
           </div>
