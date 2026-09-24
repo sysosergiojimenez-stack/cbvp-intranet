@@ -133,6 +133,21 @@ function tablaDias(doc: jsPDF, titulo: string, filas: FilaDias[], columnas: numb
           data.cell.styles.fillColor = [250, 210, 210];
           data.cell.styles.textColor = [160, 20, 20];
           data.cell.styles.fontStyle = 'bold';
+        } else if (val === 'E') {
+          data.cell.styles.fillColor = [210, 230, 250];
+          data.cell.styles.textColor = [20, 80, 160];
+          data.cell.styles.fontStyle = 'bold';
+        } else if (val === 'R') {
+          // Refuerzo -- solo aparece en el PDF de Mi Asistencia (personal),
+          // el informe institucional nunca produce esta marca.
+          data.cell.styles.fillColor = [235, 220, 245];
+          data.cell.styles.textColor = [100, 50, 130];
+          data.cell.styles.fontStyle = 'bold';
+        } else if (val === 'C') {
+          // Ausente con reemplazo -- idem, solo en Mi Asistencia.
+          data.cell.styles.fillColor = [250, 230, 200];
+          data.cell.styles.textColor = [180, 90, 10];
+          data.cell.styles.fontStyle = 'bold';
         }
       }
     },
@@ -434,5 +449,59 @@ export async function exportarInformeCombinado(params: {
   });
 
   const nombreArchivo = `Informe_Mensual_${nombreMes}_${params.anio}.pdf`;
+  doc.save(nombreArchivo);
+}
+
+// Version personal de "Mi Asistencia" (Mi Dashboard): mismas tablas que el
+// informe institucional pero con una sola fila (el bombero logueado).
+export async function exportarMiAsistenciaPdf(params: {
+  mes: number;
+  anio: number;
+  categoria: 'COMBATIENTE' | 'ACTIVO';
+  diasDelMes: number;
+  normales: FilaDias[];
+  especiales: FilaDias[];
+  practicas: FilaDias[];
+  sabados: number[];
+  citaciones: FilaDias[];
+  fechasCitacion: number[];
+  sinCitaciones: boolean;
+  totalAcumulado: FilaTotal[];
+}) {
+  const logo = await cargarLogoBase64();
+  const escudo = await cargarEscudoBase64();
+  const nombreMes = MESES[params.mes - 1];
+  const nombrePersona = params.totalAcumulado[0]?.nombre || params.normales[0]?.nombre || params.especiales[0]?.nombre || '';
+  const sub = `Mi Asistencia - ${nombreMes} ${params.anio}${nombrePersona ? ` - ${nombrePersona}` : ''}`;
+  const esActivo = params.categoria === 'ACTIVO';
+
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+  let cursorY = 0;
+
+  encabezado(doc, logo, sub, escudo);
+  cursorY = 42;
+  const diasArr = Array.from({ length: params.diasDelMes }, (_, i) => i + 1);
+  if (params.normales.length > 0) {
+    cursorY = tablaDias(doc, esActivo ? 'Asistencia' : 'Guardias Normales', params.normales, diasArr, cursorY, true);
+  }
+  if (params.especiales.length > 0) {
+    cursorY = tablaDias(doc, 'Guardias Especiales', params.especiales, diasArr, cursorY, true);
+  }
+
+  doc.addPage('a4', 'portrait');
+  encabezado(doc, logo, sub, escudo);
+  cursorY = 42;
+  if (!esActivo && params.practicas.length > 0) {
+    cursorY = tablaDias(doc, 'Practicas (sabados del mes)', params.practicas, params.sabados, cursorY, false);
+  }
+  if (params.citaciones.length > 0) {
+    const tituloCitaciones = `Citaciones${params.sinCitaciones ? ' (NO HUBO)' : ''}`;
+    cursorY = tablaDias(doc, tituloCitaciones, params.citaciones, params.fechasCitacion, cursorY, false);
+  }
+  if (params.totalAcumulado.length > 0) {
+    tablaTotalAcumulado(doc, params.totalAcumulado, cursorY, esActivo);
+  }
+
+  const nombreArchivo = `Mi_Asistencia_${nombreMes}_${params.anio}${nombrePersona ? `_${nombrePersona.replace(/\s+/g, '_')}` : ''}.pdf`;
   doc.save(nombreArchivo);
 }
