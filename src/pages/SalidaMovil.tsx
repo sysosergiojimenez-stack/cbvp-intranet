@@ -589,31 +589,30 @@ export default function SalidaMovil() {
                     <p className="text-sm text-white">{r.fechaSalida} {r.horaSalida} · {r.movil || '-'} · <span className="text-cbvp-red-light">{r.tipoServicio || '-'}</span></p>
                     <p className="text-xs text-white/40 truncate">{r.direccion || '-'} — Conductor: {r.conductor || '-'}{r.oficialACargo ? ` — A cargo: ${r.oficialACargo}` : ''}{r.kilometrajeLlegada ? ` — Km: ${r.kilometrajeLlegada}` : ''}</p>
                   </button>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <button className="p-2 rounded-lg hover:bg-white/10 text-white/40 hover:text-white transition-colors shrink-0" title="Acciones">
-                        <MoreVertical className="w-4 h-4" />
-                      </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      {r.tipoServicio.startsWith('10:40') && (
-                        <DropdownMenuItem onClick={() => abrirInforme(r.id)}>
-                          <Flame className="w-3.5 h-3.5" />
-                          {informePorSalida.get(r.id)?.nServicio ? `Informe N° ${informePorSalida.get(r.id)?.nServicio}` : 'Cargar informe de servicio'}
-                        </DropdownMenuItem>
-                      )}
-                      {r.imageUrls.length > 0 && (
-                        <DropdownMenuItem asChild>
-                          <a href={r.imageUrls[0]} target="_blank" rel="noopener noreferrer">
-                            <ExternalLink className="w-3.5 h-3.5" /> Ver imagen
-                          </a>
-                        </DropdownMenuItem>
-                      )}
-                      <DropdownMenuItem variant="destructive" onClick={() => eliminarFila(r.id)}>
-                        <Trash2 className="w-3.5 h-3.5" /> Eliminar
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  {(r.tipoServicio.startsWith('10:40') || r.imageUrls.length > 0) && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button className="p-2 rounded-lg hover:bg-white/10 text-white/40 hover:text-white transition-colors shrink-0" title="Acciones">
+                          <MoreVertical className="w-4 h-4" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        {r.tipoServicio.startsWith('10:40') && (
+                          <DropdownMenuItem onClick={() => abrirInforme(r.id)}>
+                            <Flame className="w-3.5 h-3.5" />
+                            {informePorSalida.get(r.id)?.nServicio ? `Informe N° ${informePorSalida.get(r.id)?.nServicio}` : 'Cargar informe de servicio'}
+                          </DropdownMenuItem>
+                        )}
+                        {r.imageUrls.length > 0 && (
+                          <DropdownMenuItem asChild>
+                            <a href={r.imageUrls[0]} target="_blank" rel="noopener noreferrer">
+                              <ExternalLink className="w-3.5 h-3.5" /> Ver imagen
+                            </a>
+                          </DropdownMenuItem>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
                 </div>
                 {editandoId === r.id && (
                   <div className="px-3 pb-4 border-t border-white/5 pt-3">
@@ -634,6 +633,7 @@ export default function SalidaMovil() {
                     <div className="flex gap-2">
                       <button onClick={guardarEdicion} className="px-4 py-2 bg-cbvp-green hover:bg-cbvp-green/80 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2"><Save className="w-4 h-4" /> Guardar</button>
                       <button onClick={() => setEditandoId(null)} className="px-4 py-2 bg-white/5 hover:bg-white/10 text-white/60 text-sm rounded-lg transition-colors">Cancelar</button>
+                      <button onClick={() => eliminarFila(r.id)} className="px-4 py-2 bg-cbvp-red/10 hover:bg-cbvp-red/20 text-cbvp-red-light text-sm font-medium rounded-lg transition-colors flex items-center gap-2"><Trash2 className="w-4 h-4" /> Eliminar</button>
                     </div>
                   </div>
                 )}
