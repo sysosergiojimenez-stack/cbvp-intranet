@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { trpc } from '@/providers/trpc';
 import DocumentScanModal from '@/components/DocumentScanModal';
-import { Upload, X, FileText, Clock, Zap, AlertTriangle, CheckCircle, ExternalLink, Edit3, RotateCcw, Save, Trash2, Plus, Camera, Image as ImageIcon, Filter, Flame } from 'lucide-react';
+import { Upload, X, FileText, Clock, Zap, AlertTriangle, CheckCircle, ExternalLink, Edit3, RotateCcw, Save, Trash2, Plus, Camera, Image as ImageIcon, Filter, Flame, MoreVertical } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { MOVILES_VALIDOS, type MovilValido } from '@contracts/moviles';
 import { TIPOS_SERVICIO_VALIDOS, type TipoServicioValido } from '@contracts/tiposServicio';
 import { normalizarFechaISO } from '@/lib/fechas';
@@ -588,22 +589,31 @@ export default function SalidaMovil() {
                     <p className="text-sm text-white">{r.fechaSalida} {r.horaSalida} · {r.movil || '-'} · <span className="text-cbvp-red-light">{r.tipoServicio || '-'}</span></p>
                     <p className="text-xs text-white/40 truncate">{r.direccion || '-'} — Conductor: {r.conductor || '-'}{r.oficialACargo ? ` — A cargo: ${r.oficialACargo}` : ''}{r.kilometrajeLlegada ? ` — Km: ${r.kilometrajeLlegada}` : ''}</p>
                   </button>
-                  <div className="flex items-center gap-1 shrink-0">
-                    {r.tipoServicio.startsWith('10:40') && (
-                      <button
-                        onClick={() => abrirInforme(r.id)}
-                        className="px-2 py-1 rounded-lg bg-cbvp-red/10 hover:bg-cbvp-red/20 text-cbvp-red-light text-[11px] font-medium whitespace-nowrap flex items-center gap-1 transition-colors"
-                        title={informePorSalida.get(r.id) ? 'Editar informe de servicio' : 'Cargar informe de servicio'}
-                      >
-                        <Flame className="w-3 h-3" />
-                        {informePorSalida.get(r.id)?.nServicio ? `N° ${informePorSalida.get(r.id)?.nServicio}` : 'Informe'}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button className="p-2 rounded-lg hover:bg-white/10 text-white/40 hover:text-white transition-colors shrink-0" title="Acciones">
+                        <MoreVertical className="w-4 h-4" />
                       </button>
-                    )}
-                    <button onClick={() => eliminarFila(r.id)} className="p-2 rounded-lg hover:bg-cbvp-red/20 text-white/40 hover:text-cbvp-red transition-colors" title="Eliminar"><Trash2 className="w-3.5 h-3.5" /></button>
-                    {r.imageUrls.length > 0 && (
-                      <a href={r.imageUrls[0]} target="_blank" rel="noopener noreferrer" className="p-2 rounded-lg hover:bg-white/10 text-white/40 hover:text-cbvp-blue transition-colors" title="Ver imagen"><ExternalLink className="w-3.5 h-3.5" /></a>
-                    )}
-                  </div>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      {r.tipoServicio.startsWith('10:40') && (
+                        <DropdownMenuItem onClick={() => abrirInforme(r.id)}>
+                          <Flame className="w-3.5 h-3.5" />
+                          {informePorSalida.get(r.id)?.nServicio ? `Informe N° ${informePorSalida.get(r.id)?.nServicio}` : 'Cargar informe de servicio'}
+                        </DropdownMenuItem>
+                      )}
+                      {r.imageUrls.length > 0 && (
+                        <DropdownMenuItem asChild>
+                          <a href={r.imageUrls[0]} target="_blank" rel="noopener noreferrer">
+                            <ExternalLink className="w-3.5 h-3.5" /> Ver imagen
+                          </a>
+                        </DropdownMenuItem>
+                      )}
+                      <DropdownMenuItem variant="destructive" onClick={() => eliminarFila(r.id)}>
+                        <Trash2 className="w-3.5 h-3.5" /> Eliminar
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
                 {editandoId === r.id && (
                   <div className="px-3 pb-4 border-t border-white/5 pt-3">
