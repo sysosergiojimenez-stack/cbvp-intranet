@@ -11,6 +11,14 @@ interface EdicionFila {
   litros: string;
   importe: string;
   ciManual: string;
+  kmSalidaManual: string;
+}
+
+// Igual que en el router: los km de odometro vienen con "." como separador
+// de miles, nunca con decimales.
+function parseKm(valor: string): number | null {
+  const limpio = String(valor || '').replace(/[^\d]/g, '');
+  return limpio ? parseInt(limpio, 10) : null;
 }
 
 export default function RendicionesCombustible() {
@@ -33,7 +41,7 @@ export default function RendicionesCombustible() {
   useEffect(() => {
     const inicial: Record<string, EdicionFila> = {};
     filas.forEach((f) => {
-      inicial[f.salidaId] = { factura: f.factura, litros: f.litros, importe: f.importe, ciManual: f.ci };
+      inicial[f.salidaId] = { factura: f.factura, litros: f.litros, importe: f.importe, ciManual: f.ci, kmSalidaManual: f.kilometrajeSalida };
     });
     setEdiciones(inicial);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -42,7 +50,7 @@ export default function RendicionesCombustible() {
   const actualizarEdicion = (salidaId: string, campo: keyof EdicionFila, valor: string) => {
     setEdiciones((prev) => ({
       ...prev,
-      [salidaId]: { ...(prev[salidaId] || { factura: '', litros: '', importe: '', ciManual: '' }), [campo]: valor },
+      [salidaId]: { ...(prev[salidaId] || { factura: '', litros: '', importe: '', ciManual: '', kmSalidaManual: '' }), [campo]: valor },
     }));
   };
 
@@ -51,7 +59,7 @@ export default function RendicionesCombustible() {
     if (!ed) return;
     setGuardandoId(salidaId);
     try {
-      await guardarCargaMutation.mutateAsync({ salidaId, factura: ed.factura, litros: ed.litros, importe: ed.importe, ciManual: ed.ciManual });
+      await guardarCargaMutation.mutateAsync({ salidaId, factura: ed.factura, litros: ed.litros, importe: ed.importe, ciManual: ed.ciManual, kmSalidaManual: ed.kmSalidaManual });
       utils.rendicionCombustible.datos.invalidate({ movil, mes, anio });
     } catch (err: unknown) {
       alert('Error al guardar: ' + (err instanceof Error ? err.message : 'desconocido'));
@@ -68,7 +76,15 @@ export default function RendicionesCombustible() {
         data.movil,
         mes,
         anio,
-        filas.map((f) => ({ ...f, ...(ediciones[f.salidaId] ? { ci: ediciones[f.salidaId].ciManual || f.ci, factura: ediciones[f.salidaId].factura, litros: ediciones[f.salidaId].litros, importe: ediciones[f.salidaId].importe } : {}) }))
+        filas.map((f) => {
+          const ed = ediciones[f.salidaId];
+          if (!ed) return f;
+          const kilometrajeSalida = ed.kmSalidaManual || f.kilometrajeSalida;
+          const kmSalidaNum = parseKm(kilometrajeSalida);
+          const kmLlegadaNum = parseKm(f.kilometrajeLlegada);
+          const kmRecorridos = kmSalidaNum !== null && kmLlegadaNum !== null ? Math.max(0, kmLlegadaNum - kmSalidaNum) : f.kmRecorridos;
+          return { ...f, ci: ed.ciManual || f.ci, factura: ed.factura, litros: ed.litros, importe: ed.importe, kilometrajeSalida, kmRecorridos };
+        })
       );
     } finally {
       setExportando(false);
@@ -138,8 +154,8 @@ export default function RendicionesCombustible() {
               </thead>
               <tbody>
                 {filas.map((f) => {
-                  const ed = ediciones[f.salidaId] || { factura: '', litros: '', importe: '', ciManual: f.ci };
-                  const huboCambios = ed.factura !== f.factura || ed.litros !== f.litros || ed.importe !== f.importe || ed.ciManual !== f.ci;
+                  const ed = ediciones[f.salidaId] || { factura: '', litros: '', importe: '', ciManual: f.ci, kmSalidaManual: f.kilometrajeSalida };
+                  const huboCambios = ed.factura !== f.factura || ed.litros !== f.litros || ed.importe !== f.importe || ed.ciManual !== f.ci || ed.kmSalidaManual !== f.kilometrajeSalida;
                   return (
                     <tr key={f.salidaId} className="border-b border-white/5 hover:bg-white/[0.02]">
                       <td className="px-2 py-1.5 text-white/70 whitespace-nowrap">{f.fechaSalida}</td>
@@ -147,7 +163,9 @@ export default function RendicionesCombustible() {
                         <input type="text" value={ed.ciManual} onChange={(e) => actualizarEdicion(f.salidaId, 'ciManual', e.target.value)} className="w-24 bg-white/5 border border-white/10 rounded px-2 py-1 text-white focus:border-cbvp-red/50 focus:outline-none" />
                       </td>
                       <td className="px-2 py-1.5 text-white/80">{f.conductor}</td>
-                      <td className="px-2 py-1.5 text-white/70 whitespace-nowrap">{f.kilometrajeSalida}</td>
+                      <td className="px-2 py-1.5">
+                        <input type="text" value={ed.kmSalidaManual} onChange={(e) => actualizarEdicion(f.salidaId, 'kmSalidaManual', e.target.value)} className="w-20 bg-white/5 border border-white/10 rounded px-2 py-1 text-white focus:border-cbvp-red/50 focus:outline-none" />
+                      </td>
                       <td className="px-2 py-1.5 text-white/70 max-w-[180px] truncate" title={f.direccion}>{f.direccion}</td>
                       <td className="px-2 py-1.5 text-white/70 whitespace-nowrap">{f.kilometrajeLlegada}</td>
                       <td className="px-2 py-1.5 text-white/70">{f.kmRecorridos !== null ? f.kmRecorridos : '-'}</td>

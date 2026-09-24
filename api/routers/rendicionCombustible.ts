@@ -98,7 +98,8 @@ export const rendicionCombustibleRouter = createRouter({
       const filas = salidas
         .map((s) => {
           const carga = cargasPorSalida.get(s.id) || {};
-          const kmSalida = parseKm(s.kilometrajeSalida);
+          const kilometrajeSalida = String(carga.kmSalidaManual || s.kilometrajeSalida || "");
+          const kmSalida = parseKm(kilometrajeSalida);
           const kmLlegada = parseKm(s.kilometrajeLlegada);
           const kmRecorridos = kmSalida !== null && kmLlegada !== null ? Math.max(0, kmLlegada - kmSalida) : null;
           const ciAuto = ciPorNombre.get(normalizarNombre(String(s.conductor || ""))) || "";
@@ -107,7 +108,7 @@ export const rendicionCombustibleRouter = createRouter({
             fechaSalida: String(s.fechaSalida || ""),
             conductor: String(s.conductor || ""),
             ci: String(carga.ciManual || ciAuto || ""),
-            kilometrajeSalida: String(s.kilometrajeSalida || ""),
+            kilometrajeSalida,
             direccion: String(s.direccion || ""),
             kilometrajeLlegada: String(s.kilometrajeLlegada || ""),
             kmRecorridos,
@@ -140,6 +141,7 @@ export const rendicionCombustibleRouter = createRouter({
         litros: z.string(),
         importe: z.string(),
         ciManual: z.string().optional(),
+        kmSalidaManual: z.string().optional(),
       })
     )
     .mutation(async ({ input }) => {
