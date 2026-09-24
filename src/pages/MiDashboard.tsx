@@ -3,11 +3,14 @@ import { useAuth } from '@/context/AuthContext';
 import { trpc } from '@/providers/trpc';
 import {
   User, Shield, Award, Calendar, Hash,
-  ClipboardCheck, TrendingUp, Flame, Star,
-  ChevronRight, Clock, AlertTriangle, FileText,
-  CheckCircle, Briefcase, HelpCircle, Zap, X, Wallet
+  ClipboardCheck, ClipboardList, Star,
+  ChevronRight, Clock, AlertTriangle,
+  CheckCircle, Briefcase, Zap, X, Wallet
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { TablaAsistencia, TablaTotalAcumulado } from '@/components/AsistenciaTablas';
+
+const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
 function formatearMesAnio(mesAnio: string): string {
   if (!mesAnio) return '-';
@@ -46,6 +49,38 @@ export default function MiDashboard() {
   const metricas = metricasData?.exito ? metricasData.stats : null;
   const guardiasList = metricasData?.exito ? metricasData.guardias : [];
   const [filtroActivo, setFiltroActivo] = useState<{ key: string; label: string } | null>(null);
+
+  // Mi Asistencia: misma interfaz que Informe Mensual (Direccion Administrativa),
+  // pero filtrada a la fila de este bombero.
+  const hoy = new Date();
+  const [mesAsistencia, setMesAsistencia] = useState(hoy.getMonth() + 1);
+  const [anioAsistencia, setAnioAsistencia] = useState(hoy.getFullYear());
+  const categoriaAsistencia = (usuario?.categoria || '').trim().toUpperCase();
+  const categoriaValida = categoriaAsistencia === 'COMBATIENTE' || categoriaAsistencia === 'ACTIVO';
+  const miCodigo = (usuario?.codigo || '').trim().toUpperCase();
+  const soloYo = <T extends { codigo: string }>(filas: T[] | undefined) =>
+    (filas || []).filter(f => f.codigo?.trim().toUpperCase() === miCodigo);
+
+  const { data: dataAsistencia, isLoading: isLoadingAsistencia } = trpc.planillas.asistenciaMensualDetallada.useQuery(
+    { mes: mesAsistencia, anio: anioAsistencia, categoria: categoriaAsistencia },
+    { enabled: categoriaValida }
+  );
+  const { data: dataPC, isLoading: isLoadingPC } = trpc.asistencia.mensualDetallada.useQuery(
+    { mes: mesAsistencia, anio: anioAsistencia, categoria: categoriaAsistencia },
+    { enabled: categoriaValida }
+  );
+  const { data: dataTotal, isLoading: isLoadingTotal } = trpc.planillas.totalAcumulado.useQuery(
+    { mes: mesAsistencia, anio: anioAsistencia, categoria: categoriaAsistencia },
+    { enabled: categoriaValida }
+  );
+
+  const columnasDias = Array.from({ length: dataAsistencia?.diasDelMes || 0 }, (_, i) => i + 1);
+  const misNormales = soloYo(dataAsistencia?.normales);
+  const misEspeciales = soloYo(dataAsistencia?.especiales);
+  const misPracticas = soloYo(dataPC?.practicas);
+  const misCitaciones = soloYo(dataPC?.citaciones);
+  const miTotal = soloYo(dataTotal?.filas);
+  const cargandoAsistencia = isLoadingAsistencia || isLoadingPC || isLoadingTotal;
   const filtrarGuardias = (key: string) => {
     switch (key) {
       case 'total': return guardiasList;
@@ -223,6 +258,60 @@ export default function MiDashboard() {
             </div>
           ))}
         </div>
+      </div>
+
+      {/* Mi Asistencia: misma interfaz que Informe Mensual, solo mi fila */}
+      <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-6">
+        <h2 className="text-sm font-semibold text-white/60 uppercase tracking-wider mb-4 flex items-center gap-2">
+          <ClipboardList className="w-4 h-4 text-cbvp-red" /> Mi Asistencia
+        </h2>
+        <div className="flex flex-wrap gap-2 mb-4">
+          <select value={mesAsistencia} onChange={e => setMesAsistencia(Number(e.target.value))} className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none">
+            {MESES.map((nombre, idx) => (
+              <option key={idx} value={idx + 1}>{nombre}</option>
+            ))}
+          </select>
+          <select value={anioAsistencia} onChange={e => setAnioAsistencia(Number(e.target.value))} className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none">
+            {Array.from({ length: 5 }, (_, i) => hoy.getFullYear() - 2 + i).map(a => (
+              <option key={a} value={a}>{a}</option>
+            ))}
+          </select>
+        </div>
+
+        {!categoriaValida ? (
+          <div className="text-center py-6 text-white/40 text-sm">No se pudo determinar tu categoria de personal.</div>
+        ) : cargandoAsistencia ? (
+          <div className="text-center py-6 text-white/40 text-sm">Cargando...</div>
+        ) : (
+          <>
+            {categoriaAsistencia === 'ACTIVO' ? (
+              misNormales.length > 0 ? (
+                <TablaAsistencia titulo="Asistencia" filas={misNormales} columnas={columnasDias} mostrarSitu />
+              ) : (
+                <div className="text-center py-4 text-white/40 text-sm">No hay registros de asistencia para vos este mes.</div>
+              )
+            ) : (
+              <>
+                {misNormales.length > 0 && <TablaAsistencia titulo="Guardias Normales" filas={misNormales} columnas={columnasDias} mostrarSitu />}
+                {misEspeciales.length > 0 && <TablaAsistencia titulo="Guardias Especiales" filas={misEspeciales} columnas={columnasDias} mostrarSitu />}
+                {misNormales.length === 0 && misEspeciales.length === 0 && (
+                  <div className="text-center py-4 text-white/40 text-sm">No hay registros de guardias para vos este mes.</div>
+                )}
+              </>
+            )}
+
+            {categoriaAsistencia === 'COMBATIENTE' && misPracticas.length > 0 && (
+              <TablaAsistencia titulo="Practicas (sabados del mes)" filas={misPracticas} columnas={dataPC?.sabados || []} />
+            )}
+            {misCitaciones.length > 0 && (
+              <TablaAsistencia titulo={`Citaciones${dataPC?.sinCitaciones ? ' (NO HUBO)' : ''}`} filas={misCitaciones} columnas={dataPC?.fechasCitacion || []} />
+            )}
+
+            {miTotal.length > 0 && (
+              <TablaTotalAcumulado filas={miTotal} categoria={categoriaAsistencia as 'COMBATIENTE' | 'ACTIVO'} />
+            )}
+          </>
+        )}
       </div>
 
 {/* Configurar Acceso */}
