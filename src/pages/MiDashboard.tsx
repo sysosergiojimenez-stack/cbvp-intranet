@@ -12,6 +12,9 @@ import { TablaAsistencia, TablaTotalAcumulado } from '@/components/AsistenciaTab
 
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
+// Oculta la seccion "Metricas de Asistencia" a pedido, sin borrar el codigo.
+const MOSTRAR_METRICAS_ASISTENCIA = false;
+
 function formatearMesAnio(mesAnio: string): string {
   if (!mesAnio) return '-';
   const MESES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
@@ -239,7 +242,9 @@ export default function MiDashboard() {
         </div>
       </div>
 
-      {/* Asistencia Stats */}
+      {/* Asistencia Stats -- oculto a pedido, se deja el codigo por si se
+          quiere volver a mostrar mas adelante */}
+      {MOSTRAR_METRICAS_ASISTENCIA && (
       <div>
         <h3 className="text-sm font-semibold text-white/60 uppercase tracking-wider mb-3">Metricas de Asistencia</h3>
 
@@ -295,6 +300,7 @@ export default function MiDashboard() {
           ))}
         </div>
       </div>
+      )}
 
       {/* Mi Asistencia: misma interfaz que Informe Mensual, solo mi fila */}
       <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-6">
