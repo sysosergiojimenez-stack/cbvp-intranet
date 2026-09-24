@@ -75,8 +75,33 @@ export default function MiDashboard() {
   );
 
   const columnasDias = Array.from({ length: dataAsistencia?.diasDelMes || 0 }, (_, i) => i + 1);
-  const misNormales = soloYo(dataAsistencia?.normales);
-  const misEspeciales = soloYo(dataAsistencia?.especiales);
+
+  // Los refuerzos no forman parte del cuadro de servicio (no se tocan
+  // asistenciaMensualDetallada/totalAcumulado, que son el informe oficial),
+  // pero se marcan igual en la grilla de dias solo para esta vista personal.
+  const diaDeGuardia = (fechaGuardia: string): number | null => {
+    const partes = fechaGuardia.split(' ')[0].split('/');
+    if (partes.length !== 3) return null;
+    const dia = parseInt(partes[0], 10);
+    const mes = parseInt(partes[1], 10);
+    const anio = parseInt(partes[2], 10);
+    if (!dia || mes !== mesAsistencia || anio !== anioAsistencia) return null;
+    return dia;
+  };
+  const diasRefuerzo = new Set(
+    guardiasList
+      .filter(g => g.tipo === 'REFUERZO')
+      .map(g => diaDeGuardia(g.fechaGuardia))
+      .filter((d): d is number => d !== null)
+  );
+  const conRefuerzos = <T extends { dias: string[] }>(filas: T[]): T[] =>
+    diasRefuerzo.size === 0 ? filas : filas.map(f => ({
+      ...f,
+      dias: f.dias.map((d, i) => (!d && diasRefuerzo.has(i + 1)) ? 'R' : d),
+    }));
+
+  const misNormales = conRefuerzos(soloYo(dataAsistencia?.normales));
+  const misEspeciales = conRefuerzos(soloYo(dataAsistencia?.especiales));
   const misPracticas = soloYo(dataPC?.practicas);
   const misCitaciones = soloYo(dataPC?.citaciones);
   const miTotal = soloYo(dataTotal?.filas);
@@ -276,6 +301,12 @@ export default function MiDashboard() {
               <option key={a} value={a}>{a}</option>
             ))}
           </select>
+          <div className="flex items-center gap-3 ml-auto text-[11px] text-white/40">
+            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-cbvp-green/40" />Presente</span>
+            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-cbvp-red/40" />Ausente</span>
+            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-cbvp-blue/40" />Exento</span>
+            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-cbvp-purple/40" />Refuerzo</span>
+          </div>
         </div>
 
         {!categoriaValida ? (

@@ -52,7 +52,8 @@ export function TablaAsistencia({ titulo, filas, columnas, mostrarSitu }: { titu
                   <td key={i} className={`text-center px-1.5 py-1.5 ${
                     d === 'P' ? 'bg-cbvp-green/20 text-cbvp-green font-semibold' :
                     d === 'A' ? 'bg-cbvp-red/20 text-cbvp-red font-semibold' :
-                    d === 'E' ? 'bg-cbvp-blue/20 text-cbvp-blue font-semibold' : ''
+                    d === 'E' ? 'bg-cbvp-blue/20 text-cbvp-blue font-semibold' :
+                    d === 'R' ? 'bg-cbvp-purple/20 text-cbvp-purple font-semibold' : ''
                   }`}>{d}</td>
                 ))}
                 <td className="px-2 py-1.5 text-center font-semibold text-white">{columnas.length === 0 ? '-' : `${p.porcentaje}%`}</td>
