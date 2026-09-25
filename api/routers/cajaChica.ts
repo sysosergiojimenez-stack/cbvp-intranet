@@ -2,87 +2,68 @@ import { z } from "zod";
 import { createRouter, publicQuery } from "../middleware";
 import { getFirestoreClient } from "../services/firestore";
 
+// Caja Chica es un fondo unico (no una lista de cuentas), por eso el
+// resumen editable vive en un solo documento fijo.
+const RESUMEN_DOC_ID = "resumen";
+
 function colCajaChica() {
   return getFirestoreClient().collection("cajaChica");
 }
 
-function generateId(): string {
-  const now = new Date();
-  return (
-    now.getFullYear().toString() +
-    String(now.getMonth() + 1).padStart(2, "0") +
-    String(now.getDate()).padStart(2, "0") +
-    String(now.getHours()).padStart(2, "0") +
-    String(now.getMinutes()).padStart(2, "0") +
-    String(now.getSeconds()).padStart(2, "0") +
-    String(now.getMilliseconds()).padStart(3, "0")
-  );
-}
-
 export const cajaChicaRouter = createRouter({
   listado: publicQuery.query(async () => {
-    const snap = await colCajaChica().get();
+    const [resumenSnap, ordenesSnap] = await Promise.all([
+      colCajaChica().doc(RESUMEN_DOC_ID).get(),
+      getFirestoreClient().collection("ordenesPago").get(),
+    ]);
 
-    const movimientos = snap.docs
+    const resumen = resumenSnap.data();
+    const saldoAnterior = Number(resumen?.saldoAnterior) || 0;
+    const gastos = Number(resumen?.gastos) || 0;
+    const observaciones = String(resumen?.observaciones || "");
+
+    // Los ingresos de Caja Chica son las Ordenes de Pago emitidas para
+    // reponer el fondo (tipoMovimiento = CAJA_CHICA). Los gastos todavia
+    // no tienen un modulo que los registre, por eso se cargan a mano.
+    const ordenes = ordenesSnap.docs
       .map((doc) => {
         const fila = doc.data();
-        const saldoAnterior = Number(fila.saldoAnterior) || 0;
-        const ingresos = Number(fila.ingresos) || 0;
-        const gastos = Number(fila.gastos) || 0;
         return {
           id: doc.id,
+          numero: Number(fila.numero) || 0,
+          anio: Number(fila.anio) || 0,
           fecha: String(fila.fecha || ""),
-          observaciones: String(fila.observaciones || ""),
-          saldoAnterior,
-          ingresos,
-          gastos,
-          saldo: saldoAnterior + ingresos - gastos,
+          bancoNombre: String(fila.bancoNombre || ""),
+          tipoMovimiento: String(fila.tipoMovimiento || ""),
+          total: Number(fila.total) || 0,
         };
       })
-      .sort((a, b) => a.fecha.localeCompare(b.fecha));
+      .filter((o) => o.tipoMovimiento === "CAJA_CHICA")
+      .sort((a, b) => b.anio - a.anio || b.numero - a.numero);
 
-    return { exito: true as const, movimientos };
+    const ingresos = ordenes.reduce((acc, o) => acc + o.total, 0);
+
+    return {
+      exito: true as const,
+      saldoAnterior,
+      gastos,
+      observaciones,
+      ingresos,
+      saldo: saldoAnterior + ingresos - gastos,
+      ordenes,
+    };
   }),
 
-  guardar: publicQuery
+  actualizar: publicQuery
     .input(
       z.object({
-        fecha: z.string().min(1),
         saldoAnterior: z.number(),
-        ingresos: z.number(),
         gastos: z.number(),
         observaciones: z.string(),
       })
     )
     .mutation(async ({ input }) => {
-      const id = generateId();
-      await colCajaChica()
-        .doc(id)
-        .set({ ...input, fechaCarga: new Date().toISOString() });
-      return { exito: true as const, id };
-    }),
-
-  editar: publicQuery
-    .input(
-      z.object({
-        id: z.string().min(1),
-        fecha: z.string().min(1),
-        saldoAnterior: z.number(),
-        ingresos: z.number(),
-        gastos: z.number(),
-        observaciones: z.string(),
-      })
-    )
-    .mutation(async ({ input }) => {
-      const { id, ...campos } = input;
-      await colCajaChica().doc(id).update(campos);
-      return { exito: true as const };
-    }),
-
-  eliminar: publicQuery
-    .input(z.object({ id: z.string().min(1) }))
-    .mutation(async ({ input }) => {
-      await colCajaChica().doc(input.id).delete();
+      await colCajaChica().doc(RESUMEN_DOC_ID).set(input, { merge: true });
       return { exito: true as const };
     }),
 });
