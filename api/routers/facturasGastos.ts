@@ -81,7 +81,9 @@ export const facturasGastosRouter = createRouter({
         proveedor: z.string().min(1),
         detalle: z.string(),
         monto: z.number().min(0),
-        pagadoDesde: z.string().min(1),
+        pagadoDesdeTipo: z.enum(["CAJA_CHICA", "ORDEN_PAGO"]),
+        pagadoDesdeOrdenId: z.string().optional(),
+        pagadoDesdeLabel: z.string().min(1),
         urlDocumento: z.string(),
         cargadoPor: z.string().optional(),
       })
@@ -90,7 +92,12 @@ export const facturasGastosRouter = createRouter({
       const id = generateId();
       await colFacturasGastos()
         .doc(id)
-        .set({ ...input, cargadoPor: input.cargadoPor || "", fechaCarga: new Date().toISOString() });
+        .set({
+          ...input,
+          pagadoDesdeOrdenId: input.pagadoDesdeOrdenId || "",
+          cargadoPor: input.cargadoPor || "",
+          fechaCarga: new Date().toISOString(),
+        });
       return { exito: true as const, id };
     }),
 
@@ -103,12 +110,16 @@ export const facturasGastosRouter = createRouter({
         proveedor: z.string().min(1),
         detalle: z.string(),
         monto: z.number().min(0),
-        pagadoDesde: z.string().min(1),
+        pagadoDesdeTipo: z.enum(["CAJA_CHICA", "ORDEN_PAGO"]),
+        pagadoDesdeOrdenId: z.string().optional(),
+        pagadoDesdeLabel: z.string().min(1),
       })
     )
     .mutation(async ({ input }) => {
       const { id, ...campos } = input;
-      await colFacturasGastos().doc(id).update(campos);
+      await colFacturasGastos()
+        .doc(id)
+        .update({ ...campos, pagadoDesdeOrdenId: campos.pagadoDesdeOrdenId || "" });
       return { exito: true as const };
     }),
 
@@ -124,7 +135,9 @@ export const facturasGastosRouter = createRouter({
           proveedor: String(fila.proveedor || ""),
           detalle: String(fila.detalle || ""),
           monto: Number(fila.monto) || 0,
-          pagadoDesde: String(fila.pagadoDesde || ""),
+          pagadoDesdeTipo: fila.pagadoDesdeTipo === "ORDEN_PAGO" ? ("ORDEN_PAGO" as const) : ("CAJA_CHICA" as const),
+          pagadoDesdeOrdenId: String(fila.pagadoDesdeOrdenId || ""),
+          pagadoDesdeLabel: String(fila.pagadoDesdeLabel || ""),
           urlDocumento: String(fila.urlDocumento || ""),
           fechaCarga: String(fila.fechaCarga || ""),
         };

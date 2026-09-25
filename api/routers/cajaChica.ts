@@ -12,19 +12,18 @@ function colCajaChica() {
 
 export const cajaChicaRouter = createRouter({
   listado: publicQuery.query(async () => {
-    const [resumenSnap, ordenesSnap] = await Promise.all([
+    const [resumenSnap, ordenesSnap, facturasSnap] = await Promise.all([
       colCajaChica().doc(RESUMEN_DOC_ID).get(),
       getFirestoreClient().collection("ordenesPago").get(),
+      getFirestoreClient().collection("facturasGastos").get(),
     ]);
 
     const resumen = resumenSnap.data();
     const saldoAnterior = Number(resumen?.saldoAnterior) || 0;
-    const gastos = Number(resumen?.gastos) || 0;
     const observaciones = String(resumen?.observaciones || "");
 
     // Los ingresos de Caja Chica son las Ordenes de Pago emitidas para
-    // reponer el fondo (tipoMovimiento = CAJA_CHICA). Los gastos todavia
-    // no tienen un modulo que los registre, por eso se cargan a mano.
+    // reponer el fondo (tipoMovimiento = CAJA_CHICA).
     const ordenes = ordenesSnap.docs
       .map((doc) => {
         const fila = doc.data();
@@ -43,14 +42,34 @@ export const cajaChicaRouter = createRouter({
 
     const ingresos = ordenes.reduce((acc, o) => acc + o.total, 0);
 
+    // Los gastos de Caja Chica son las Facturas de Gastos cargadas con
+    // Pagado Desde = Caja Chica.
+    const facturas = facturasSnap.docs
+      .map((doc) => {
+        const fila = doc.data();
+        return {
+          id: doc.id,
+          nroFactura: String(fila.nroFactura || ""),
+          fecha: String(fila.fecha || ""),
+          proveedor: String(fila.proveedor || ""),
+          monto: Number(fila.monto) || 0,
+          pagadoDesdeTipo: fila.pagadoDesdeTipo === "ORDEN_PAGO" ? ("ORDEN_PAGO" as const) : ("CAJA_CHICA" as const),
+        };
+      })
+      .filter((f) => f.pagadoDesdeTipo === "CAJA_CHICA")
+      .sort((a, b) => b.fecha.localeCompare(a.fecha));
+
+    const gastos = facturas.reduce((acc, f) => acc + f.monto, 0);
+
     return {
       exito: true as const,
       saldoAnterior,
-      gastos,
       observaciones,
       ingresos,
+      gastos,
       saldo: saldoAnterior + ingresos - gastos,
       ordenes,
+      facturas,
     };
   }),
 
@@ -58,7 +77,6 @@ export const cajaChicaRouter = createRouter({
     .input(
       z.object({
         saldoAnterior: z.number(),
-        gastos: z.number(),
         observaciones: z.string(),
       })
     )

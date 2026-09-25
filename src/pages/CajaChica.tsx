@@ -20,7 +20,6 @@ export default function CajaChica() {
 
   const [editando, setEditando] = useState(false);
   const [saldoAnterior, setSaldoAnterior] = useState('');
-  const [gastos, setGastos] = useState('');
   const [observaciones, setObservaciones] = useState('');
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState('');
@@ -28,7 +27,6 @@ export default function CajaChica() {
   const iniciarEdicion = () => {
     if (!data?.exito) return;
     setSaldoAnterior(String(data.saldoAnterior));
-    setGastos(String(data.gastos));
     setObservaciones(data.observaciones);
     setError('');
     setEditando(true);
@@ -40,7 +38,6 @@ export default function CajaChica() {
     try {
       await actualizarMutation.mutateAsync({
         saldoAnterior: parseMonto(saldoAnterior),
-        gastos: parseMonto(gastos),
         observaciones: observaciones.trim(),
       });
       setEditando(false);
@@ -53,8 +50,10 @@ export default function CajaChica() {
   };
 
   const ingresos = data?.exito ? data.ingresos : 0;
+  const gastos = data?.exito ? data.gastos : 0;
   const saldo = data?.exito ? data.saldo : 0;
   const ordenes = data?.exito ? data.ordenes : [];
+  const facturas = data?.exito ? data.facturas : [];
 
   return (
     <div className="animate-fade-in space-y-6">
@@ -74,21 +73,15 @@ export default function CajaChica() {
           <div className="p-4 text-sm text-white/40">Cargando...</div>
         ) : editando ? (
           <div className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs text-white/40 uppercase tracking-wider mb-1">Saldo Anterior (Gs.)</label>
-                <input type="text" value={saldoAnterior} onChange={(e) => setSaldoAnterior(e.target.value)} placeholder="0" className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" />
-              </div>
-              <div>
-                <label className="block text-xs text-white/40 uppercase tracking-wider mb-1">Gastos (Gs.)</label>
-                <input type="text" value={gastos} onChange={(e) => setGastos(e.target.value)} placeholder="0" className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" />
-              </div>
+            <div>
+              <label className="block text-xs text-white/40 uppercase tracking-wider mb-1">Saldo Anterior (Gs.)</label>
+              <input type="text" value={saldoAnterior} onChange={(e) => setSaldoAnterior(e.target.value)} placeholder="0" className="w-full max-w-xs bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" />
             </div>
             <div>
               <label className="block text-xs text-white/40 uppercase tracking-wider mb-1">Observaciones</label>
               <input type="text" value={observaciones} onChange={(e) => setObservaciones(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" />
             </div>
-            <p className="text-xs text-white/30">Ingresos se calcula automaticamente sumando las Ordenes de Pago con tipo de movimiento "Caja Chica".</p>
+            <p className="text-xs text-white/30">Ingresos se calcula sumando las Ordenes de Pago con tipo de movimiento "Caja Chica". Gastos se calcula sumando las Facturas de Gastos con Pagado Desde = Caja Chica.</p>
 
             {error && <p className="text-sm text-red-400">{error}</p>}
 
@@ -114,7 +107,7 @@ export default function CajaChica() {
                 <tr>
                   <td className="px-2 py-1.5 text-white/60 text-right whitespace-nowrap">{formatearGs(data?.exito ? data.saldoAnterior : 0)}</td>
                   <td className="px-2 py-1.5 text-cbvp-green text-right whitespace-nowrap">{formatearGs(ingresos)}</td>
-                  <td className="px-2 py-1.5 text-cbvp-red-light text-right whitespace-nowrap">{formatearGs(data?.exito ? data.gastos : 0)}</td>
+                  <td className="px-2 py-1.5 text-cbvp-red-light text-right whitespace-nowrap">{formatearGs(gastos)}</td>
                   <td className={`px-2 py-1.5 text-right font-semibold whitespace-nowrap ${saldo < 0 ? 'text-cbvp-red-light' : 'text-white'}`}>{formatearGs(saldo)}</td>
                 </tr>
               </tbody>
@@ -160,6 +153,47 @@ export default function CajaChica() {
                 <tr className="bg-white/5 font-semibold">
                   <td colSpan={3} className="px-2 py-2 text-right text-white/70">TOTAL:</td>
                   <td className="px-2 py-2 text-right text-cbvp-green">{formatearGs(ingresos)}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        )}
+      </div>
+
+      <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-6">
+        <h3 className="text-sm font-semibold text-white/60 uppercase tracking-wider mb-1">Gastos por Facturas</h3>
+        <p className="text-xs text-white/30 mb-4">
+          Facturas de Gastos cargadas con Pagado Desde = Caja Chica. Se suman automaticamente al Gastos de arriba.
+        </p>
+        {isLoading ? (
+          <div className="p-4 text-sm text-white/40">Cargando...</div>
+        ) : facturas.length === 0 ? (
+          <div className="p-4 text-sm text-white/40">No hay Facturas de Gastos pagadas desde Caja Chica todavia.</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs sm:text-sm">
+              <thead>
+                <tr className="bg-white/5 border-b border-white/10">
+                  <th className="text-left px-2 py-2 font-medium text-white/50">Nro Factura</th>
+                  <th className="text-left px-2 py-2 font-medium text-white/50">Fecha</th>
+                  <th className="text-left px-2 py-2 font-medium text-white/50">Proveedor</th>
+                  <th className="text-right px-2 py-2 font-medium text-white/50">Monto</th>
+                </tr>
+              </thead>
+              <tbody>
+                {facturas.map((f) => (
+                  <tr key={f.id} className="border-b border-white/5">
+                    <td className="px-2 py-1.5 text-white/80 whitespace-nowrap">{f.nroFactura || '-'}</td>
+                    <td className="px-2 py-1.5 text-white/60 whitespace-nowrap">{f.fecha}</td>
+                    <td className="px-2 py-1.5 text-white/60 whitespace-nowrap">{f.proveedor}</td>
+                    <td className="px-2 py-1.5 text-cbvp-red-light text-right whitespace-nowrap">{formatearGs(f.monto)}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="bg-white/5 font-semibold">
+                  <td colSpan={3} className="px-2 py-2 text-right text-white/70">TOTAL:</td>
+                  <td className="px-2 py-2 text-right text-cbvp-red-light">{formatearGs(gastos)}</td>
                 </tr>
               </tfoot>
             </table>

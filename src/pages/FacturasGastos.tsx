@@ -30,13 +30,60 @@ function formatearGs(valor: number): string {
   return valor.toLocaleString('es-PY');
 }
 
+interface OrdenPagoResumen {
+  id: string;
+  numero: number;
+  anio: number;
+  bancoNombre: string;
+  total: number;
+}
+
+const VALOR_CAJA_CHICA = 'CAJA_CHICA';
+
+function labelOrden(o: OrdenPagoResumen): string {
+  return `OP ${o.numero}/${o.anio} - ${o.bancoNombre} (${formatearGs(o.total)} Gs)`;
+}
+
+function valorDeOrden(ordenId: string): string {
+  return `ORDEN:${ordenId}`;
+}
+
+// El desplegable de "Pagado Desde" codifica en un solo valor si se eligio
+// Caja Chica o una Orden de Pago especifica; esta funcion lo separa en los
+// 3 campos que se guardan (tipo, id de la orden y una etiqueta legible que
+// no depende de que la orden siga existiendo despues).
+function parsePagadoDesde(valor: string, ordenes: OrdenPagoResumen[]): { tipo: 'CAJA_CHICA' | 'ORDEN_PAGO'; ordenId: string; label: string } | null {
+  if (!valor) return null;
+  if (valor === VALOR_CAJA_CHICA) return { tipo: 'CAJA_CHICA', ordenId: '', label: 'Caja Chica' };
+  const ordenId = valor.replace(/^ORDEN:/, '');
+  const orden = ordenes.find((o) => o.id === ordenId);
+  if (!orden) return null;
+  return { tipo: 'ORDEN_PAGO', ordenId, label: labelOrden(orden) };
+}
+
+function SelectPagadoDesde({ value, onChange, ordenes }: { value: string; onChange: (v: string) => void; ordenes: OrdenPagoResumen[] }) {
+  return (
+    <select value={value} onChange={(e) => onChange(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none">
+      <option value="">Seleccionar...</option>
+      <option value={VALOR_CAJA_CHICA}>Caja Chica</option>
+      {ordenes.length > 0 && (
+        <optgroup label="Ordenes de Pago">
+          {ordenes.map((o) => (
+            <option key={o.id} value={valorDeOrden(o.id)}>{labelOrden(o)}</option>
+          ))}
+        </optgroup>
+      )}
+    </select>
+  );
+}
+
 interface DatosExtraidos {
   nroFactura: string;
   fecha: string;
   proveedor: string;
   detalle: string;
   monto: number;
-  pagadoDesde: string;
+  pagadoDesdeValor: string;
   urlDocumento: string;
   uploadError?: string;
 }
@@ -47,16 +94,17 @@ interface EditForm {
   proveedor: string;
   detalle: string;
   monto: string;
-  pagadoDesde: string;
+  pagadoDesdeValor: string;
 }
 
 export default function FacturasGastos() {
   const { usuario } = useAuth();
   const utils = trpc.useUtils();
 
-  const { data: cuentasData } = trpc.cuentasEntidades.listado.useQuery();
-  const cuentas = cuentasData?.exito ? cuentasData.cuentas : [];
-  const opcionesPagadoDesde = ['Caja Chica', ...cuentas.map((c) => c.nombre)];
+  const { data: ordenesData } = trpc.ordenesPago.listado.useQuery();
+  const ordenes: OrdenPagoResumen[] = ordenesData?.exito
+    ? ordenesData.ordenes.map((o) => ({ id: o.id, numero: o.numero, anio: o.anio, bancoNombre: o.bancoNombre, total: o.total }))
+    : [];
 
   const { data: listadoData, isLoading: cargandoListado } = trpc.facturasGastos.listado.useQuery();
   const facturas = listadoData?.exito ? listadoData.facturas : [];
@@ -101,7 +149,7 @@ export default function FacturasGastos() {
         proveedor: res.proveedor,
         detalle: res.detalle,
         monto: res.monto,
-        pagadoDesde: '',
+        pagadoDesdeValor: '',
         urlDocumento: res.urlDocumento,
         uploadError: res.uploadError,
       });
@@ -114,7 +162,8 @@ export default function FacturasGastos() {
 
   const handleGuardar = async () => {
     if (!datos) return;
-    if (!datos.pagadoDesde) { setError('Selecciona desde donde se pago esta factura.'); return; }
+    const pagadoDesde = parsePagadoDesde(datos.pagadoDesdeValor, ordenes);
+    if (!pagadoDesde) { setError('Selecciona desde donde se pago esta factura.'); return; }
     setGuardando(true); setError('');
     try {
       await guardarMutation.mutateAsync({
@@ -123,7 +172,9 @@ export default function FacturasGastos() {
         proveedor: datos.proveedor,
         detalle: datos.detalle,
         monto: datos.monto,
-        pagadoDesde: datos.pagadoDesde,
+        pagadoDesdeTipo: pagadoDesde.tipo,
+        pagadoDesdeOrdenId: pagadoDesde.ordenId,
+        pagadoDesdeLabel: pagadoDesde.label,
         urlDocumento: datos.urlDocumento,
         cargadoPor: usuario?.codigo || '',
       });
@@ -152,14 +203,15 @@ export default function FacturasGastos() {
       proveedor: f.proveedor,
       detalle: f.detalle,
       monto: String(f.monto),
-      pagadoDesde: f.pagadoDesde,
+      pagadoDesdeValor: f.pagadoDesdeTipo === 'ORDEN_PAGO' ? valorDeOrden(f.pagadoDesdeOrdenId) : VALOR_CAJA_CHICA,
     });
   };
 
   const guardarEdicion = async () => {
     if (editandoId === null || !editForm) return;
     setEditError('');
-    if (!editForm.proveedor.trim() || !editForm.fecha.trim() || !editForm.pagadoDesde) {
+    const pagadoDesde = parsePagadoDesde(editForm.pagadoDesdeValor, ordenes);
+    if (!editForm.proveedor.trim() || !editForm.fecha.trim() || !pagadoDesde) {
       setEditError('Completa proveedor, fecha y pagado desde.');
       return;
     }
@@ -172,7 +224,9 @@ export default function FacturasGastos() {
         proveedor: editForm.proveedor.trim(),
         detalle: editForm.detalle.trim(),
         monto: Number(editForm.monto) || 0,
-        pagadoDesde: editForm.pagadoDesde,
+        pagadoDesdeTipo: pagadoDesde.tipo,
+        pagadoDesdeOrdenId: pagadoDesde.ordenId,
+        pagadoDesdeLabel: pagadoDesde.label,
       });
       setEditandoId(null);
       utils.facturasGastos.listado.invalidate();
@@ -234,12 +288,7 @@ export default function FacturasGastos() {
               </div>
               <div>
                 <label className="block text-[10px] text-white/40 uppercase tracking-wider mb-1">Pagado Desde</label>
-                <select value={datos.pagadoDesde} onChange={(e) => setDatos({ ...datos, pagadoDesde: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none">
-                  <option value="">Seleccionar...</option>
-                  {opcionesPagadoDesde.map((o) => (
-                    <option key={o} value={o}>{o}</option>
-                  ))}
-                </select>
+                <SelectPagadoDesde value={datos.pagadoDesdeValor} onChange={(v) => setDatos({ ...datos, pagadoDesdeValor: v })} ordenes={ordenes} />
               </div>
             </div>
 
@@ -295,7 +344,7 @@ export default function FacturasGastos() {
                         <td className="px-2 py-1.5 text-white/80 whitespace-nowrap">{f.proveedor}</td>
                         <td className="px-2 py-1.5 text-white/60">{f.detalle || '-'}</td>
                         <td className="px-2 py-1.5 text-white/70 text-right whitespace-nowrap">{formatearGs(f.monto)}</td>
-                        <td className="px-2 py-1.5 text-white/60 whitespace-nowrap">{f.pagadoDesde}</td>
+                        <td className="px-2 py-1.5 text-white/60 whitespace-nowrap">{f.pagadoDesdeLabel}</td>
                         <td className="px-2 py-1.5">
                           {f.urlDocumento ? (
                             <a href={f.urlDocumento} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="text-cbvp-red-light hover:text-cbvp-red-light/80 inline-flex items-center gap-1">
@@ -330,12 +379,7 @@ export default function FacturasGastos() {
                               </div>
                               <div>
                                 <label className="block text-xs text-white/40 uppercase tracking-wider mb-1">Pagado Desde</label>
-                                <select value={editForm.pagadoDesde} onChange={(e) => setEditForm((prev) => prev && ({ ...prev, pagadoDesde: e.target.value }))} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none">
-                                  <option value="">Seleccionar...</option>
-                                  {opcionesPagadoDesde.map((o) => (
-                                    <option key={o} value={o}>{o}</option>
-                                  ))}
-                                </select>
+                                <SelectPagadoDesde value={editForm.pagadoDesdeValor} onChange={(v) => setEditForm((prev) => prev && ({ ...prev, pagadoDesdeValor: v }))} ordenes={ordenes} />
                               </div>
                             </div>
 
