@@ -16,6 +16,11 @@ function filaVacia(): FilaDetalle {
   return { descripcion: '', bancoAlias: '', nroCuenta: '', monto: '' };
 }
 
+const BANCOS_SUGERIDOS = [
+  { nombre: 'Coop. Mercado 4 LTDA.', cuenta: '1009460' },
+  { nombre: 'UENO BANK', cuenta: '194398001' },
+];
+
 function hoyDDMMYYYY(): string {
   const d = new Date();
   return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
@@ -72,6 +77,12 @@ export default function OrdenesPago() {
     setDetalle((prev) => prev.map((f, i) => (i === idx ? { ...f, [campo]: valor } : f)));
   };
   const agregarFila = () => setDetalle((prev) => [...prev, filaVacia()]);
+
+  const handleBancoNombreChange = (valor: string) => {
+    setBancoNombre(valor);
+    const sugerido = BANCOS_SUGERIDOS.find((b) => b.nombre.toLowerCase() === valor.trim().toLowerCase());
+    if (sugerido) setBancoCuenta(sugerido.cuenta);
+  };
   const quitarFila = (idx: number) => setDetalle((prev) => (prev.length > 1 ? prev.filter((_, i) => i !== idx) : prev));
 
   const handleGuardar = async () => {
@@ -162,7 +173,19 @@ export default function OrdenesPago() {
           </div>
           <div>
             <label className="block text-xs text-white/40 uppercase tracking-wider mb-1">Banco de la Compania</label>
-            <input type="text" value={bancoNombre} onChange={(e) => setBancoNombre(e.target.value)} placeholder="Ej. UENO BANK" className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" />
+            <input
+              type="text"
+              list="bancos-sugeridos-op"
+              value={bancoNombre}
+              onChange={(e) => handleBancoNombreChange(e.target.value)}
+              placeholder="Ej. UENO BANK"
+              className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none"
+            />
+            <datalist id="bancos-sugeridos-op">
+              {BANCOS_SUGERIDOS.map((b) => (
+                <option key={b.nombre} value={b.nombre} />
+              ))}
+            </datalist>
           </div>
           <div>
             <label className="block text-xs text-white/40 uppercase tracking-wider mb-1">Nr. de Cuenta</label>
