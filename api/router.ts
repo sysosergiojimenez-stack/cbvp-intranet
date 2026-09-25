@@ -15,6 +15,7 @@ import { notificacionesRouter } from "./routers/notificaciones";
 import { cuotasBomberosRouter } from "./routers/cuotasBomberos";
 import { ordenesPagoRouter } from "./routers/ordenesPago";
 import { cuentasEntidadesRouter } from "./routers/cuentasEntidades";
+import { cajaChicaRouter } from "./routers/cajaChica";
 
 export const appRouter = createRouter({
   ping: publicQuery.query(() => ({ ok: true, ts: Date.now() })),
@@ -35,6 +36,7 @@ export const appRouter = createRouter({
   cuotasBomberos: cuotasBomberosRouter,
   ordenesPago: ordenesPagoRouter,
   cuentasEntidades: cuentasEntidadesRouter,
+  cajaChica: cajaChicaRouter,
 });
 
 export type AppRouter = typeof appRouter;

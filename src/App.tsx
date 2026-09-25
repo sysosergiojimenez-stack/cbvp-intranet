@@ -24,6 +24,7 @@ import RendicionesCombustible from '@/pages/RendicionesCombustible';
 import CuotasBomberos from '@/pages/CuotasBomberos';
 import OrdenesPago from '@/pages/OrdenesPago';
 import CuentasEntidades from '@/pages/CuentasEntidades';
+import CajaChica from '@/pages/CajaChica';
 import InformeIncendio from '@/pages/InformeIncendio';
 import Notificaciones from '@/pages/Notificaciones';
 
@@ -147,6 +148,11 @@ function AppRoutes() {
         <Route path="/cuentas-entidades" element={
           <ProtectedRoute>
             {permisos.puedeVerDireccionAdministrativa ? <CuentasEntidades /> : <Navigate to="/" replace />}
+          </ProtectedRoute>
+        } />
+        <Route path="/caja-chica" element={
+          <ProtectedRoute>
+            {permisos.puedeVerDireccionAdministrativa ? <CajaChica /> : <Navigate to="/" replace />}
           </ProtectedRoute>
         } />
         <Route path="/informe-servicios" element={
