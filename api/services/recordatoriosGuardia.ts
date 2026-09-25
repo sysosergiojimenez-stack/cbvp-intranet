@@ -1,6 +1,7 @@
 import { getFirestoreClient } from "./firestore";
 import { crearNotificacion } from "./notificacionesFirestore";
 import { enviarNotificacion } from "./pushNotifications";
+import { fechaParaguay } from "../lib/fechas";
 
 function db() {
   return getFirestoreClient();
@@ -13,20 +14,8 @@ function idCalendario(idGrupo: string, anio: number, mes: number): string {
   return `${idGrupo}_${anio}_${mes}`;
 }
 
-// Fecha de manana en huso horario de Paraguay -- el contenedor de Cloud Run
-// corre en UTC, y calcular "manana" con el reloj del sistema sin fijar el
-// huso horario puede dar el dia equivocado segun la hora en que corra el job.
 function manana(): { dia: number; mes: number; anio: number; etiqueta: string } {
-  const referencia = new Date(Date.now() + 24 * 60 * 60 * 1000);
-  const partes = new Intl.DateTimeFormat("es-PY", {
-    timeZone: "America/Asuncion",
-    day: "numeric",
-    month: "numeric",
-    year: "numeric",
-  }).formatToParts(referencia);
-  const dia = Number(partes.find((p) => p.type === "day")?.value || 0);
-  const mes = Number(partes.find((p) => p.type === "month")?.value || 0);
-  const anio = Number(partes.find((p) => p.type === "year")?.value || 0);
+  const { dia, mes, anio } = fechaParaguay(1);
   return { dia, mes, anio, etiqueta: `${dia}/${mes}/${anio}` };
 }
 
@@ -64,7 +53,8 @@ export async function enviarRecordatoriosGuardia(): Promise<{ gruposAvisados: nu
 
       const titulo = "Recordatorio de guardia";
       const mensaje = `Tenes guardia manana ${etiqueta}${nombreGrupo ? ` (${nombreGrupo})` : ""}.`;
-      const link = idRol ? `/roles-guardia/${idRol}` : "/roles-guardia";
+      const fechaISO = `${anio}-${String(mes).padStart(2, "0")}-${String(dia).padStart(2, "0")}`;
+      const link = idRol ? `/mi-guardia/${idRol}/${idGrupo}?fecha=${fechaISO}` : "/roles-guardia";
 
       await Promise.all(
         codigos.map((codigo) =>

@@ -16,6 +16,7 @@ import SalidaMovil from '@/pages/SalidaMovil';
 import InformeAsistencia from '@/pages/InformeAsistencia';
 import RolesGuardia from '@/pages/RolesGuardia';
 import RolGuardiaDetalle from '@/pages/RolGuardiaDetalle';
+import MiGuardiaGrupo from '@/pages/MiGuardiaGrupo';
 import Moviles from '@/pages/Moviles';
 import MaterialMenor from '@/pages/MaterialMenor';
 import ControlMovil from '@/pages/ControlMovil';
@@ -95,6 +96,11 @@ function AppRoutes() {
         <Route path="/roles-guardia/:id" element={
           <ProtectedRoute>
             {permisos.puedeGestionarRolesGuardia ? <RolGuardiaDetalle /> : <Navigate to="/" replace />}
+          </ProtectedRoute>
+        } />
+        <Route path="/mi-guardia/:idRol/:idGrupo" element={
+          <ProtectedRoute>
+            <MiGuardiaGrupo />
           </ProtectedRoute>
         } />
         <Route path="/personal" element={

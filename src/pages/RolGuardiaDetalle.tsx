@@ -4,6 +4,7 @@ import { trpc } from '@/providers/trpc';
 import { ArrowLeft, Plus, X, UserPlus, Trash2, Download, FileText } from 'lucide-react';
 import { exportarRolGuardiaPdf } from '@/lib/exportarRolGuardiaPdf';
 import { exportarPlanillasGuardiaPdf } from '@/lib/exportarPlanillasGuardiaPdf';
+import { DIAS_SEMANA, generarSemanasCalendario } from '@/lib/calendario';
 
 const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
@@ -85,30 +86,6 @@ function AgregarPersonalForm({ idRol, idGrupo, onCerrar }: { idRol: string; idGr
       )}
     </div>
   );
-}
-
-const DIAS_SEMANA = ['LU', 'MA', 'MI', 'JU', 'VI', 'SA', 'DO'];
-
-function generarSemanasCalendario(anio: number, mes: number): (number | null)[][] {
-  const primerDia = new Date(anio, mes - 1, 1);
-  const numDias = new Date(anio, mes, 0).getDate();
-  let diaSemanaInicio = primerDia.getDay();
-  diaSemanaInicio = diaSemanaInicio === 0 ? 6 : diaSemanaInicio - 1;
-
-  const semanas: (number | null)[][] = [];
-  let semanaActual: (number | null)[] = new Array(diaSemanaInicio).fill(null);
-  for (let dia = 1; dia <= numDias; dia++) {
-    semanaActual.push(dia);
-    if (semanaActual.length === 7) {
-      semanas.push(semanaActual);
-      semanaActual = [];
-    }
-  }
-  if (semanaActual.length > 0) {
-    while (semanaActual.length < 7) semanaActual.push(null);
-    semanas.push(semanaActual);
-  }
-  return semanas;
 }
 
 function CalendarioGrupo({ idGrupo, anio, mes, diasIniciales }: { idGrupo: string; anio: number; mes: number; diasIniciales: number[] }) {

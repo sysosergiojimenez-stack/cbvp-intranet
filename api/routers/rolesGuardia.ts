@@ -3,7 +3,7 @@ import { formatearNombreCompleto } from "../lib/nombres";
 import { createRouter, publicQuery } from "../middleware";
 import { getFirestoreClient } from "../services/firestore";
 import { obtenerUsuariosComoFilas } from "../services/usuariosFirestore";
-import { normalizarFechaISO } from "../lib/fechas";
+import { normalizarFechaISO, fechaParaguay } from "../lib/fechas";
 import { crearNotificacion } from "../services/notificacionesFirestore";
 import { enviarNotificacion } from "../services/pushNotifications";
 
@@ -46,6 +46,22 @@ async function etiquetaRol(idRol: string): Promise<string> {
   return anioInicio === anioFin
     ? `${MESES[mesInicio - 1]} - ${MESES[mesFin - 1]} ${anioFin}`
     : `${MESES[mesInicio - 1]} ${anioInicio} - ${MESES[mesFin - 1]} ${anioFin}`;
+}
+
+// Mapa codigo -> nombre completo formateado, a partir de las filas del
+// padron (obtenerUsuariosComoFilas). Usado por obtenerDetalle y
+// obtenerParaMiGuardia para no repetir el mismo loop de resolucion de nombres.
+function construirNombrePorCodigo(usuariosData: unknown[][]): Map<string, string> {
+  const nombrePorCodigo = new Map<string, string>();
+  for (let i = 1; i < usuariosData.length; i++) {
+    const codigo = String(usuariosData[i][1] || "").trim();
+    const primerNombre = String(usuariosData[i][7] || "").trim();
+    const primerApellido = String(usuariosData[i][9] || "").trim();
+    const rangoFila = String(usuariosData[i][5] || "").trim();
+    const categoriaFila = String(usuariosData[i][3] || "").trim();
+    if (codigo) nombrePorCodigo.set(codigo, formatearNombreCompleto(rangoFila, categoriaFila, primerNombre, primerApellido));
+  }
+  return nombrePorCodigo;
 }
 
 export const rolesGuardiaRouter = createRouter({
@@ -151,15 +167,7 @@ export const rolesGuardiaRouter = createRouter({
 
       const personalSnap = await colPersonal().where("idRol", "==", input.idRol).get();
       const usuariosData = await obtenerUsuariosComoFilas();
-      const nombrePorCodigo = new Map<string, string>();
-      for (let i = 1; i < usuariosData.length; i++) {
-        const codigo = String(usuariosData[i][1] || "").trim();
-        const primerNombre = String(usuariosData[i][7] || "").trim();
-        const primerApellido = String(usuariosData[i][9] || "").trim();
-        const rangoFila = String(usuariosData[i][5] || "").trim();
-        const categoriaFila = String(usuariosData[i][3] || "").trim();
-        if (codigo) nombrePorCodigo.set(codigo, formatearNombreCompleto(rangoFila, categoriaFila, primerNombre, primerApellido));
-      }
+      const nombrePorCodigo = construirNombrePorCodigo(usuariosData);
 
       async function diasGuardados(idGrupo: string, anio: number, mes: number): Promise<number[]> {
         const doc = await colCalendario().doc(idCalendario(idGrupo, anio, mes)).get();
@@ -264,6 +272,59 @@ export const rolesGuardiaRouter = createRouter({
       noAsignados.sort((a, b) => a.nombre.localeCompare(b.nombre));
 
       return { exito: true as const, cabecera, grupos: gruposConPersonal, especiales, licencias, activos, noAsignados };
+    }),
+
+  // Vista simplificada para un bombero notificado de guardia: su grupo
+  // dentro del rol (listado de personal) + los dias de guardia del grupo
+  // para el mes actual. Solo devuelve datos si el codigo pertenece al
+  // grupo -- evita que un bombero vea el roster de un grupo ajeno
+  // cambiando el idGrupo de la URL.
+  obtenerParaMiGuardia: publicQuery
+    .input(z.object({ idRol: z.string(), idGrupo: z.string(), codigo: z.string() }))
+    .query(async ({ input }) => {
+      const grupoDoc = await colGrupos().doc(input.idGrupo).get();
+      if (!grupoDoc.exists || String(grupoDoc.data()!.idRol || "") !== input.idRol) {
+        return { exito: false as const, error: "Grupo de guardia no encontrado" };
+      }
+
+      const personalSnap = await colPersonal().where("idGrupo", "==", input.idGrupo).get();
+      const codigoNormalizado = input.codigo.trim();
+      const perteneceAlGrupo = personalSnap.docs.some(
+        (d) => String(d.data().codigo || "").trim() === codigoNormalizado
+      );
+      if (!perteneceAlGrupo) {
+        return { exito: false as const, error: "No tenes acceso a este grupo de guardia" };
+      }
+
+      const usuariosData = await obtenerUsuariosComoFilas();
+      const nombrePorCodigo = construirNombrePorCodigo(usuariosData);
+      const personal = personalSnap.docs
+        .map((doc) => {
+          const fila = doc.data();
+          const codigo = String(fila.codigo || "").trim();
+          return {
+            id: doc.id,
+            codigo,
+            nombre: nombrePorCodigo.get(codigo) || codigo,
+            radial: String(fila.radial || ""),
+            asignacion: String(fila.asignacion || ""),
+            orden: Number(fila.orden) || 0,
+          };
+        })
+        .sort((a, b) => a.orden - b.orden);
+
+      const { anio, mes } = fechaParaguay(0);
+      const calDoc = await colCalendario().doc(idCalendario(input.idGrupo, anio, mes)).get();
+      const diasGuardia: number[] = calDoc.exists && Array.isArray(calDoc.data()!.dias) ? calDoc.data()!.dias : [];
+
+      return {
+        exito: true as const,
+        nombreGrupo: String(grupoDoc.data()!.nombreGrupo || ""),
+        personal,
+        anio,
+        mes,
+        diasGuardia,
+      };
     }),
 
   // Agrega una persona a la lista de Guardias Especiales del Rol.

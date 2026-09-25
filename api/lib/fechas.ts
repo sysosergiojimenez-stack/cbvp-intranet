@@ -115,3 +115,22 @@ export function normalizarTipoActividad(valor: string): string {
   }
   return upper;
 }
+
+// Dia/mes/anio de "hoy + offsetDias" en huso horario de Paraguay -- el
+// contenedor de Cloud Run corre en UTC, y calcular fechas con el reloj del
+// sistema sin fijar el huso horario puede dar el dia equivocado segun la
+// hora en que corra el codigo.
+export function fechaParaguay(offsetDias = 0): { dia: number; mes: number; anio: number } {
+  const referencia = new Date(Date.now() + offsetDias * 24 * 60 * 60 * 1000);
+  const partes = new Intl.DateTimeFormat("es-PY", {
+    timeZone: "America/Asuncion",
+    day: "numeric",
+    month: "numeric",
+    year: "numeric",
+  }).formatToParts(referencia);
+  return {
+    dia: Number(partes.find((p) => p.type === "day")?.value || 0),
+    mes: Number(partes.find((p) => p.type === "month")?.value || 0),
+    anio: Number(partes.find((p) => p.type === "year")?.value || 0),
+  };
+}
