@@ -3,9 +3,9 @@ import autoTable from 'jspdf-autotable';
 import { ORGANIZACION } from '@/config/organizacion';
 import { LABEL_TIPO_MOVIMIENTO, type TipoMovimientoOrdenPago } from '@contracts/ordenesPago';
 
-async function cargarEscudoBase64(): Promise<string | null> {
+async function cargarInsigniaBase64(): Promise<string | null> {
   try {
-    const resp = await fetch('/escudo-cbvp.png');
+    const resp = await fetch('/insignia.jpg');
     const blob = await resp.blob();
     return await new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -44,18 +44,18 @@ export interface OrdenPagoExport {
 }
 
 export async function exportarOrdenPagoPdf(orden: OrdenPagoExport) {
-  const escudo = await cargarEscudoBase64();
+  const insignia = await cargarInsigniaBase64();
   const doc = new jsPDF('portrait', 'mm', 'a4');
   const pageWidth = doc.internal.pageSize.getWidth();
 
   const y0 = 10;
-  if (escudo) {
+  if (insignia) {
     try {
-      const props = doc.getImageProperties(escudo);
+      const props = doc.getImageProperties(insignia);
       const ratio = props.width / props.height || 1;
       const h = 20;
       const w = h * ratio;
-      doc.addImage(escudo, 'PNG', 12, y0, w, h);
+      doc.addImage(insignia, 'JPEG', 12, y0, w, h);
     } catch {
       /* ignore */
     }
