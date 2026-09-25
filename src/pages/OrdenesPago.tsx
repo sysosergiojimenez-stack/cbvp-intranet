@@ -1,7 +1,7 @@
 import { Fragment, useState } from 'react';
 import { trpc } from '@/providers/trpc';
 import { useAuth } from '@/context/AuthContext';
-import { Receipt, Plus, Trash2, Save, Download, X, Pencil } from 'lucide-react';
+import { Receipt, Plus, Trash2, Save, Download, X } from 'lucide-react';
 import { TIPOS_MOVIMIENTO_ORDEN_PAGO, LABEL_TIPO_MOVIMIENTO, type TipoMovimientoOrdenPago } from '@contracts/ordenesPago';
 import { exportarOrdenPagoPdf } from '@/lib/exportarOrdenPagoPdf';
 
@@ -390,7 +390,10 @@ export default function OrdenesPago() {
                   const editTotalDetalle = editForm.detalle.reduce((acc, d) => acc + parseMonto(d.monto), 0);
                   return (
                     <Fragment key={o.id}>
-                      <tr className="border-b border-white/5 hover:bg-white/[0.02]">
+                      <tr
+                        onClick={() => (editandoEstaFila ? setEditandoId(null) : iniciarEdicion(o))}
+                        className="border-b border-white/5 hover:bg-white/[0.02] cursor-pointer"
+                      >
                         <td className="px-2 py-1.5 text-white/80 whitespace-nowrap">{o.numero}/{o.anio}</td>
                         <td className="px-2 py-1.5 text-white/70 whitespace-nowrap">{o.fecha}</td>
                         <td className="px-2 py-1.5 text-white/70 whitespace-nowrap">{LABEL_TIPO_MOVIMIENTO[o.tipoMovimiento as TipoMovimientoOrdenPago] || o.tipoMovimiento}</td>
@@ -399,14 +402,9 @@ export default function OrdenesPago() {
                         </td>
                         <td className="px-2 py-1.5 text-white/80 whitespace-nowrap">{o.total.toLocaleString('es-PY')}</td>
                         <td className="px-2 py-1.5">
-                          <div className="flex items-center gap-1">
-                            <button onClick={() => handleExportar(o)} disabled={exportandoId === o.id} className="p-1.5 rounded-lg hover:bg-cbvp-green/20 text-white/40 hover:text-cbvp-green disabled:opacity-50 transition-colors" title="Exportar PDF">
-                              <Download className="w-3.5 h-3.5" />
-                            </button>
-                            <button onClick={() => (editandoEstaFila ? setEditandoId(null) : iniciarEdicion(o))} className="p-1.5 rounded-lg hover:bg-cbvp-blue/20 text-white/40 hover:text-cbvp-blue transition-colors" title="Editar">
-                              <Pencil className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
+                          <button onClick={(e) => { e.stopPropagation(); handleExportar(o); }} disabled={exportandoId === o.id} className="p-1.5 rounded-lg hover:bg-cbvp-green/20 text-white/40 hover:text-cbvp-green disabled:opacity-50 transition-colors" title="Exportar PDF">
+                            <Download className="w-3.5 h-3.5" />
+                          </button>
                         </td>
                       </tr>
                       {editandoEstaFila && (
