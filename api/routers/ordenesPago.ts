@@ -46,6 +46,7 @@ export const ordenesPagoRouter = createRouter({
           numero: Number(fila.numero) || 0,
           anio: Number(fila.anio) || 0,
           fecha: String(fila.fecha || ""),
+          mesaEntrada: String(fila.mesaEntrada || ""),
           bancoNombre: String(fila.bancoNombre || ""),
           bancoCuenta: String(fila.bancoCuenta || ""),
           tipoMovimiento: String(fila.tipoMovimiento || ""),
@@ -67,6 +68,7 @@ export const ordenesPagoRouter = createRouter({
       z.object({
         anio: z.number(),
         fecha: z.string().min(1),
+        mesaEntrada: z.string().optional(),
         bancoNombre: z.string(),
         bancoCuenta: z.string(),
         tipoMovimiento: z.enum(TIPOS_MOVIMIENTO_ORDEN_PAGO),
@@ -97,6 +99,7 @@ export const ordenesPagoRouter = createRouter({
           numero,
           anio: input.anio,
           fecha: input.fecha,
+          mesaEntrada: input.mesaEntrada || "",
           bancoNombre: input.bancoNombre,
           bancoCuenta: input.bancoCuenta,
           tipoMovimiento: input.tipoMovimiento,
@@ -117,6 +120,7 @@ export const ordenesPagoRouter = createRouter({
       z.object({
         id: z.string().min(1),
         fecha: z.string().min(1),
+        mesaEntrada: z.string().optional(),
         bancoNombre: z.string(),
         bancoCuenta: z.string(),
         tipoMovimiento: z.enum(TIPOS_MOVIMIENTO_ORDEN_PAGO),
@@ -131,7 +135,7 @@ export const ordenesPagoRouter = createRouter({
       const total = campos.detalle.reduce((acc, d) => acc + (d.monto || 0), 0);
       await colOrdenesPago()
         .doc(id)
-        .update({ ...campos, total });
+        .update({ ...campos, mesaEntrada: campos.mesaEntrada || "", total });
       return { exito: true as const };
     }),
 

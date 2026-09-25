@@ -23,6 +23,7 @@ const BANCOS_SUGERIDOS = [
 
 interface EditForm {
   fecha: string;
+  mesaEntrada: string;
   bancoNombre: string;
   bancoCuenta: string;
   tipoMovimiento: TipoMovimientoOrdenPago | '';
@@ -33,7 +34,7 @@ interface EditForm {
 }
 
 function editFormVacio(): EditForm {
-  return { fecha: '', bancoNombre: '', bancoCuenta: '', tipoMovimiento: '', detalle: [filaVacia()], observaciones: '', comandanteNombre: '', directorNombre: '' };
+  return { fecha: '', mesaEntrada: '', bancoNombre: '', bancoCuenta: '', tipoMovimiento: '', detalle: [filaVacia()], observaciones: '', comandanteNombre: '', directorNombre: '' };
 }
 
 function hoyDDMMYYYY(): string {
@@ -79,6 +80,7 @@ export default function OrdenesPago() {
   const [editError, setEditError] = useState('');
 
   const [fecha, setFecha] = useState(hoyDDMMYYYY());
+  const [mesaEntrada, setMesaEntrada] = useState('');
   const [bancoNombre, setBancoNombre] = useState('');
   const [bancoCuenta, setBancoCuenta] = useState('');
   const [tipoMovimiento, setTipoMovimiento] = useState<TipoMovimientoOrdenPago | ''>('');
@@ -121,6 +123,7 @@ export default function OrdenesPago() {
       const res = await guardarMutation.mutateAsync({
         anio: anioOrden,
         fecha,
+        mesaEntrada: mesaEntrada.trim(),
         bancoNombre: bancoNombre.trim(),
         bancoCuenta: bancoCuenta.trim(),
         tipoMovimiento,
@@ -137,6 +140,7 @@ export default function OrdenesPago() {
       });
       setExito(`Orden de Pago N° ${res.numero}/${anioOrden} guardada correctamente.`);
       setFecha(hoyDDMMYYYY());
+      setMesaEntrada('');
       setTipoMovimiento('');
       setDetalle([filaVacia()]);
       setObservaciones('');
@@ -160,6 +164,7 @@ export default function OrdenesPago() {
     setEditandoId(orden.id);
     setEditForm({
       fecha: orden.fecha,
+      mesaEntrada: orden.mesaEntrada,
       bancoNombre: orden.bancoNombre,
       bancoCuenta: orden.bancoCuenta,
       tipoMovimiento: orden.tipoMovimiento as TipoMovimientoOrdenPago,
@@ -195,6 +200,7 @@ export default function OrdenesPago() {
       await editarMutation.mutateAsync({
         id: editandoId,
         fecha: editForm.fecha,
+        mesaEntrada: editForm.mesaEntrada.trim(),
         bancoNombre: editForm.bancoNombre.trim(),
         bancoCuenta: editForm.bancoCuenta.trim(),
         tipoMovimiento: editForm.tipoMovimiento,
@@ -245,7 +251,7 @@ export default function OrdenesPago() {
           <Receipt className="w-4 h-4 text-cbvp-red" /> Nueva Orden de Pago
         </h2>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
           <div>
             <label className="block text-xs text-white/40 uppercase tracking-wider mb-1">Fecha</label>
             <input
@@ -253,6 +259,16 @@ export default function OrdenesPago() {
               value={fechaDDMMYYYYaISO(fecha)}
               onChange={(e) => setFecha(fechaISOaDDMMYYYY(e.target.value))}
               className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none [color-scheme:dark]"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-white/40 uppercase tracking-wider mb-1">Mesa de Entrada</label>
+            <input
+              type="text"
+              value={mesaEntrada}
+              onChange={(e) => setMesaEntrada(e.target.value)}
+              placeholder="Se completa despues de enviar"
+              className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none"
             />
           </div>
           <div>
@@ -378,6 +394,7 @@ export default function OrdenesPago() {
                 <tr className="bg-white/5 border-b border-white/10">
                   <th className="text-left px-2 py-2 font-medium text-white/50">OP N°</th>
                   <th className="text-left px-2 py-2 font-medium text-white/50">Fecha</th>
+                  <th className="text-left px-2 py-2 font-medium text-white/50">Mesa Entrada</th>
                   <th className="text-left px-2 py-2 font-medium text-white/50">Tipo</th>
                   <th className="text-left px-2 py-2 font-medium text-white/50">Concepto</th>
                   <th className="text-left px-2 py-2 font-medium text-white/50">Total (Gs.)</th>
@@ -396,6 +413,7 @@ export default function OrdenesPago() {
                       >
                         <td className="px-2 py-1.5 text-white/80 whitespace-nowrap">{o.numero}/{o.anio}</td>
                         <td className="px-2 py-1.5 text-white/70 whitespace-nowrap">{o.fecha}</td>
+                        <td className="px-2 py-1.5 text-white/70 whitespace-nowrap">{o.mesaEntrada || '-'}</td>
                         <td className="px-2 py-1.5 text-white/70 whitespace-nowrap">{LABEL_TIPO_MOVIMIENTO[o.tipoMovimiento as TipoMovimientoOrdenPago] || o.tipoMovimiento}</td>
                         <td className="px-2 py-1.5 text-white/60 max-w-[220px] truncate" title={o.detalle.map((d) => d.descripcion).join(', ')}>
                           {o.detalle.map((d) => d.descripcion).join(', ') || '-'}
@@ -409,8 +427,8 @@ export default function OrdenesPago() {
                       </tr>
                       {editandoEstaFila && (
                         <tr className="border-b border-white/5 bg-white/[0.02]">
-                          <td colSpan={6} className="px-3 pb-4 pt-3">
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
+                          <td colSpan={7} className="px-3 pb-4 pt-3">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
                               <div>
                                 <label className="block text-xs text-white/40 uppercase tracking-wider mb-1">Fecha</label>
                                 <input
@@ -418,6 +436,15 @@ export default function OrdenesPago() {
                                   value={fechaDDMMYYYYaISO(editForm.fecha)}
                                   onChange={(e) => setEditForm((prev) => ({ ...prev, fecha: fechaISOaDDMMYYYY(e.target.value) }))}
                                   className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none [color-scheme:dark]"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-xs text-white/40 uppercase tracking-wider mb-1">Mesa de Entrada</label>
+                                <input
+                                  type="text"
+                                  value={editForm.mesaEntrada}
+                                  onChange={(e) => setEditForm((prev) => ({ ...prev, mesaEntrada: e.target.value }))}
+                                  className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none"
                                 />
                               </div>
                               <div>
