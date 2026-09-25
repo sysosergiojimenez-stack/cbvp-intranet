@@ -112,6 +112,29 @@ export const ordenesPagoRouter = createRouter({
       return { exito: true as const, id, numero };
     }),
 
+  editar: publicQuery
+    .input(
+      z.object({
+        id: z.string().min(1),
+        fecha: z.string().min(1),
+        bancoNombre: z.string(),
+        bancoCuenta: z.string(),
+        tipoMovimiento: z.enum(TIPOS_MOVIMIENTO_ORDEN_PAGO),
+        detalle: z.array(detalleItemSchema).min(1),
+        observaciones: z.string(),
+        comandanteNombre: z.string(),
+        directorNombre: z.string(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const { id, ...campos } = input;
+      const total = campos.detalle.reduce((acc, d) => acc + (d.monto || 0), 0);
+      await colOrdenesPago()
+        .doc(id)
+        .update({ ...campos, total });
+      return { exito: true as const };
+    }),
+
   eliminar: publicQuery
     .input(z.object({ id: z.string().min(1) }))
     .mutation(async ({ input }) => {

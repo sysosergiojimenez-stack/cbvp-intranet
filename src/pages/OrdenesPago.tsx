@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { trpc } from '@/providers/trpc';
 import { useAuth } from '@/context/AuthContext';
-import { Receipt, Plus, Trash2, Save, Download, X } from 'lucide-react';
+import { Receipt, Plus, Trash2, Save, Download, X, Pencil } from 'lucide-react';
 import { TIPOS_MOVIMIENTO_ORDEN_PAGO, LABEL_TIPO_MOVIMIENTO, type TipoMovimientoOrdenPago } from '@contracts/ordenesPago';
 import { exportarOrdenPagoPdf } from '@/lib/exportarOrdenPagoPdf';
 
@@ -20,6 +20,21 @@ const BANCOS_SUGERIDOS = [
   { nombre: 'Coop. Mercado 4 LTDA.', cuenta: '1009460' },
   { nombre: 'UENO BANK', cuenta: '194398001' },
 ];
+
+interface EditForm {
+  fecha: string;
+  bancoNombre: string;
+  bancoCuenta: string;
+  tipoMovimiento: TipoMovimientoOrdenPago | '';
+  detalle: FilaDetalle[];
+  observaciones: string;
+  comandanteNombre: string;
+  directorNombre: string;
+}
+
+function editFormVacio(): EditForm {
+  return { fecha: '', bancoNombre: '', bancoCuenta: '', tipoMovimiento: '', detalle: [filaVacia()], observaciones: '', comandanteNombre: '', directorNombre: '' };
+}
 
 function hoyDDMMYYYY(): string {
   const d = new Date();
@@ -55,7 +70,13 @@ export default function OrdenesPago() {
   const ordenes = listadoData?.exito ? listadoData.ordenes : [];
 
   const guardarMutation = trpc.ordenesPago.guardar.useMutation();
+  const editarMutation = trpc.ordenesPago.editar.useMutation();
   const eliminarMutation = trpc.ordenesPago.eliminar.useMutation();
+
+  const [editandoId, setEditandoId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState<EditForm>(editFormVacio());
+  const [editGuardando, setEditGuardando] = useState(false);
+  const [editError, setEditError] = useState('');
 
   const [fecha, setFecha] = useState(hoyDDMMYYYY());
   const [bancoNombre, setBancoNombre] = useState('');
@@ -130,7 +151,70 @@ export default function OrdenesPago() {
   const handleEliminar = async (id: string) => {
     if (!confirm('Eliminar esta orden de pago?')) return;
     await eliminarMutation.mutateAsync({ id });
+    if (editandoId === id) setEditandoId(null);
     utils.ordenesPago.listado.invalidate();
+  };
+
+  const iniciarEdicion = (orden: (typeof ordenes)[number]) => {
+    setEditError('');
+    setEditandoId(orden.id);
+    setEditForm({
+      fecha: orden.fecha,
+      bancoNombre: orden.bancoNombre,
+      bancoCuenta: orden.bancoCuenta,
+      tipoMovimiento: orden.tipoMovimiento as TipoMovimientoOrdenPago,
+      detalle: orden.detalle.map((d) => ({ descripcion: d.descripcion, bancoAlias: d.bancoAlias, nroCuenta: d.nroCuenta, monto: String(d.monto) })),
+      observaciones: orden.observaciones,
+      comandanteNombre: orden.comandanteNombre,
+      directorNombre: orden.directorNombre,
+    });
+  };
+
+  const handleBancoNombreChangeEdit = (valor: string) => {
+    const sugerido = BANCOS_SUGERIDOS.find((b) => b.nombre.toLowerCase() === valor.trim().toLowerCase());
+    setEditForm((prev) => ({ ...prev, bancoNombre: valor, bancoCuenta: sugerido ? sugerido.cuenta : prev.bancoCuenta }));
+  };
+
+  const actualizarFilaEdit = (idx: number, campo: keyof FilaDetalle, valor: string) => {
+    setEditForm((prev) => ({ ...prev, detalle: prev.detalle.map((f, i) => (i === idx ? { ...f, [campo]: valor } : f)) }));
+  };
+  const agregarFilaEdit = () => setEditForm((prev) => ({ ...prev, detalle: [...prev.detalle, filaVacia()] }));
+  const quitarFilaEdit = (idx: number) => setEditForm((prev) => (prev.detalle.length > 1 ? { ...prev, detalle: prev.detalle.filter((_, i) => i !== idx) } : prev));
+
+  const guardarEdicion = async () => {
+    if (editandoId === null) return;
+    setEditError('');
+    if (!editForm.fecha) { setEditError('Completa la fecha.'); return; }
+    if (!editForm.bancoNombre.trim() || !editForm.bancoCuenta.trim()) { setEditError('Completa el banco y el numero de cuenta de la compania.'); return; }
+    if (!editForm.tipoMovimiento) { setEditError('Selecciona el tipo de movimiento.'); return; }
+    const detalleValido = editForm.detalle.filter((d) => d.descripcion.trim() && parseMonto(d.monto) > 0);
+    if (detalleValido.length === 0) { setEditError('Agrega al menos un concepto con descripcion y monto.'); return; }
+
+    setEditGuardando(true);
+    try {
+      await editarMutation.mutateAsync({
+        id: editandoId,
+        fecha: editForm.fecha,
+        bancoNombre: editForm.bancoNombre.trim(),
+        bancoCuenta: editForm.bancoCuenta.trim(),
+        tipoMovimiento: editForm.tipoMovimiento,
+        detalle: detalleValido.map((d) => ({
+          descripcion: d.descripcion.trim(),
+          bancoAlias: d.bancoAlias.trim(),
+          nroCuenta: d.nroCuenta.trim(),
+          monto: parseMonto(d.monto),
+        })),
+        observaciones: editForm.observaciones.trim(),
+        comandanteNombre: editForm.comandanteNombre.trim(),
+        directorNombre: editForm.directorNombre.trim(),
+      });
+      setEditandoId(null);
+      utils.ordenesPago.listado.invalidate();
+    } catch (err: unknown) {
+      setEditError(err instanceof Error ? err.message : 'Error al guardar');
+    } finally {
+      setEditGuardando(false);
+    }
   };
 
   const handleExportar = async (orden: (typeof ordenes)[number]) => {
@@ -301,27 +385,159 @@ export default function OrdenesPago() {
                 </tr>
               </thead>
               <tbody>
-                {ordenes.map((o) => (
-                  <tr key={o.id} className="border-b border-white/5 hover:bg-white/[0.02]">
-                    <td className="px-2 py-1.5 text-white/80 whitespace-nowrap">{o.numero}/{o.anio}</td>
-                    <td className="px-2 py-1.5 text-white/70 whitespace-nowrap">{o.fecha}</td>
-                    <td className="px-2 py-1.5 text-white/70 whitespace-nowrap">{LABEL_TIPO_MOVIMIENTO[o.tipoMovimiento as TipoMovimientoOrdenPago] || o.tipoMovimiento}</td>
-                    <td className="px-2 py-1.5 text-white/60 max-w-[220px] truncate" title={o.detalle.map((d) => d.descripcion).join(', ')}>
-                      {o.detalle.map((d) => d.descripcion).join(', ') || '-'}
-                    </td>
-                    <td className="px-2 py-1.5 text-white/80 whitespace-nowrap">{o.total.toLocaleString('es-PY')}</td>
-                    <td className="px-2 py-1.5">
-                      <div className="flex items-center gap-1">
-                        <button onClick={() => handleExportar(o)} disabled={exportandoId === o.id} className="p-1.5 rounded-lg hover:bg-cbvp-green/20 text-white/40 hover:text-cbvp-green disabled:opacity-50 transition-colors" title="Exportar PDF">
-                          <Download className="w-3.5 h-3.5" />
-                        </button>
-                        <button onClick={() => handleEliminar(o.id)} className="p-1.5 rounded-lg hover:bg-cbvp-red/20 text-white/40 hover:text-cbvp-red transition-colors" title="Eliminar">
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                {ordenes.map((o) => {
+                  const editandoEstaFila = editandoId === o.id;
+                  const editTotalDetalle = editForm.detalle.reduce((acc, d) => acc + parseMonto(d.monto), 0);
+                  return (
+                    <Fragment key={o.id}>
+                      <tr className="border-b border-white/5 hover:bg-white/[0.02]">
+                        <td className="px-2 py-1.5 text-white/80 whitespace-nowrap">{o.numero}/{o.anio}</td>
+                        <td className="px-2 py-1.5 text-white/70 whitespace-nowrap">{o.fecha}</td>
+                        <td className="px-2 py-1.5 text-white/70 whitespace-nowrap">{LABEL_TIPO_MOVIMIENTO[o.tipoMovimiento as TipoMovimientoOrdenPago] || o.tipoMovimiento}</td>
+                        <td className="px-2 py-1.5 text-white/60 max-w-[220px] truncate" title={o.detalle.map((d) => d.descripcion).join(', ')}>
+                          {o.detalle.map((d) => d.descripcion).join(', ') || '-'}
+                        </td>
+                        <td className="px-2 py-1.5 text-white/80 whitespace-nowrap">{o.total.toLocaleString('es-PY')}</td>
+                        <td className="px-2 py-1.5">
+                          <div className="flex items-center gap-1">
+                            <button onClick={() => handleExportar(o)} disabled={exportandoId === o.id} className="p-1.5 rounded-lg hover:bg-cbvp-green/20 text-white/40 hover:text-cbvp-green disabled:opacity-50 transition-colors" title="Exportar PDF">
+                              <Download className="w-3.5 h-3.5" />
+                            </button>
+                            <button onClick={() => (editandoEstaFila ? setEditandoId(null) : iniciarEdicion(o))} className="p-1.5 rounded-lg hover:bg-cbvp-blue/20 text-white/40 hover:text-cbvp-blue transition-colors" title="Editar">
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                      {editandoEstaFila && (
+                        <tr className="border-b border-white/5 bg-white/[0.02]">
+                          <td colSpan={6} className="px-3 pb-4 pt-3">
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
+                              <div>
+                                <label className="block text-xs text-white/40 uppercase tracking-wider mb-1">Fecha</label>
+                                <input
+                                  type="date"
+                                  value={fechaDDMMYYYYaISO(editForm.fecha)}
+                                  onChange={(e) => setEditForm((prev) => ({ ...prev, fecha: fechaISOaDDMMYYYY(e.target.value) }))}
+                                  className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none [color-scheme:dark]"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-xs text-white/40 uppercase tracking-wider mb-1">Banco de la Compania</label>
+                                <input
+                                  type="text"
+                                  list="bancos-sugeridos-op"
+                                  value={editForm.bancoNombre}
+                                  onChange={(e) => handleBancoNombreChangeEdit(e.target.value)}
+                                  className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-xs text-white/40 uppercase tracking-wider mb-1">Nr. de Cuenta</label>
+                                <input
+                                  type="text"
+                                  value={editForm.bancoCuenta}
+                                  onChange={(e) => setEditForm((prev) => ({ ...prev, bancoCuenta: e.target.value }))}
+                                  className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none"
+                                />
+                              </div>
+                            </div>
+
+                            <div className="mb-3">
+                              <label className="block text-xs text-white/40 uppercase tracking-wider mb-2">Tipo de Movimiento</label>
+                              <div className="flex flex-wrap gap-4">
+                                {TIPOS_MOVIMIENTO_ORDEN_PAGO.map((t) => (
+                                  <label key={t} className="flex items-center gap-2 text-sm text-white/70 cursor-pointer">
+                                    <input type="radio" name={`tipoMovimientoEdit-${o.id}`} checked={editForm.tipoMovimiento === t} onChange={() => setEditForm((prev) => ({ ...prev, tipoMovimiento: t }))} className="accent-cbvp-red w-4 h-4" />
+                                    {LABEL_TIPO_MOVIMIENTO[t]}
+                                  </label>
+                                ))}
+                              </div>
+                            </div>
+
+                            <div className="mb-3">
+                              <label className="block text-xs text-white/40 uppercase tracking-wider mb-2">Detalle del Concepto / Objeto de Pago</label>
+                              <div className="overflow-x-auto">
+                                <table className="w-full text-xs sm:text-sm">
+                                  <thead>
+                                    <tr className="bg-white/5 border-b border-white/10">
+                                      <th className="text-left px-2 py-2 font-medium text-white/50">Descripcion / Concepto</th>
+                                      <th className="text-left px-2 py-2 font-medium text-white/50">Banco / Alias</th>
+                                      <th className="text-left px-2 py-2 font-medium text-white/50">Nr. Cuenta</th>
+                                      <th className="text-left px-2 py-2 font-medium text-white/50">Monto (Gs.)</th>
+                                      <th className="w-8"></th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {editForm.detalle.map((f, idx) => (
+                                      <tr key={idx} className="border-b border-white/5">
+                                        <td className="px-2 py-1.5">
+                                          <input type="text" value={f.descripcion} onChange={(e) => actualizarFilaEdit(idx, 'descripcion', e.target.value)} className="w-full min-w-[160px] bg-white/5 border border-white/10 rounded px-2 py-1 text-white focus:border-cbvp-red/50 focus:outline-none" />
+                                        </td>
+                                        <td className="px-2 py-1.5">
+                                          <input type="text" value={f.bancoAlias} onChange={(e) => actualizarFilaEdit(idx, 'bancoAlias', e.target.value)} className="w-full min-w-[100px] bg-white/5 border border-white/10 rounded px-2 py-1 text-white focus:border-cbvp-red/50 focus:outline-none" />
+                                        </td>
+                                        <td className="px-2 py-1.5">
+                                          <input type="text" value={f.nroCuenta} onChange={(e) => actualizarFilaEdit(idx, 'nroCuenta', e.target.value)} className="w-full min-w-[100px] bg-white/5 border border-white/10 rounded px-2 py-1 text-white focus:border-cbvp-red/50 focus:outline-none" />
+                                        </td>
+                                        <td className="px-2 py-1.5">
+                                          <input type="text" value={f.monto} onChange={(e) => actualizarFilaEdit(idx, 'monto', e.target.value)} className="w-24 bg-white/5 border border-white/10 rounded px-2 py-1 text-white focus:border-cbvp-red/50 focus:outline-none" />
+                                        </td>
+                                        <td className="px-2 py-1.5">
+                                          <button onClick={() => quitarFilaEdit(idx)} disabled={editForm.detalle.length === 1} className="p-1.5 rounded-lg hover:bg-cbvp-red/20 text-white/40 hover:text-cbvp-red disabled:opacity-30 disabled:hover:bg-transparent transition-colors">
+                                            <X className="w-3.5 h-3.5" />
+                                          </button>
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                  <tfoot>
+                                    <tr className="bg-white/5 font-semibold">
+                                      <td colSpan={3} className="px-2 py-2 text-right text-white/70">TOTAL:</td>
+                                      <td className="px-2 py-2 text-white">{editTotalDetalle.toLocaleString('es-PY')}</td>
+                                      <td></td>
+                                    </tr>
+                                  </tfoot>
+                                </table>
+                              </div>
+                              <button onClick={agregarFilaEdit} type="button" className="mt-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 text-white/60 rounded-lg text-xs flex items-center gap-2 transition-colors">
+                                <Plus className="w-3.5 h-3.5" /> Agregar fila
+                              </button>
+                            </div>
+
+                            <div className="mb-3">
+                              <label className="block text-xs text-white/40 uppercase tracking-wider mb-1">Observaciones</label>
+                              <textarea value={editForm.observaciones} onChange={(e) => setEditForm((prev) => ({ ...prev, observaciones: e.target.value }))} rows={2} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none resize-none" />
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                              <div>
+                                <label className="block text-xs text-white/40 uppercase tracking-wider mb-1">Comandante o Presidente</label>
+                                <input type="text" value={editForm.comandanteNombre} onChange={(e) => setEditForm((prev) => ({ ...prev, comandanteNombre: e.target.value }))} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" />
+                              </div>
+                              <div>
+                                <label className="block text-xs text-white/40 uppercase tracking-wider mb-1">Director Administrativo o Tesorero</label>
+                                <input type="text" value={editForm.directorNombre} onChange={(e) => setEditForm((prev) => ({ ...prev, directorNombre: e.target.value }))} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" />
+                              </div>
+                            </div>
+
+                            {editError && <p className="text-sm text-red-400 mb-3">{editError}</p>}
+
+                            <div className="flex gap-2">
+                              <button onClick={guardarEdicion} disabled={editGuardando} className="px-4 py-2 bg-cbvp-green hover:bg-cbvp-green/80 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2">
+                                <Save className="w-4 h-4" /> {editGuardando ? 'Guardando...' : 'Guardar'}
+                              </button>
+                              <button onClick={() => setEditandoId(null)} className="px-4 py-2 bg-white/5 hover:bg-white/10 text-white/60 text-sm rounded-lg transition-colors">Cancelar</button>
+                              <button onClick={() => handleEliminar(o.id)} className="px-4 py-2 bg-cbvp-red/10 hover:bg-cbvp-red/20 text-cbvp-red-light text-sm font-medium rounded-lg transition-colors flex items-center gap-2">
+                                <Trash2 className="w-4 h-4" /> Eliminar
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  );
+                })}
               </tbody>
             </table>
           </div>
