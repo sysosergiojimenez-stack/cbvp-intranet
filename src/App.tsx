@@ -23,6 +23,7 @@ import ControlMovil from '@/pages/ControlMovil';
 import RendicionesCombustible from '@/pages/RendicionesCombustible';
 import CuotasBomberos from '@/pages/CuotasBomberos';
 import OrdenesPago from '@/pages/OrdenesPago';
+import CuentasEntidades from '@/pages/CuentasEntidades';
 import InformeIncendio from '@/pages/InformeIncendio';
 import Notificaciones from '@/pages/Notificaciones';
 
@@ -141,6 +142,11 @@ function AppRoutes() {
         <Route path="/ordenes-pago" element={
           <ProtectedRoute>
             {permisos.puedeVerDireccionAdministrativa ? <OrdenesPago /> : <Navigate to="/" replace />}
+          </ProtectedRoute>
+        } />
+        <Route path="/cuentas-entidades" element={
+          <ProtectedRoute>
+            {permisos.puedeVerDireccionAdministrativa ? <CuentasEntidades /> : <Navigate to="/" replace />}
           </ProtectedRoute>
         } />
         <Route path="/informe-servicios" element={

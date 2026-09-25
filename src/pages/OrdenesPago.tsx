@@ -16,11 +16,6 @@ function filaVacia(): FilaDetalle {
   return { descripcion: '', bancoAlias: '', nroCuenta: '', monto: '' };
 }
 
-const BANCOS_SUGERIDOS = [
-  { nombre: 'Coop. Mercado 4 LTDA.', cuenta: '1009460' },
-  { nombre: 'UENO BANK', cuenta: '194398001' },
-];
-
 interface EditForm {
   fecha: string;
   mesaEntrada: string;
@@ -70,6 +65,9 @@ export default function OrdenesPago() {
   const { data: listadoData, isLoading: cargandoListado } = trpc.ordenesPago.listado.useQuery();
   const ordenes = listadoData?.exito ? listadoData.ordenes : [];
 
+  const { data: cuentasData } = trpc.cuentasEntidades.listado.useQuery();
+  const bancosSugeridos = cuentasData?.exito ? cuentasData.cuentas.map((c) => ({ nombre: c.nombre, cuenta: c.cuenta })) : [];
+
   const guardarMutation = trpc.ordenesPago.guardar.useMutation();
   const editarMutation = trpc.ordenesPago.editar.useMutation();
   const eliminarMutation = trpc.ordenesPago.eliminar.useMutation();
@@ -103,7 +101,7 @@ export default function OrdenesPago() {
 
   const handleBancoNombreChange = (valor: string) => {
     setBancoNombre(valor);
-    const sugerido = BANCOS_SUGERIDOS.find((b) => b.nombre.toLowerCase() === valor.trim().toLowerCase());
+    const sugerido = bancosSugeridos.find((b) => b.nombre.toLowerCase() === valor.trim().toLowerCase());
     if (sugerido) setBancoCuenta(sugerido.cuenta);
   };
   const quitarFila = (idx: number) => setDetalle((prev) => (prev.length > 1 ? prev.filter((_, i) => i !== idx) : prev));
@@ -176,7 +174,7 @@ export default function OrdenesPago() {
   };
 
   const handleBancoNombreChangeEdit = (valor: string) => {
-    const sugerido = BANCOS_SUGERIDOS.find((b) => b.nombre.toLowerCase() === valor.trim().toLowerCase());
+    const sugerido = bancosSugeridos.find((b) => b.nombre.toLowerCase() === valor.trim().toLowerCase());
     setEditForm((prev) => ({ ...prev, bancoNombre: valor, bancoCuenta: sugerido ? sugerido.cuenta : prev.bancoCuenta }));
   };
 
@@ -282,7 +280,7 @@ export default function OrdenesPago() {
               className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none"
             />
             <datalist id="bancos-sugeridos-op">
-              {BANCOS_SUGERIDOS.map((b) => (
+              {bancosSugeridos.map((b) => (
                 <option key={b.nombre} value={b.nombre} />
               ))}
             </datalist>
