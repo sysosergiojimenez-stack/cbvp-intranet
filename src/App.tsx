@@ -25,6 +25,7 @@ import CuotasBomberos from '@/pages/CuotasBomberos';
 import OrdenesPago from '@/pages/OrdenesPago';
 import CuentasEntidades from '@/pages/CuentasEntidades';
 import CajaChica from '@/pages/CajaChica';
+import FacturasGastos from '@/pages/FacturasGastos';
 import InformeIncendio from '@/pages/InformeIncendio';
 import Notificaciones from '@/pages/Notificaciones';
 
@@ -153,6 +154,11 @@ function AppRoutes() {
         <Route path="/caja-chica" element={
           <ProtectedRoute>
             {permisos.puedeVerDireccionAdministrativa ? <CajaChica /> : <Navigate to="/" replace />}
+          </ProtectedRoute>
+        } />
+        <Route path="/facturas-gastos" element={
+          <ProtectedRoute>
+            {permisos.puedeVerDireccionAdministrativa ? <FacturasGastos /> : <Navigate to="/" replace />}
           </ProtectedRoute>
         } />
         <Route path="/informe-servicios" element={
