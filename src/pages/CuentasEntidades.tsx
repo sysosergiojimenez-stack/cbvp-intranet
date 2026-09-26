@@ -147,7 +147,7 @@ export default function CuentasEntidades() {
       <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-6">
         <h3 className="text-sm font-semibold text-white/60 uppercase tracking-wider mb-1">Cuentas en Entidades</h3>
         <p className="text-xs text-white/30 mb-4">
-          Los debitos se calculan a partir de las Ordenes de Pago cargadas con esa cuenta. Los creditos todavia no tienen un modulo que los registre, por eso figuran en 0.
+          Los debitos se calculan a partir de las Ordenes de Pago cargadas con esa cuenta. Los creditos de Ueno Bank se calculan a partir del Total Depositado de los reportes de Campaña de Socios.
         </p>
         {cargandoListado ? (
           <div className="p-4 text-sm text-white/40">Cargando...</div>
@@ -178,7 +178,7 @@ export default function CuentasEntidades() {
                         <td className="px-2 py-1.5 text-white/80 whitespace-nowrap">{c.nombre}</td>
                         <td className="px-2 py-1.5 text-white/60 whitespace-nowrap">{c.cuenta}</td>
                         <td className="px-2 py-1.5 text-white/60 text-right whitespace-nowrap">{formatearGs(c.saldoInicial)}</td>
-                        <td className="px-2 py-1.5 text-cbvp-green text-right whitespace-nowrap" title="Todavia no hay un modulo que registre creditos">{formatearGs(c.creditos)}</td>
+                        <td className="px-2 py-1.5 text-cbvp-green text-right whitespace-nowrap">{formatearGs(c.creditos)}</td>
                         <td className="px-2 py-1.5 text-cbvp-red-light text-right whitespace-nowrap">{formatearGs(c.debitos)}</td>
                         <td className={`px-2 py-1.5 text-right font-semibold whitespace-nowrap ${c.saldo < 0 ? 'text-cbvp-red-light' : 'text-white'}`}>{formatearGs(c.saldo)}</td>
                       </tr>

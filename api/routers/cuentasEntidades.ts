@@ -21,15 +21,14 @@ function generateId(): string {
 
 export const cuentasEntidadesRouter = createRouter({
   listado: publicQuery.query(async () => {
-    const [cuentasSnap, ordenesSnap] = await Promise.all([
+    const [cuentasSnap, ordenesSnap, campanaSociosSnap] = await Promise.all([
       colCuentas().get(),
       getFirestoreClient().collection("ordenesPago").get(),
+      getFirestoreClient().collection("campanaSocios").get(),
     ]);
 
     // Debitos = suma de Ordenes de Pago cuya cuenta de origen coincide con
-    // esta entidad. Los creditos todavia no tienen ninguna fuente de datos
-    // en la app (solo se cargan ordenes de pago, que son siempre egresos),
-    // asi que quedan en 0 hasta que exista un modulo que los registre.
+    // esta entidad.
     const debitosPorCuenta = new Map<string, number>();
     ordenesSnap.forEach((doc) => {
       const fila = doc.data();
@@ -38,16 +37,24 @@ export const cuentasEntidadesRouter = createRouter({
       debitosPorCuenta.set(cuenta, (debitosPorCuenta.get(cuenta) || 0) + (Number(fila.total) || 0));
     });
 
+    // Creditos = Total Depositado de los reportes de Campana de Socios,
+    // que siempre se deposita en la cuenta de Ueno Bank.
+    let creditoCampanaSocios = 0;
+    campanaSociosSnap.forEach((doc) => {
+      creditoCampanaSocios += Number(doc.data().totalDepositado) || 0;
+    });
+
     const cuentas = cuentasSnap.docs
       .map((doc) => {
         const fila = doc.data();
         const cuenta = String(fila.cuenta || "").trim();
+        const nombre = String(fila.nombre || "").trim();
         const saldoInicial = Number(fila.saldoInicial) || 0;
         const debitos = debitosPorCuenta.get(cuenta) || 0;
-        const creditos = 0;
+        const creditos = nombre.toUpperCase() === "UENO BANK" ? creditoCampanaSocios : 0;
         return {
           id: doc.id,
-          nombre: String(fila.nombre || ""),
+          nombre,
           cuenta,
           saldoInicial,
           observaciones: String(fila.observaciones || ""),
