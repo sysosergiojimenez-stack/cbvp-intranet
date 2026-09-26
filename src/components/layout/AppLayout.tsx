@@ -8,7 +8,7 @@ import {
   LayoutDashboard, ClipboardList,
   Users, Settings, LogOut, Shield, Menu, X,
   ChevronLeft, ChevronRight, ChevronDown, Flame, Crown,
-  UserCircle, Lock, BookOpen, Truck, WifiOff, ClipboardCheck, Package, Fuel, Building2, ShieldCheck, Wallet, Receipt, Landmark, PiggyBank, FileText
+  UserCircle, Lock, BookOpen, Truck, WifiOff, ClipboardCheck, Package, Fuel, Building2, ShieldCheck, Wallet, Receipt, Landmark, PiggyBank, FileText, HandCoins
 } from 'lucide-react';
 
 interface NavItem {
@@ -44,6 +44,7 @@ const NAV_ITEMS: NavItem[] = [
       { path: '/cuentas-entidades', label: 'Cuentas en Entidades', icon: Landmark, checkAccess: p => p.puedeVerDireccionAdministrativa },
       { path: '/caja-chica', label: 'Caja Chica', icon: PiggyBank, checkAccess: p => p.puedeVerDireccionAdministrativa },
       { path: '/facturas-gastos', label: 'Facturas de Gastos', icon: FileText, checkAccess: p => p.puedeVerDireccionAdministrativa },
+      { path: '/campana-socios', label: 'Campaña de Socios', icon: HandCoins, checkAccess: p => p.puedeVerDireccionAdministrativa },
     ],
   },
   {

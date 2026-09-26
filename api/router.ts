@@ -17,6 +17,7 @@ import { ordenesPagoRouter } from "./routers/ordenesPago";
 import { cuentasEntidadesRouter } from "./routers/cuentasEntidades";
 import { cajaChicaRouter } from "./routers/cajaChica";
 import { facturasGastosRouter } from "./routers/facturasGastos";
+import { campanaSociosRouter } from "./routers/campanaSocios";
 
 export const appRouter = createRouter({
   ping: publicQuery.query(() => ({ ok: true, ts: Date.now() })),
@@ -39,6 +40,7 @@ export const appRouter = createRouter({
   cuentasEntidades: cuentasEntidadesRouter,
   cajaChica: cajaChicaRouter,
   facturasGastos: facturasGastosRouter,
+  campanaSocios: campanaSociosRouter,
 });
 
 export type AppRouter = typeof appRouter;

@@ -509,6 +509,100 @@ INSTRUCCION FINAL: Analiza el documento y devolve UNICAMENTE el JSON, sin texto 
   }
 }
 
+export async function extractCampanaSociosData(
+  base64Content: string,
+  mimeType: string
+): Promise<Record<string, unknown>> {
+  const apiKey = env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error("GEMINI_API_KEY not configured in .env");
+  }
+
+  const prompt = `Sos un sistema experto en leer planillas de "Resumen de Movimiento Campaña de Socios" del ${ORGANIZACION.nombreCompleto} (${ORGANIZACION.nombreCorto}). Tu tarea es extraer los datos del documento y devolver SOLO un JSON valido, sin explicaciones ni markdown.
+
+=== DATOS A EXTRAER ===
+
+- **fechaDesde**: Fecha junto a "DESDE:". Formato exacto DD/MM/AAAA.
+- **fechaHasta**: Fecha junto a "HASTA:". Formato exacto DD/MM/AAAA.
+- **totalDepositado**: Numero junto a "TOTAL DEPOSITADO". Solo el numero, sin puntos de miles ni "Gs".
+- **totalCobranzasMensuales**: Numero de la fila "Total Cobranzas Mensuales".
+- **totalPrimerAporte**: Numero de la fila "Total Primer Aporte". Si dice "-" o esta vacio, usa 0.
+- **reasociacion**: Numero de la fila "Reasociacion".
+- **aporteUnico**: Numero de la fila "Aporte Unico". Si dice "-" o esta vacio, usa 0.
+- **directorAdministrativo**: Nombre escrito o firmado junto a la linea "Director/a Administrativo". Si no es legible, usa "".
+- **administradorCampana**: Nombre escrito o firmado junto a la linea "Administrador de Campaña". Si no es legible, usa "".
+
+Todos los montos son SOLO el numero, sin puntos de miles, sin "Gs", sin simbolos. Ej: si dice "5.758.000" devolve 5758000. Si algun campo no es legible o no esta presente, usa string vacio "" (o 0 para montos). NO inventes datos.
+
+=== FORMATO DE RESPUESTA (SOLO JSON) ===
+
+{
+  "fechaDesde": "01/07/2026",
+  "fechaHasta": "31/07/2026",
+  "totalDepositado": 5758000,
+  "totalCobranzasMensuales": 5448000,
+  "totalPrimerAporte": 0,
+  "reasociacion": 310000,
+  "aporteUnico": 0,
+  "directorAdministrativo": "",
+  "administradorCampana": "Francisco Garrejo"
+}
+
+INSTRUCCION FINAL: Analiza el documento y devolve UNICAMENTE el JSON, sin texto adicional, sin markdown, sin explicaciones.`;
+
+  const payload = {
+    contents: [
+      {
+        parts: [
+          { text: prompt } as GeminiPart,
+          {
+            inline_data: {
+              mime_type: mimeType,
+              data: base64Content,
+            },
+          } as unknown as GeminiPart,
+        ],
+      },
+    ],
+    generationConfig: {
+      temperature: 0.1,
+      topP: 0.1,
+      topK: 1,
+      responseMimeType: "application/json",
+    },
+  };
+
+  const url = `${GEMINI_API_URL}?key=${apiKey}`;
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
+  }
+
+  const result = (await response.json()) as GeminiResponse;
+
+  if (result.error) {
+    throw new Error(`Gemini API error: ${result.error.message}`);
+  }
+
+  const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!text) {
+    throw new Error("No content in Gemini response");
+  }
+
+  const jsonClean = text.replace(/```json\s*|```\s*|```/g, "").trim();
+  try {
+    return JSON.parse(jsonClean) as Record<string, unknown>;
+  } catch {
+    throw new Error("Failed to parse Gemini response as JSON");
+  }
+}
+
 export async function extractFacturaGastoData(
   base64Content: string,
   mimeType: string
