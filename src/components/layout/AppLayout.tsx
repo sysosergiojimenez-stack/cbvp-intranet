@@ -8,7 +8,7 @@ import {
   LayoutDashboard, ClipboardList,
   Users, Settings, LogOut, Shield, Menu, X,
   ChevronLeft, ChevronRight, ChevronDown, Flame, Crown,
-  UserCircle, Lock, BookOpen, Truck, WifiOff, ClipboardCheck, Package, Fuel, Building2, ShieldCheck, Wallet, Receipt, Landmark, PiggyBank, FileText, HandCoins
+  UserCircle, Lock, BookOpen, Truck, WifiOff, ClipboardCheck, Package, Fuel, Building2, ShieldCheck, Wallet, Receipt, FileText, HandCoins
 } from 'lucide-react';
 
 interface NavItem {
@@ -41,8 +41,7 @@ const NAV_ITEMS: NavItem[] = [
       { path: '/rendiciones-combustible', label: 'Rendiciones de Combustible', icon: Fuel, checkAccess: p => p.puedeVerDireccionAdministrativa },
       { path: '/cuotas-bomberos', label: 'Cuotas de Bomberos', icon: Wallet, checkAccess: p => p.puedeVerDireccionAdministrativa },
       { path: '/ordenes-pago', label: 'Ordenes de Pago', icon: Receipt, checkAccess: p => p.puedeVerDireccionAdministrativa },
-      { path: '/cuentas-entidades', label: 'Cuentas en Entidades', icon: Landmark, checkAccess: p => p.puedeVerDireccionAdministrativa },
-      { path: '/caja-chica', label: 'Caja Chica', icon: PiggyBank, checkAccess: p => p.puedeVerDireccionAdministrativa },
+      { path: '/resumen-financiero', label: 'Resumen Financiero', icon: LayoutDashboard, checkAccess: p => p.puedeVerDireccionAdministrativa },
       { path: '/facturas-gastos', label: 'Facturas de Gastos', icon: FileText, checkAccess: p => p.puedeVerDireccionAdministrativa },
       { path: '/campana-socios', label: 'Campaña de Socios', icon: HandCoins, checkAccess: p => p.puedeVerDireccionAdministrativa },
     ],

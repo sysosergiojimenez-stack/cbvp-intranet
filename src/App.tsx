@@ -23,8 +23,7 @@ import ControlMovil from '@/pages/ControlMovil';
 import RendicionesCombustible from '@/pages/RendicionesCombustible';
 import CuotasBomberos from '@/pages/CuotasBomberos';
 import OrdenesPago from '@/pages/OrdenesPago';
-import CuentasEntidades from '@/pages/CuentasEntidades';
-import CajaChica from '@/pages/CajaChica';
+import ResumenFinanciero from '@/pages/ResumenFinanciero';
 import FacturasGastos from '@/pages/FacturasGastos';
 import CampanaSocios from '@/pages/CampanaSocios';
 import InformeIncendio from '@/pages/InformeIncendio';
@@ -147,14 +146,9 @@ function AppRoutes() {
             {permisos.puedeVerDireccionAdministrativa ? <OrdenesPago /> : <Navigate to="/" replace />}
           </ProtectedRoute>
         } />
-        <Route path="/cuentas-entidades" element={
+        <Route path="/resumen-financiero" element={
           <ProtectedRoute>
-            {permisos.puedeVerDireccionAdministrativa ? <CuentasEntidades /> : <Navigate to="/" replace />}
-          </ProtectedRoute>
-        } />
-        <Route path="/caja-chica" element={
-          <ProtectedRoute>
-            {permisos.puedeVerDireccionAdministrativa ? <CajaChica /> : <Navigate to="/" replace />}
+            {permisos.puedeVerDireccionAdministrativa ? <ResumenFinanciero /> : <Navigate to="/" replace />}
           </ProtectedRoute>
         } />
         <Route path="/facturas-gastos" element={
