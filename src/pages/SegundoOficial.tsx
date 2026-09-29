@@ -40,16 +40,6 @@ export default function SegundoOficial() {
 
   return (
     <div className="animate-fade-in space-y-6">
-      <div className="flex items-center gap-3">
-        <div className="w-11 h-11 rounded-xl bg-cbvp-red/8 flex items-center justify-center shrink-0">
-          <Shield className="w-5 h-5 text-cbvp-red" />
-        </div>
-        <div>
-          <h1 className="text-lg font-bold text-white">Segundo Oficial</h1>
-          <p className="text-xs text-white/40">Elegi un submodulo para continuar.</p>
-        </div>
-      </div>
-
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {submodulos.map((mod) => (
           <NavLink key={mod.path} to={mod.path} className={`glass rounded-xl p-4 border ${mod.border} card-hover cursor-pointer block`}>

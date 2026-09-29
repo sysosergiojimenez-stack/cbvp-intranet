@@ -3,7 +3,7 @@ import { NavLink } from 'react-router-dom';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 import { trpc } from '@/providers/trpc';
 import {
-  Building2, Landmark, Plus, Trash2, Save, ChartColumn, Wallet, TrendingUp, TrendingDown,
+  Landmark, Plus, Trash2, Save, ChartColumn, Wallet, TrendingUp, TrendingDown,
   Fuel, Receipt, FileText, HandCoins, ChevronRight,
 } from 'lucide-react';
 
@@ -300,16 +300,6 @@ export default function DireccionAdministrativa() {
 
   return (
     <div className="animate-fade-in space-y-6">
-      <div className="flex items-center gap-3">
-        <div className="w-11 h-11 rounded-xl bg-cbvp-red/8 flex items-center justify-center shrink-0">
-          <Building2 className="w-5 h-5 text-cbvp-red" />
-        </div>
-        <div>
-          <h1 className="text-lg font-bold text-white">Direccion Administrativa</h1>
-          <p className="text-xs text-white/40">Saldos, ingresos y egresos, y acceso rapido a cada submodulo.</p>
-        </div>
-      </div>
-
       {/* Estadisticas rapidas */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
         <div className="relative overflow-hidden glass rounded-xl p-4 border border-white/10 card-hover">

@@ -22,6 +22,10 @@ const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
   '/notificaciones': { title: 'Notificaciones', subtitle: 'Avisos y novedades del sistema' },
   '/informe-servicios': { title: 'Informes de Servicio', subtitle: 'Informes generados a partir de las salidas de movil' },
   '/cuotas-bomberos': { title: 'Cuotas de Bomberos', subtitle: 'Registro de pagos de cuota mensual' },
+  '/direccion-administrativa': { title: 'Direccion Administrativa', subtitle: 'Saldos, ingresos y egresos, y acceso rapido a cada submodulo' },
+  '/comandante-compania': { title: 'Comandante de Compania', subtitle: 'Elegi un submodulo para continuar' },
+  '/primer-oficial': { title: 'Primer Oficial', subtitle: 'Elegi un submodulo para continuar' },
+  '/administracion': { title: 'Segundo Oficial', subtitle: 'Elegi un submodulo para continuar' },
 };
 
 function getPageTitle(pathname: string): { title: string; subtitle: string } {
