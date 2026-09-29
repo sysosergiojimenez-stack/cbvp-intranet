@@ -224,7 +224,7 @@ export default function PersonalPage() {
                     <Award className="w-5 h-5 text-cbvp-blue" />
                   </div>
                   <div>
-                    <span className="text-3xl font-bold text-white">{sortedPersonal.filter((p: Personal) => p.rango?.trim().toUpperCase() !== 'VOLUNTARIO(A)').length}</span>
+                    <span className="text-3xl font-bold text-white">{sortedPersonal.filter((p: Personal) => !['VOLUNTARIO(A)', 'ASPIRANTE'].includes(p.rango?.trim().toUpperCase() || '')).length}</span>
                     <p className="text-[11px] text-white/40 mt-0.5">Oficiales</p>
                   </div>
                 </div>

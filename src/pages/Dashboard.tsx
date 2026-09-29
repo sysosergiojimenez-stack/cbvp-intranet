@@ -22,7 +22,7 @@ export default function Dashboard() {
 
   const activos = personalData?.personal?.filter(p => p.categoria?.trim().toUpperCase() === 'ACTIVO').length || 0;
   const combatientes = personalData?.personal?.filter(p => p.categoria?.trim().toUpperCase() === 'COMBATIENTE').length || 0;
-  const oficiales = personalData?.personal?.filter(p => p.rango?.trim().toUpperCase() !== 'VOLUNTARIO(A)').length || 0;
+  const oficiales = personalData?.personal?.filter(p => !['VOLUNTARIO(A)', 'ASPIRANTE'].includes(p.rango?.trim().toUpperCase() || '')).length || 0;
 
   const stats = [
     { label: 'Total de Bomberos', value: totalPersonal.toString(), icon: Users, color: 'text-cbvp-yellow', bg: 'bg-cbvp-yellow/8', border: 'border-cbvp-yellow/20', bar: 'bg-cbvp-yellow' },
