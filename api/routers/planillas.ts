@@ -561,7 +561,7 @@ export const planillasRouter = createRouter({
         if (!codigo || !primerNombre) continue;
         if (categoria !== input.categoria.toUpperCase()) continue;
         const cargo = String(fila[4] || "").trim().toUpperCase();
-        if (cargo === "RENTADO") continue;
+        if (cargo === "RENTADO" || cargo === "ASPIRANTE") continue;
         const primerApellido = fila[9] ? String(fila[9]).trim() : "";
         const rango = fila[5] ? String(fila[5]).trim() : "";
         const nombre = formatearNombreCompleto(rango, categoria, primerNombre, primerApellido);
@@ -791,7 +791,7 @@ export const planillasRouter = createRouter({
         if (!codigo || !primerNombre) continue;
         if (categoria !== input.categoria.toUpperCase()) continue;
         const cargo = String(fila[4] || "").trim().toUpperCase();
-        if (cargo === "RENTADO") continue;
+        if (cargo === "RENTADO" || cargo === "ASPIRANTE") continue;
         const primerApellido = fila[9] ? String(fila[9]).trim() : "";
         const rango = fila[5] ? String(fila[5]).trim() : "";
         const nombre = formatearNombreCompleto(rango, categoria, primerNombre, primerApellido);

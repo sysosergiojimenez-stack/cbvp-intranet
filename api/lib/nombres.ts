@@ -23,7 +23,14 @@ export function formatearNombreCompleto(
   const abrev = abreviaturaCategoria(categoria);
   const nombreBase = primerNombre + (primerApellido ? " " + primerApellido : "");
   const rangoLimpio = (rango || "").trim();
-  const esVoluntarioGenerico = !rangoLimpio || rangoLimpio.toUpperCase() === "VOLUNTARIO(A)";
+  const rangoUpper = rangoLimpio.toUpperCase();
+  const esVoluntarioGenerico = !rangoLimpio || rangoUpper === "VOLUNTARIO(A)";
+
+  // Aspirante no lleva abreviatura de categoria (BVC/BVA/BVF): todavia no es
+  // bombero voluntario pleno.
+  if (rangoUpper === "ASPIRANTE") {
+    return `${rangoLimpio} ${nombreBase}`;
+  }
 
   if (esVoluntarioGenerico) {
     return abrev ? `${abrev} ${nombreBase}` : nombreBase;
