@@ -434,6 +434,10 @@ export default function RolGuardiaDetalle() {
                       </div>
                     </div>
 
+                    {mostrarAgregar === grupo.id && (
+                      <AgregarPersonalForm idRol={idRol} idGrupo={grupo.id} onCerrar={() => setMostrarAgregar(null)} />
+                    )}
+
                     <div className="flex flex-col lg:flex-row gap-4">
                       <div className="flex-1 min-w-0">
                         {grupo.personal.length === 0 ? (
@@ -475,10 +479,6 @@ export default function RolGuardiaDetalle() {
                         <CalendarioGrupo idGrupo={grupo.id} anio={data.cabecera!.anioFin} mes={data.cabecera!.mesFin} diasIniciales={grupo.diasFin} />
                       </div>
                     </div>
-
-                    {mostrarAgregar === grupo.id && (
-                      <AgregarPersonalForm idRol={idRol} idGrupo={grupo.id} onCerrar={() => setMostrarAgregar(null)} />
-                    )}
                   </div>
                 ))}
               </div>
