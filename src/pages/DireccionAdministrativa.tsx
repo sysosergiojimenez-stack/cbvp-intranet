@@ -138,8 +138,7 @@ export default function DireccionAdministrativa() {
   const { data: cuotasData, isLoading: cargandoCuotas } = trpc.cuotasBomberos.listado.useQuery();
   const { data: campanaData, isLoading: cargandoCampana } = trpc.campanaSocios.listado.useQuery();
   const { data: facturasTodasData, isLoading: cargandoFacturasTodas } = trpc.facturasGastos.listado.useQuery();
-  const { data: ordenesTodasData, isLoading: cargandoOrdenesTodas } = trpc.ordenesPago.listado.useQuery();
-  const cargandoGrafico = cargandoCuotas || cargandoCampana || cargandoFacturasTodas || cargandoOrdenesTodas;
+  const cargandoGrafico = cargandoCuotas || cargandoCampana || cargandoFacturasTodas;
 
   const anioActual = new Date().getFullYear();
   const [anioSeleccionado, setAnioSeleccionado] = useState(anioActual);
@@ -263,8 +262,9 @@ export default function DireccionAdministrativa() {
   const totalGeneral = saldoCajaChica + cuentas.reduce((acc, c) => acc + c.saldo, 0);
 
   // Ingresos = Cuotas de Bomberos + Campaña de Socios.
-  // Egresos = Facturas de Gastos + Ordenes de Pago que NO sean reposicion de
-  // Caja Chica (esas son un traspaso interno banco -> caja chica, no un gasto real).
+  // Egresos = solo Facturas de Gastos. No se suman las Ordenes de Pago: una
+  // Factura pagada "Desde Orden de Pago" ya trae esa plata contada, y sumar
+  // tambien el total de la Orden de Pago la duplicaria.
   const datosAnuales = useMemo(() => {
     const porMes = new Map<string, { ingresos: number; egresos: number }>();
     for (let m = 1; m <= 12; m++) {
@@ -286,12 +286,6 @@ export default function DireccionAdministrativa() {
     if (facturasTodasData?.exito) {
       for (const f of facturasTodasData.facturas) sumar(mesKeyDeFecha(f.fecha), 'egresos', f.monto);
     }
-    if (ordenesTodasData?.exito) {
-      for (const o of ordenesTodasData.ordenes) {
-        if (o.tipoMovimiento === 'CAJA_CHICA') continue;
-        sumar(mesKeyDeFecha(o.fecha), 'egresos', o.total);
-      }
-    }
 
     return Array.from(porMes.entries())
       .sort(([a], [b]) => a.localeCompare(b))
@@ -299,7 +293,7 @@ export default function DireccionAdministrativa() {
         const mesNum = parseInt(key.split('-')[1], 10);
         return { mes: MESES_ABREV[mesNum - 1], ingresos: valores.ingresos, egresos: valores.egresos };
       });
-  }, [cuotasData, campanaData, facturasTodasData, ordenesTodasData, anioSeleccionado]);
+  }, [cuotasData, campanaData, facturasTodasData, anioSeleccionado]);
 
   const totalIngresosAnio = datosAnuales.reduce((acc, d) => acc + d.ingresos, 0);
   const totalEgresosAnio = datosAnuales.reduce((acc, d) => acc + d.egresos, 0);
@@ -548,7 +542,7 @@ export default function DireccionAdministrativa() {
           </select>
         </div>
         <p className="text-xs text-white/30 mb-4">
-          Ingresos: Cuotas de Bomberos + Campaña de Socios. Egresos: Facturas de Gastos + Ordenes de Pago (excepto reposiciones de Caja Chica, que son un traspaso interno).
+          Ingresos: Cuotas de Bomberos + Campaña de Socios. Egresos: solo Facturas de Gastos.
         </p>
         {cargandoGrafico ? (
           <div className="p-4 text-sm text-white/40">Cargando...</div>
