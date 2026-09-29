@@ -20,6 +20,7 @@ import MiGuardiaGrupo from '@/pages/MiGuardiaGrupo';
 import Moviles from '@/pages/Moviles';
 import MaterialMenor from '@/pages/MaterialMenor';
 import ControlMovil from '@/pages/ControlMovil';
+import DireccionAdministrativa from '@/pages/DireccionAdministrativa';
 import RendicionesCombustible from '@/pages/RendicionesCombustible';
 import CuotasBomberos from '@/pages/CuotasBomberos';
 import OrdenesPago from '@/pages/OrdenesPago';
@@ -129,6 +130,11 @@ function AppRoutes() {
         <Route path="/material-menor" element={
           <ProtectedRoute>
             {permisos.puedeVerMoviles ? <MaterialMenor /> : <Navigate to="/" replace />}
+          </ProtectedRoute>
+        } />
+        <Route path="/direccion-administrativa" element={
+          <ProtectedRoute>
+            {permisos.puedeVerDireccionAdministrativa ? <DireccionAdministrativa /> : <Navigate to="/" replace />}
           </ProtectedRoute>
         } />
         <Route path="/rendiciones-combustible" element={

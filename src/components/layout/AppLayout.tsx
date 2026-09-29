@@ -18,6 +18,9 @@ interface NavItem {
   checkAccess: (permisos: ReturnType<typeof usePermiso>, usuario: ReturnType<typeof useAuth>['usuario']) => boolean;
   disabled?: boolean;
   children?: NavItem[];
+  // Si el grupo tiene su propia vista (ej: tarjetas con los submodulos),
+  // el label navega ahi y la flecha queda aparte solo para desplegar los hijos.
+  linkable?: boolean;
 }
 
 const NAV_ITEMS: NavItem[] = [
@@ -35,7 +38,7 @@ const NAV_ITEMS: NavItem[] = [
     ],
   },
   {
-    path: '/direccion-administrativa', label: 'Direccion Administrativa', icon: Building2,
+    path: '/direccion-administrativa', label: 'Direccion Administrativa', icon: Building2, linkable: true,
     checkAccess: (p) => p.puedeVerDireccionAdministrativa,
     children: [
       { path: '/rendiciones-combustible', label: 'Rendiciones de Combustible', icon: Fuel, checkAccess: p => p.puedeVerDireccionAdministrativa },
@@ -159,25 +162,51 @@ export default function AppLayout() {
             if (item.children) {
               const childrenVisibles = item.children.filter(child => child.checkAccess(permisos, usuario));
               if (childrenVisibles.length === 0) return null;
-              const isGroupActive = childrenVisibles.some(child => location.pathname.startsWith(child.path));
+              const isGroupActive = childrenVisibles.some(child => location.pathname.startsWith(child.path)) || location.pathname === item.path;
               const isOpen = grupoAbierto === item.path;
               return (
                 <div key={item.path}>
-                  <button
-                    onClick={() => setGrupoAbierto(grupoAbierto === item.path ? null : item.path)}
-                    title={collapsed ? item.label : undefined}
-                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all text-sm mx-1 ${
-                      isGroupActive ? 'text-white' : 'text-white/50 hover:text-white hover:bg-white/[0.03]'
-                    } ${collapsed ? 'justify-center' : ''}`}
-                  >
-                    <div className={`p-1 rounded-md ${isGroupActive ? 'bg-cbvp-red/20' : 'bg-transparent'}`}>
-                      <Icon className="w-[16px] h-[16px] shrink-0" />
-                    </div>
-                    {!collapsed && <span className="truncate font-medium flex-1 text-left">{item.label}</span>}
-                    {!collapsed && (
-                      <ChevronDown className={`w-3.5 h-3.5 shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                  <div className={`flex items-center gap-1 mx-1 ${collapsed ? 'justify-center' : ''}`}>
+                    {item.linkable ? (
+                      <NavLink
+                        to={item.path}
+                        onClick={() => setMobileOpen(false)}
+                        title={collapsed ? item.label : undefined}
+                        className={`flex-1 min-w-0 flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all text-sm ${
+                          isGroupActive ? 'text-white' : 'text-white/50 hover:text-white hover:bg-white/[0.03]'
+                        } ${collapsed ? 'justify-center' : ''}`}
+                      >
+                        <div className={`p-1 rounded-md ${isGroupActive ? 'bg-cbvp-red/20' : 'bg-transparent'}`}>
+                          <Icon className="w-[16px] h-[16px] shrink-0" />
+                        </div>
+                        {!collapsed && <span className="truncate font-medium flex-1 text-left">{item.label}</span>}
+                      </NavLink>
+                    ) : (
+                      <button
+                        onClick={() => setGrupoAbierto(grupoAbierto === item.path ? null : item.path)}
+                        title={collapsed ? item.label : undefined}
+                        className={`flex-1 min-w-0 flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all text-sm ${
+                          isGroupActive ? 'text-white' : 'text-white/50 hover:text-white hover:bg-white/[0.03]'
+                        } ${collapsed ? 'justify-center' : ''}`}
+                      >
+                        <div className={`p-1 rounded-md ${isGroupActive ? 'bg-cbvp-red/20' : 'bg-transparent'}`}>
+                          <Icon className="w-[16px] h-[16px] shrink-0" />
+                        </div>
+                        {!collapsed && <span className="truncate font-medium flex-1 text-left">{item.label}</span>}
+                        {!collapsed && (
+                          <ChevronDown className={`w-3.5 h-3.5 shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                        )}
+                      </button>
                     )}
-                  </button>
+                    {item.linkable && !collapsed && (
+                      <button
+                        onClick={() => setGrupoAbierto(grupoAbierto === item.path ? null : item.path)}
+                        className="p-2 rounded-lg text-white/40 hover:text-white hover:bg-white/[0.03] transition-all shrink-0"
+                      >
+                        <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                      </button>
+                    )}
+                  </div>
                   {isOpen && !collapsed && (
                     <div className="ml-4 pl-2 border-l border-white/[0.06] space-y-0.5 mt-0.5">
                       {childrenVisibles.map(child => {
