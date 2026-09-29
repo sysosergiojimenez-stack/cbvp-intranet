@@ -1,6 +1,7 @@
-import { Fragment, useState } from 'react';
+import { Fragment, useMemo, useState } from 'react';
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 import { trpc } from '@/providers/trpc';
-import { LayoutDashboard, Plus, Trash2, Save, Pencil } from 'lucide-react';
+import { LayoutDashboard, Plus, Trash2, Save, ChartColumn } from 'lucide-react';
 
 function formatearGs(valor: number): string {
   return valor.toLocaleString('es-PY');
@@ -11,6 +12,48 @@ function formatearGs(valor: number): string {
 function parseMonto(valor: string): number {
   const limpio = valor.replace(/[^\d-]/g, '');
   return limpio ? parseInt(limpio, 10) : 0;
+}
+
+const MESES_ABREV = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+
+// Acepta fechas en "DD/MM/YYYY" (Ordenes de Pago) o "YYYY-MM-DD" (Facturas de
+// Gastos, ya normalizadas) y devuelve una clave "YYYY-MM" para agrupar.
+function mesKeyDeFecha(fecha: string): string {
+  if (!fecha) return '';
+  if (fecha.includes('/')) {
+    const partes = fecha.split('/');
+    if (partes.length !== 3) return '';
+    const [, mes, anio] = partes;
+    return anio && mes ? `${anio}-${mes.padStart(2, '0')}` : '';
+  }
+  const partes = fecha.split('-');
+  if (partes.length !== 3) return '';
+  const [anio, mes] = partes;
+  return anio && mes ? `${anio}-${mes.padStart(2, '0')}` : '';
+}
+
+interface GraficoTooltipProps {
+  active?: boolean;
+  label?: string;
+  payload?: Array<{ dataKey: string; name: string; value: number; color: string }>;
+}
+
+function GraficoTooltip({ active, label, payload }: GraficoTooltipProps) {
+  if (!active || !payload || payload.length === 0) return null;
+  return (
+    <div className="bg-cbvp-dark-light border border-white/10 rounded-lg px-3 py-2 text-xs shadow-xl">
+      <p className="text-white/70 font-medium mb-1.5">{label}</p>
+      <div className="space-y-1">
+        {payload.map((item) => (
+          <div key={item.dataKey} className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-[2px] shrink-0" style={{ backgroundColor: item.color }} />
+            <span className="text-white/50">{item.name}:</span>
+            <span className="text-white font-medium ml-auto">{formatearGs(item.value)}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 interface EditFormCuenta {
@@ -156,6 +199,31 @@ export default function ResumenFinanciero() {
   const facturasCajaChica = cajaChicaData?.exito ? cajaChicaData.facturas : [];
 
   const totalGeneral = saldoCajaChica + cuentas.reduce((acc, c) => acc + c.saldo, 0);
+
+  const datosGrafico = useMemo(() => {
+    const porMes = new Map<string, { ingresos: number; gastos: number }>();
+    for (const o of ordenesCajaChica) {
+      const key = mesKeyDeFecha(o.fecha);
+      if (!key) continue;
+      const actual = porMes.get(key) || { ingresos: 0, gastos: 0 };
+      actual.ingresos += o.total;
+      porMes.set(key, actual);
+    }
+    for (const f of facturasCajaChica) {
+      const key = mesKeyDeFecha(f.fecha);
+      if (!key) continue;
+      const actual = porMes.get(key) || { ingresos: 0, gastos: 0 };
+      actual.gastos += f.monto;
+      porMes.set(key, actual);
+    }
+    return Array.from(porMes.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, valores]) => {
+        const [anio, mes] = key.split('-');
+        const nombreMes = MESES_ABREV[parseInt(mes, 10) - 1] || mes;
+        return { mes: `${nombreMes} ${anio}`, ingresos: valores.ingresos, gastos: valores.gastos };
+      });
+  }, [ordenesCajaChica, facturasCajaChica]);
 
   return (
     <div className="animate-fade-in space-y-6">
@@ -335,86 +403,28 @@ export default function ResumenFinanciero() {
 
       <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-6">
         <h3 className="text-sm font-semibold text-white/60 uppercase tracking-wider mb-1 flex items-center gap-2">
-          <Pencil className="w-3.5 h-3.5 text-cbvp-red" /> Ingresos de Caja Chica por Ordenes de Pago
+          <ChartColumn className="w-3.5 h-3.5 text-cbvp-red" /> Ingresos vs Gastos por Mes
         </h3>
         <p className="text-xs text-white/30 mb-4">
-          Ordenes de Pago cargadas con tipo de movimiento "Caja Chica". Se suman automaticamente a los Creditos de Caja Chica arriba.
+          Ingresos (Ordenes de Pago) y gastos (Facturas de Gastos) de Caja Chica, agrupados por mes.
         </p>
         {cargandoCajaChica ? (
           <div className="p-4 text-sm text-white/40">Cargando...</div>
-        ) : ordenesCajaChica.length === 0 ? (
-          <div className="p-4 text-sm text-white/40">No hay Ordenes de Pago de Caja Chica todavia.</div>
+        ) : datosGrafico.length === 0 ? (
+          <div className="p-4 text-sm text-white/40">Todavia no hay datos para graficar.</div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs sm:text-sm">
-              <thead>
-                <tr className="bg-white/5 border-b border-white/10">
-                  <th className="text-left px-2 py-2 font-medium text-white/50">Nro.</th>
-                  <th className="text-left px-2 py-2 font-medium text-white/50">Fecha</th>
-                  <th className="text-left px-2 py-2 font-medium text-white/50">Banco</th>
-                  <th className="text-right px-2 py-2 font-medium text-white/50">Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {ordenesCajaChica.map((o) => (
-                  <tr key={o.id} className="border-b border-white/5">
-                    <td className="px-2 py-1.5 text-white/80 whitespace-nowrap">{o.numero}/{o.anio}</td>
-                    <td className="px-2 py-1.5 text-white/60 whitespace-nowrap">{o.fecha}</td>
-                    <td className="px-2 py-1.5 text-white/60 whitespace-nowrap">{o.bancoNombre}</td>
-                    <td className="px-2 py-1.5 text-cbvp-green text-right whitespace-nowrap">{formatearGs(o.total)}</td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr className="bg-white/5 font-semibold">
-                  <td colSpan={3} className="px-2 py-2 text-right text-white/70">TOTAL:</td>
-                  <td className="px-2 py-2 text-right text-cbvp-green">{formatearGs(ingresosCajaChica)}</td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        )}
-      </div>
-
-      <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-6">
-        <h3 className="text-sm font-semibold text-white/60 uppercase tracking-wider mb-1 flex items-center gap-2">
-          <Pencil className="w-3.5 h-3.5 text-cbvp-red" /> Gastos de Caja Chica por Facturas
-        </h3>
-        <p className="text-xs text-white/30 mb-4">
-          Facturas de Gastos cargadas con Pagado Desde = Caja Chica. Se suman automaticamente a los Debitos de Caja Chica arriba.
-        </p>
-        {cargandoCajaChica ? (
-          <div className="p-4 text-sm text-white/40">Cargando...</div>
-        ) : facturasCajaChica.length === 0 ? (
-          <div className="p-4 text-sm text-white/40">No hay Facturas de Gastos pagadas desde Caja Chica todavia.</div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs sm:text-sm">
-              <thead>
-                <tr className="bg-white/5 border-b border-white/10">
-                  <th className="text-left px-2 py-2 font-medium text-white/50">Nro Factura</th>
-                  <th className="text-left px-2 py-2 font-medium text-white/50">Fecha</th>
-                  <th className="text-left px-2 py-2 font-medium text-white/50">Proveedor</th>
-                  <th className="text-right px-2 py-2 font-medium text-white/50">Monto</th>
-                </tr>
-              </thead>
-              <tbody>
-                {facturasCajaChica.map((f) => (
-                  <tr key={f.id} className="border-b border-white/5">
-                    <td className="px-2 py-1.5 text-white/80 whitespace-nowrap">{f.nroFactura || '-'}</td>
-                    <td className="px-2 py-1.5 text-white/60 whitespace-nowrap">{f.fecha}</td>
-                    <td className="px-2 py-1.5 text-white/60 whitespace-nowrap">{f.proveedor}</td>
-                    <td className="px-2 py-1.5 text-cbvp-red-light text-right whitespace-nowrap">{formatearGs(f.monto)}</td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr className="bg-white/5 font-semibold">
-                  <td colSpan={3} className="px-2 py-2 text-right text-white/70">TOTAL:</td>
-                  <td className="px-2 py-2 text-right text-cbvp-red-light">{formatearGs(gastosCajaChica)}</td>
-                </tr>
-              </tfoot>
-            </table>
+          <div className="h-72 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={datosGrafico} barGap={4}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" vertical={false} />
+                <XAxis dataKey="mes" tickLine={false} axisLine={false} tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} />
+                <YAxis tickLine={false} axisLine={false} tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} tickFormatter={(v) => formatearGs(Number(v))} width={70} />
+                <Tooltip cursor={{ fill: 'rgba(255,255,255,0.03)' }} content={<GraficoTooltip />} />
+                <Legend wrapperStyle={{ paddingTop: 12 }} formatter={(value) => <span className="text-white/60 text-xs">{value}</span>} />
+                <Bar dataKey="ingresos" name="Ingresos" fill="#008300" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                <Bar dataKey="gastos" name="Gastos" fill="#e66767" radius={[4, 4, 0, 0]} maxBarSize={40} />
+              </BarChart>
+            </ResponsiveContainer>
           </div>
         )}
       </div>
