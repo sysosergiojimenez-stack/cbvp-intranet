@@ -31,7 +31,7 @@ const NAV_ITEMS: NavItem[] = [
   { path: '/practicas-citaciones', label: 'Practicas y Citaciones', icon: BookOpen, checkAccess: p => p.puedeCargarPlanillas },
   { path: '/salida-movil', label: 'Salidas de Movil', icon: Truck, checkAccess: p => p.puedeCargarPlanillas },
   {
-    path: '/comandante-compania', label: 'Comandante de Compania', icon: ShieldCheck,
+    path: '/comandante-compania', label: 'Comandante de Compania', icon: ShieldCheck, linkable: true,
     checkAccess: (p) => p.puedeVerComandanteCompania,
     children: [
       { path: '/informe-servicios', label: 'Informe de Servicios', icon: Flame, checkAccess: p => p.puedeVerComandanteCompania },
@@ -50,7 +50,7 @@ const NAV_ITEMS: NavItem[] = [
     ],
   },
   {
-    path: '/primer-oficial', label: 'Primer Oficial', icon: Crown,
+    path: '/primer-oficial', label: 'Primer Oficial', icon: Crown, linkable: true,
     checkAccess: (p) => p.puedeVerMoviles,
     children: [
       { path: '/moviles', label: 'Material Mayor', icon: Truck, checkAccess: p => p.puedeVerMoviles },
@@ -58,7 +58,7 @@ const NAV_ITEMS: NavItem[] = [
     ],
   },
   {
-    path: '/administracion', label: 'Segundo Oficial', icon: Shield,
+    path: '/administracion', label: 'Segundo Oficial', icon: Shield, linkable: true,
     checkAccess: (p) => p.puedeVerInformes || p.puedeGestionarRolesGuardia || p.puedeVerPersonal || p.puedeCrearBombero,
     children: [
       { path: '/personal', label: 'Listado de Personal', icon: Users, checkAccess: p => p.puedeVerPersonal },

@@ -20,6 +20,9 @@ import MiGuardiaGrupo from '@/pages/MiGuardiaGrupo';
 import Moviles from '@/pages/Moviles';
 import MaterialMenor from '@/pages/MaterialMenor';
 import ControlMovil from '@/pages/ControlMovil';
+import ComandanteCompania from '@/pages/ComandanteCompania';
+import PrimerOficial from '@/pages/PrimerOficial';
+import SegundoOficial from '@/pages/SegundoOficial';
 import DireccionAdministrativa from '@/pages/DireccionAdministrativa';
 import RendicionesCombustible from '@/pages/RendicionesCombustible';
 import CuotasBomberos from '@/pages/CuotasBomberos';
@@ -107,6 +110,11 @@ function AppRoutes() {
             <MiGuardiaGrupo />
           </ProtectedRoute>
         } />
+        <Route path="/administracion" element={
+          <ProtectedRoute>
+            {(permisos.puedeVerInformes || permisos.puedeGestionarRolesGuardia || permisos.puedeVerPersonal || permisos.puedeCrearBombero) ? <SegundoOficial /> : <Navigate to="/" replace />}
+          </ProtectedRoute>
+        } />
         <Route path="/personal" element={
           <ProtectedRoute>
             {permisos.puedeVerPersonal ? <Personal /> : <Navigate to="/" replace />}
@@ -120,6 +128,11 @@ function AppRoutes() {
         <Route path="/configurar-acceso" element={
           <ProtectedRoute>
             <ConfigurarAcceso />
+          </ProtectedRoute>
+        } />
+        <Route path="/primer-oficial" element={
+          <ProtectedRoute>
+            {permisos.puedeVerMoviles ? <PrimerOficial /> : <Navigate to="/" replace />}
           </ProtectedRoute>
         } />
         <Route path="/moviles" element={
@@ -165,6 +178,11 @@ function AppRoutes() {
         <Route path="/campana-socios" element={
           <ProtectedRoute>
             {permisos.puedeVerDireccionAdministrativa ? <CampanaSocios /> : <Navigate to="/" replace />}
+          </ProtectedRoute>
+        } />
+        <Route path="/comandante-compania" element={
+          <ProtectedRoute>
+            {permisos.puedeVerComandanteCompania ? <ComandanteCompania /> : <Navigate to="/" replace />}
           </ProtectedRoute>
         } />
         <Route path="/informe-servicios" element={
