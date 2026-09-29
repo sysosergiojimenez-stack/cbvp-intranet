@@ -27,7 +27,6 @@ import DireccionAdministrativa from '@/pages/DireccionAdministrativa';
 import RendicionesCombustible from '@/pages/RendicionesCombustible';
 import CuotasBomberos from '@/pages/CuotasBomberos';
 import OrdenesPago from '@/pages/OrdenesPago';
-import ResumenFinanciero from '@/pages/ResumenFinanciero';
 import FacturasGastos from '@/pages/FacturasGastos';
 import CampanaSocios from '@/pages/CampanaSocios';
 import InformeIncendio from '@/pages/InformeIncendio';
@@ -163,11 +162,6 @@ function AppRoutes() {
         <Route path="/ordenes-pago" element={
           <ProtectedRoute>
             {permisos.puedeVerDireccionAdministrativa ? <OrdenesPago /> : <Navigate to="/" replace />}
-          </ProtectedRoute>
-        } />
-        <Route path="/resumen-financiero" element={
-          <ProtectedRoute>
-            {permisos.puedeVerDireccionAdministrativa ? <ResumenFinanciero /> : <Navigate to="/" replace />}
           </ProtectedRoute>
         } />
         <Route path="/facturas-gastos" element={

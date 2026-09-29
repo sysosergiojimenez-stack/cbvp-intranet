@@ -44,7 +44,6 @@ const NAV_ITEMS: NavItem[] = [
       { path: '/rendiciones-combustible', label: 'Rendiciones de Combustible', icon: Fuel, checkAccess: p => p.puedeVerDireccionAdministrativa },
       { path: '/cuotas-bomberos', label: 'Cuotas de Bomberos', icon: Wallet, checkAccess: p => p.puedeVerDireccionAdministrativa },
       { path: '/ordenes-pago', label: 'Ordenes de Pago', icon: Receipt, checkAccess: p => p.puedeVerDireccionAdministrativa },
-      { path: '/resumen-financiero', label: 'Resumen Financiero', icon: LayoutDashboard, checkAccess: p => p.puedeVerDireccionAdministrativa },
       { path: '/facturas-gastos', label: 'Facturas de Gastos', icon: FileText, checkAccess: p => p.puedeVerDireccionAdministrativa },
       { path: '/campana-socios', label: 'Campaña de Socios', icon: HandCoins, checkAccess: p => p.puedeVerDireccionAdministrativa },
     ],
