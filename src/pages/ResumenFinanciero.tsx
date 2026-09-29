@@ -71,6 +71,7 @@ export default function ResumenFinanciero() {
   };
 
   // --- Alta de Cuenta en Entidad ---
+  const [mostrarAgregarCuenta, setMostrarAgregarCuenta] = useState(false);
   const [nombre, setNombre] = useState('');
   const [cuenta, setCuenta] = useState('');
   const [saldoInicial, setSaldoInicial] = useState('');
@@ -159,12 +160,53 @@ export default function ResumenFinanciero() {
   return (
     <div className="animate-fade-in space-y-6">
       <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-6">
-        <h2 className="text-sm font-semibold text-white/60 uppercase tracking-wider mb-1 flex items-center gap-2">
-          <LayoutDashboard className="w-4 h-4 text-cbvp-red" /> Resumen Financiero
-        </h2>
+        <div className="flex items-center justify-between mb-1">
+          <h2 className="text-sm font-semibold text-white/60 uppercase tracking-wider flex items-center gap-2">
+            <LayoutDashboard className="w-4 h-4 text-cbvp-red" /> Resumen Financiero
+          </h2>
+          <button
+            onClick={() => setMostrarAgregarCuenta((v) => !v)}
+            className="px-3 py-1.5 bg-white/5 hover:bg-white/10 text-white/60 text-xs rounded-lg transition-colors flex items-center gap-1.5"
+          >
+            <Plus className="w-3.5 h-3.5" /> Agregar Cuenta
+          </button>
+        </div>
         <p className="text-xs text-white/30 mb-4">
           Caja Chica y Cuentas en Entidades en una sola vista. Hace click en una fila para editarla.
         </p>
+
+        {mostrarAgregarCuenta && (
+          <div className="mb-4 p-4 bg-white/[0.02] border border-white/10 rounded-lg">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+              <div>
+                <label className="block text-xs text-white/40 uppercase tracking-wider mb-1">Entidad Financiera</label>
+                <input type="text" value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Ej. UENO BANK" className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" />
+              </div>
+              <div>
+                <label className="block text-xs text-white/40 uppercase tracking-wider mb-1">Nr. de Cuenta</label>
+                <input type="text" value={cuenta} onChange={(e) => setCuenta(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" />
+              </div>
+              <div>
+                <label className="block text-xs text-white/40 uppercase tracking-wider mb-1">Saldo Inicial (Gs.)</label>
+                <input type="text" value={saldoInicial} onChange={(e) => setSaldoInicial(e.target.value)} placeholder="0" className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" />
+              </div>
+              <div>
+                <label className="block text-xs text-white/40 uppercase tracking-wider mb-1">Observaciones</label>
+                <input type="text" value={observaciones} onChange={(e) => setObservaciones(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" />
+              </div>
+            </div>
+
+            {errorCuenta && <p className="text-sm text-red-400 mb-3">{errorCuenta}</p>}
+            {exitoCuenta && <p className="text-sm text-cbvp-green mb-3">{exitoCuenta}</p>}
+
+            <div className="flex gap-2">
+              <button onClick={handleGuardarCuenta} disabled={guardandoCuenta} className="px-4 py-2 bg-cbvp-green/10 hover:bg-cbvp-green/20 disabled:opacity-50 text-cbvp-green rounded-lg text-sm flex items-center gap-2 transition-colors">
+                <Plus className="w-4 h-4" /> {guardandoCuenta ? 'Guardando...' : 'Agregar Cuenta'}
+              </button>
+              <button onClick={() => setMostrarAgregarCuenta(false)} className="px-4 py-2 bg-white/5 hover:bg-white/10 text-white/60 text-sm rounded-lg transition-colors">Cancelar</button>
+            </div>
+          </div>
+        )}
 
         {cargando ? (
           <div className="p-4 text-sm text-white/40">Cargando...</div>
@@ -289,38 +331,6 @@ export default function ResumenFinanciero() {
             )}
           </div>
         )}
-      </div>
-
-      <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-6">
-        <h2 className="text-sm font-semibold text-white/60 uppercase tracking-wider mb-4 flex items-center gap-2">
-          <Plus className="w-4 h-4 text-cbvp-red" /> Agregar Cuenta en Entidad
-        </h2>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-          <div>
-            <label className="block text-xs text-white/40 uppercase tracking-wider mb-1">Entidad Financiera</label>
-            <input type="text" value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Ej. UENO BANK" className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" />
-          </div>
-          <div>
-            <label className="block text-xs text-white/40 uppercase tracking-wider mb-1">Nr. de Cuenta</label>
-            <input type="text" value={cuenta} onChange={(e) => setCuenta(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" />
-          </div>
-          <div>
-            <label className="block text-xs text-white/40 uppercase tracking-wider mb-1">Saldo Inicial (Gs.)</label>
-            <input type="text" value={saldoInicial} onChange={(e) => setSaldoInicial(e.target.value)} placeholder="0" className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" />
-          </div>
-          <div>
-            <label className="block text-xs text-white/40 uppercase tracking-wider mb-1">Observaciones</label>
-            <input type="text" value={observaciones} onChange={(e) => setObservaciones(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" />
-          </div>
-        </div>
-
-        {errorCuenta && <p className="text-sm text-red-400 mb-3">{errorCuenta}</p>}
-        {exitoCuenta && <p className="text-sm text-cbvp-green mb-3">{exitoCuenta}</p>}
-
-        <button onClick={handleGuardarCuenta} disabled={guardandoCuenta} className="px-4 py-2 bg-cbvp-green/10 hover:bg-cbvp-green/20 disabled:opacity-50 text-cbvp-green rounded-lg text-sm flex items-center gap-2 transition-colors">
-          <Plus className="w-4 h-4" /> {guardandoCuenta ? 'Guardando...' : 'Agregar Cuenta'}
-        </button>
       </div>
 
       <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-6">
