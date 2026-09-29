@@ -36,6 +36,7 @@ const CARGOS = [
   'SEGUNDO OFICIAL',
   'Voluntario(a)',
   'RENTADO',
+  'ASPIRANTE',
 ];
 
 const NIVEL_LABELS: Record<number, string> = {
