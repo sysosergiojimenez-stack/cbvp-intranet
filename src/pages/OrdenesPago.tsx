@@ -1,4 +1,4 @@
-import { Fragment, useState } from 'react';
+import { Fragment, useRef, useState } from 'react';
 import { trpc } from '@/providers/trpc';
 import { useAuth } from '@/context/AuthContext';
 import { Receipt, Plus, Trash2, Save, Download, X } from 'lucide-react';
@@ -58,6 +58,8 @@ function parseMonto(valor: string): number {
   return limpio ? parseInt(limpio, 10) : 0;
 }
 
+const DURACION_LONG_PRESS_MS = 450;
+
 export default function OrdenesPago() {
   const { usuario } = useAuth();
   const utils = trpc.useUtils();
@@ -91,6 +93,69 @@ export default function OrdenesPago() {
   const [error, setError] = useState('');
   const [exito, setExito] = useState('');
   const [exportandoId, setExportandoId] = useState<string | null>(null);
+
+  const [modoSeleccion, setModoSeleccion] = useState(false);
+  const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set());
+  const [eliminandoSeleccion, setEliminandoSeleccion] = useState(false);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longPressActivado = useRef(false);
+
+  const toggleSeleccion = (id: string) => {
+    setSeleccionados((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const iniciarLongPress = (id: string) => {
+    longPressActivado.current = false;
+    longPressTimer.current = setTimeout(() => {
+      longPressActivado.current = true;
+      setEditandoId(null);
+      setModoSeleccion(true);
+      toggleSeleccion(id);
+    }, DURACION_LONG_PRESS_MS);
+  };
+
+  const cancelarLongPress = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  };
+
+  const handleClickFila = (orden: (typeof ordenes)[number]) => {
+    if (longPressActivado.current) {
+      longPressActivado.current = false;
+      return;
+    }
+    if (modoSeleccion) {
+      toggleSeleccion(orden.id);
+      return;
+    }
+    if (editandoId === orden.id) setEditandoId(null);
+    else iniciarEdicion(orden);
+  };
+
+  const salirModoSeleccion = () => {
+    setModoSeleccion(false);
+    setSeleccionados(new Set());
+  };
+
+  const handleEliminarSeleccionados = async () => {
+    if (seleccionados.size === 0) return;
+    if (!confirm(`Eliminar ${seleccionados.size} ordenes de pago seleccionadas?`)) return;
+    setEliminandoSeleccion(true);
+    try {
+      await Promise.all(Array.from(seleccionados).map((id) => eliminarMutation.mutateAsync({ id })));
+      utils.ordenesPago.listado.invalidate();
+      salirModoSeleccion();
+    } finally {
+      setEliminandoSeleccion(false);
+    }
+  };
 
   const totalDetalle = detalle.reduce((acc, d) => acc + parseMonto(d.monto), 0);
 
@@ -380,7 +445,23 @@ export default function OrdenesPago() {
       </div>
 
       <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-6">
-        <h3 className="text-sm font-semibold text-white/60 uppercase tracking-wider mb-4">Historial de Ordenes de Pago</h3>
+        <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
+          <h3 className="text-sm font-semibold text-white/60 uppercase tracking-wider">Historial de Ordenes de Pago</h3>
+          {modoSeleccion && (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-white/50">{seleccionados.size} seleccionada{seleccionados.size === 1 ? '' : 's'}</span>
+              <button
+                onClick={handleEliminarSeleccionados}
+                disabled={seleccionados.size === 0 || eliminandoSeleccion}
+                className="px-3 py-1.5 bg-cbvp-red/10 hover:bg-cbvp-red/20 disabled:opacity-50 text-cbvp-red-light rounded-lg text-xs flex items-center gap-1.5 transition-colors"
+              >
+                <Trash2 className="w-3.5 h-3.5" /> {eliminandoSeleccion ? 'Eliminando...' : 'Eliminar seleccionadas'}
+              </button>
+              <button onClick={salirModoSeleccion} className="px-3 py-1.5 bg-white/5 hover:bg-white/10 text-white/60 rounded-lg text-xs transition-colors">Cancelar</button>
+            </div>
+          )}
+        </div>
+        {!modoSeleccion && <p className="text-xs text-white/30 mb-4">Manten presionado el click en una fila para seleccionar varias y eliminarlas juntas.</p>}
         {cargandoListado ? (
           <div className="p-4 text-sm text-white/40">Cargando...</div>
         ) : ordenes.length === 0 ? (
@@ -390,6 +471,7 @@ export default function OrdenesPago() {
             <table className="w-full text-xs sm:text-sm">
               <thead>
                 <tr className="bg-white/5 border-b border-white/10">
+                  {modoSeleccion && <th className="w-8"></th>}
                   <th className="text-left px-2 py-2 font-medium text-white/50">OP N°</th>
                   <th className="text-left px-2 py-2 font-medium text-white/50">Fecha</th>
                   <th className="text-left px-2 py-2 font-medium text-white/50">Mesa Entrada</th>
@@ -403,12 +485,23 @@ export default function OrdenesPago() {
                 {ordenes.map((o) => {
                   const editandoEstaFila = editandoId === o.id;
                   const editTotalDetalle = editForm.detalle.reduce((acc, d) => acc + parseMonto(d.monto), 0);
+                  const seleccionada = seleccionados.has(o.id);
                   return (
                     <Fragment key={o.id}>
                       <tr
-                        onClick={() => (editandoEstaFila ? setEditandoId(null) : iniciarEdicion(o))}
-                        className="border-b border-white/5 hover:bg-white/[0.02] cursor-pointer"
+                        onMouseDown={() => iniciarLongPress(o.id)}
+                        onMouseUp={cancelarLongPress}
+                        onMouseLeave={cancelarLongPress}
+                        onTouchStart={() => iniciarLongPress(o.id)}
+                        onTouchEnd={cancelarLongPress}
+                        onClick={() => handleClickFila(o)}
+                        className={`border-b border-white/5 hover:bg-white/[0.02] cursor-pointer select-none ${seleccionada ? 'bg-cbvp-red/10' : ''}`}
                       >
+                        {modoSeleccion && (
+                          <td className="px-2 py-1.5">
+                            <input type="checkbox" checked={seleccionada} onChange={() => toggleSeleccion(o.id)} onClick={(e) => e.stopPropagation()} className="accent-cbvp-red w-4 h-4" />
+                          </td>
+                        )}
                         <td className="px-2 py-1.5 text-white/80 whitespace-nowrap">{o.numero}/{o.anio}</td>
                         <td className="px-2 py-1.5 text-white/70 whitespace-nowrap">{o.fecha}</td>
                         <td className="px-2 py-1.5 text-white/70 whitespace-nowrap">{o.mesaEntrada || '-'}</td>
@@ -418,7 +511,14 @@ export default function OrdenesPago() {
                         </td>
                         <td className="px-2 py-1.5 text-white/80 whitespace-nowrap">{o.total.toLocaleString('es-PY')}</td>
                         <td className="px-2 py-1.5">
-                          <button onClick={(e) => { e.stopPropagation(); handleExportar(o); }} disabled={exportandoId === o.id} className="p-1.5 rounded-lg hover:bg-cbvp-green/20 text-white/40 hover:text-cbvp-green disabled:opacity-50 transition-colors" title="Exportar PDF">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleExportar(o); }}
+                            onMouseDown={(e) => e.stopPropagation()}
+                            onTouchStart={(e) => e.stopPropagation()}
+                            disabled={exportandoId === o.id}
+                            className="p-1.5 rounded-lg hover:bg-cbvp-green/20 text-white/40 hover:text-cbvp-green disabled:opacity-50 transition-colors"
+                            title="Exportar PDF"
+                          >
                             <Download className="w-3.5 h-3.5" />
                           </button>
                         </td>
