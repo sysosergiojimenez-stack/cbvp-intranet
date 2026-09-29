@@ -94,6 +94,7 @@ export default function AgregarBomberoModal({ onClose }: { onClose: () => void }
               <div>
                 <label className="text-[10px] text-white/40 uppercase tracking-wider mb-1 block">Rango</label>
                 <select value={form.rango} onChange={e => setForm(f => ({ ...f, rango: e.target.value }))} className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-cbvp-red/50">
+                  <option value="Aspirante">Aspirante</option>
                   <option value="Voluntario(a)">Voluntario(a)</option>
                   <option value="Sub Teniente">Sub Teniente</option>
                   <option value="Teniente">Teniente</option>
