@@ -1,9 +1,32 @@
 import { Fragment, useRef, useState } from 'react';
 import { trpc } from '@/providers/trpc';
 import { useAuth } from '@/context/AuthContext';
-import { Receipt, Plus, Trash2, Save, Download, X } from 'lucide-react';
+import { Receipt, Plus, Trash2, Save, Download, X, Upload, Brain, Loader2, ExternalLink, FileText } from 'lucide-react';
 import { TIPOS_MOVIMIENTO_ORDEN_PAGO, LABEL_TIPO_MOVIMIENTO, type TipoMovimientoOrdenPago } from '@contracts/ordenesPago';
 import { exportarOrdenPagoPdf } from '@/lib/exportarOrdenPagoPdf';
+
+const ACCEPT_ARCHIVO_ANTIGUO = '.pdf,application/pdf,image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp';
+const MAX_ARCHIVO_ANTIGUO_BYTES = 10 * 1024 * 1024;
+
+function mimeArchivoAntiguo(file: File): string | null {
+  const raw = (file.type || '').toLowerCase();
+  if (raw === 'application/pdf' || raw === 'image/jpeg' || raw === 'image/png' || raw === 'image/webp') return raw;
+  const ext = file.name.split('.').pop()?.toLowerCase() || '';
+  if (ext === 'pdf') return 'application/pdf';
+  if (ext === 'jpg' || ext === 'jpeg') return 'image/jpeg';
+  if (ext === 'png') return 'image/png';
+  if (ext === 'webp') return 'image/webp';
+  return null;
+}
+
+function archivoAntiguoABase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve((reader.result as string).split(',')[1]);
+    reader.onerror = () => reject(new Error('No se pudo leer el archivo'));
+    reader.readAsDataURL(file);
+  });
+}
 
 interface FilaDetalle {
   descripcion: string;
@@ -73,6 +96,7 @@ export default function OrdenesPago() {
   const guardarMutation = trpc.ordenesPago.guardar.useMutation();
   const editarMutation = trpc.ordenesPago.editar.useMutation();
   const eliminarMutation = trpc.ordenesPago.eliminar.useMutation();
+  const extraerMutation = trpc.ordenesPago.extraer.useMutation();
 
   const [editandoId, setEditandoId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<EditForm>(editFormVacio());
@@ -93,6 +117,12 @@ export default function OrdenesPago() {
   const [error, setError] = useState('');
   const [exito, setExito] = useState('');
   const [exportandoId, setExportandoId] = useState<string | null>(null);
+
+  const [mostrarCargaAntigua, setMostrarCargaAntigua] = useState(false);
+  const [archivoAntiguo, setArchivoAntiguo] = useState<File | null>(null);
+  const [procesandoExtraccion, setProcesandoExtraccion] = useState(false);
+  const [urlDocumentoExtraido, setUrlDocumentoExtraido] = useState('');
+  const [errorExtraccion, setErrorExtraccion] = useState('');
 
   const [modoSeleccion, setModoSeleccion] = useState(false);
   const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set());
@@ -171,6 +201,42 @@ export default function OrdenesPago() {
   };
   const quitarFila = (idx: number) => setDetalle((prev) => (prev.length > 1 ? prev.filter((_, i) => i !== idx) : prev));
 
+  const handleArchivoAntiguoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0] || null;
+    setErrorExtraccion('');
+    if (!f) { setArchivoAntiguo(null); return; }
+    if (f.size > MAX_ARCHIVO_ANTIGUO_BYTES) { setErrorExtraccion('El archivo supera el tamano maximo de 10MB.'); return; }
+    if (!mimeArchivoAntiguo(f)) { setErrorExtraccion('Formato no admitido. Usa PDF, JPG, PNG o WEBP.'); return; }
+    setArchivoAntiguo(f);
+  };
+
+  const handleExtraerAntigua = async () => {
+    if (!archivoAntiguo) return;
+    const mimeType = mimeArchivoAntiguo(archivoAntiguo);
+    if (!mimeType) { setErrorExtraccion('Formato no admitido. Usa PDF, JPG, PNG o WEBP.'); return; }
+    setProcesandoExtraccion(true);
+    setErrorExtraccion('');
+    try {
+      const base64 = await archivoAntiguoABase64(archivoAntiguo);
+      const res = await extraerMutation.mutateAsync({ base64, mimeType });
+      setFecha(res.fecha || hoyDDMMYYYY());
+      handleBancoNombreChange(res.bancoNombre);
+      if (res.bancoCuenta) setBancoCuenta(res.bancoCuenta);
+      if (res.detalle.length > 0) {
+        setDetalle(res.detalle.map((d) => ({ descripcion: d.descripcion, bancoAlias: d.bancoAlias, nroCuenta: d.nroCuenta, monto: d.monto ? String(d.monto) : '' })));
+      }
+      setObservaciones(res.observaciones);
+      setComandanteNombre(res.comandanteNombre);
+      setDirectorNombre(res.directorNombre);
+      setUrlDocumentoExtraido(res.urlDocumento);
+      if (res.uploadError) setErrorExtraccion(`No se pudo guardar el archivo adjunto: ${res.uploadError}`);
+    } catch (err: unknown) {
+      setErrorExtraccion(err instanceof Error ? err.message : 'Error al procesar el documento');
+    } finally {
+      setProcesandoExtraccion(false);
+    }
+  };
+
   const handleGuardar = async () => {
     setError('');
     setExito('');
@@ -200,6 +266,7 @@ export default function OrdenesPago() {
         comandanteNombre: comandanteNombre.trim(),
         directorNombre: directorNombre.trim(),
         creadoPor: usuario?.codigo || '',
+        urlDocumento: urlDocumentoExtraido,
       });
       setExito(`Orden de Pago N° ${res.numero}/${anioOrden} guardada correctamente.`);
       setFecha(hoyDDMMYYYY());
@@ -207,6 +274,9 @@ export default function OrdenesPago() {
       setTipoMovimiento('');
       setDetalle([filaVacia()]);
       setObservaciones('');
+      setMostrarCargaAntigua(false);
+      setArchivoAntiguo(null);
+      setUrlDocumentoExtraido('');
       utils.ordenesPago.listado.invalidate();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Error al guardar');
@@ -310,9 +380,43 @@ export default function OrdenesPago() {
   return (
     <div className="animate-fade-in space-y-6">
       <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-6">
-        <h2 className="text-sm font-semibold text-white/60 uppercase tracking-wider mb-4 flex items-center gap-2">
-          <Receipt className="w-4 h-4 text-cbvp-red" /> Nueva Orden de Pago
-        </h2>
+        <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
+          <h2 className="text-sm font-semibold text-white/60 uppercase tracking-wider flex items-center gap-2">
+            <Receipt className="w-4 h-4 text-cbvp-red" /> Nueva Orden de Pago
+          </h2>
+          <button
+            onClick={() => { setMostrarCargaAntigua((v) => !v); setErrorExtraccion(''); }}
+            className="px-3 py-1.5 bg-white/5 hover:bg-white/10 text-white/60 text-xs rounded-lg transition-colors flex items-center gap-1.5"
+          >
+            <Upload className="w-3.5 h-3.5" /> Cargar Orden Antigua (con IA)
+          </button>
+        </div>
+
+        {mostrarCargaAntigua && (
+          <div className="mb-4 p-4 bg-white/[0.02] border border-white/10 rounded-lg">
+            <p className="text-xs text-white/30 mb-3">
+              Subi una foto o PDF de una Orden de Pago vieja, de antes de este sistema. La IA completa los campos de abajo (revisalos antes de guardar) y despues se guarda igual que una orden nueva.
+            </p>
+            <div className="mb-3">
+              <input type="file" accept={ACCEPT_ARCHIVO_ANTIGUO} onChange={handleArchivoAntiguoChange} className="hidden" id="orden-antigua-archivo" />
+              <label htmlFor="orden-antigua-archivo" className="w-full max-w-md flex items-center justify-center gap-2 border border-dashed border-white/20 rounded-lg px-3 py-2 text-sm text-white/60 hover:bg-white/5 cursor-pointer transition-colors">
+                <Upload className="w-4 h-4" /> {archivoAntiguo ? archivoAntiguo.name : 'Seleccionar archivo'}
+              </label>
+            </div>
+            <button
+              onClick={handleExtraerAntigua}
+              disabled={!archivoAntiguo || procesandoExtraccion}
+              className="px-4 py-2 bg-cbvp-red/10 hover:bg-cbvp-red/20 disabled:opacity-50 text-cbvp-red-light rounded-lg text-sm flex items-center gap-2 transition-colors"
+            >
+              {procesandoExtraccion ? <Loader2 className="w-4 h-4 animate-spin" /> : <Brain className="w-4 h-4" />}
+              {procesandoExtraccion ? 'Leyendo documento...' : 'Extraer datos con IA'}
+            </button>
+            {urlDocumentoExtraido && !procesandoExtraccion && (
+              <p className="text-xs text-cbvp-green mt-2">Documento adjuntado. Los campos de abajo se completaron automaticamente.</p>
+            )}
+            {errorExtraccion && <p className="text-sm text-red-400 mt-2">{errorExtraccion}</p>}
+          </div>
+        )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
           <div>
@@ -478,6 +582,7 @@ export default function OrdenesPago() {
                   <th className="text-left px-2 py-2 font-medium text-white/50">Tipo</th>
                   <th className="text-left px-2 py-2 font-medium text-white/50">Concepto</th>
                   <th className="text-left px-2 py-2 font-medium text-white/50">Total (Gs.)</th>
+                  <th className="text-left px-2 py-2 font-medium text-white/50">Doc.</th>
                   <th className="text-left px-2 py-2 font-medium text-white/50"></th>
                 </tr>
               </thead>
@@ -511,6 +616,13 @@ export default function OrdenesPago() {
                         </td>
                         <td className="px-2 py-1.5 text-white/80 whitespace-nowrap">{o.total.toLocaleString('es-PY')}</td>
                         <td className="px-2 py-1.5">
+                          {o.urlDocumento ? (
+                            <a href={o.urlDocumento} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()} className="text-cbvp-red-light hover:text-cbvp-red-light/80 inline-flex items-center gap-1">
+                              <FileText className="w-3.5 h-3.5" /> <ExternalLink className="w-3 h-3" />
+                            </a>
+                          ) : '-'}
+                        </td>
+                        <td className="px-2 py-1.5">
                           <button
                             onClick={(e) => { e.stopPropagation(); handleExportar(o); }}
                             onMouseDown={(e) => e.stopPropagation()}
@@ -525,7 +637,7 @@ export default function OrdenesPago() {
                       </tr>
                       {editandoEstaFila && (
                         <tr className="border-b border-white/5 bg-white/[0.02]">
-                          <td colSpan={7} className="px-3 pb-4 pt-3">
+                          <td colSpan={8} className="px-3 pb-4 pt-3">
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
                               <div>
                                 <label className="block text-xs text-white/40 uppercase tracking-wider mb-1">Fecha</label>

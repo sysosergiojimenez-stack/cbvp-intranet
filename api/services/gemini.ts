@@ -688,3 +688,98 @@ INSTRUCCION FINAL: Analiza el documento y devolve UNICAMENTE el JSON, sin texto 
     throw new Error("Failed to parse Gemini response as JSON");
   }
 }
+
+// Para digitalizar Ordenes de Pago viejas, de antes de que existiera este
+// sistema (en papel). El tipo de movimiento y la mesa de entrada no se
+// extraen -- son categorias propias de la app que no figuran en el papel.
+export async function extractOrdenPagoData(
+  base64Content: string,
+  mimeType: string
+): Promise<Record<string, unknown>> {
+  const apiKey = env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error("GEMINI_API_KEY not configured in .env");
+  }
+
+  const prompt = `Sos un sistema experto en leer Ordenes de Pago del ${ORGANIZACION.nombreCompleto} (${ORGANIZACION.nombreCorto}). El documento es una Orden de Pago antigua, en papel, de antes de que existiera este sistema. Tu tarea es extraer los datos del documento y devolver SOLO un JSON valido, sin explicaciones ni markdown.
+
+=== DATOS A EXTRAER ===
+
+- **fecha**: Fecha de la orden de pago. Formato exacto DD/MM/AAAA (dia y mes con 2 digitos, anio con 4 digitos).
+- **bancoNombre**: Nombre del banco o entidad de origen de los fondos (de donde sale la plata), tal como figura en el documento.
+- **bancoCuenta**: Numero de cuenta de origen, si figura en el documento.
+- **detalle**: Lista de conceptos pagados por esta orden. Cada item del array tiene: "descripcion" (que se pago), "bancoAlias" (nombre del beneficiario o banco de destino, si figura, sino string vacio), "nroCuenta" (numero de cuenta de destino, si figura, sino string vacio), "monto" (SOLO el numero, sin puntos de miles, sin "Gs", sin simbolos). Si el documento tiene un solo concepto, devolve un array de un solo elemento.
+- **observaciones**: Notas u observaciones adicionales escritas en el documento. Si no hay, string vacio.
+- **comandanteNombre**: Nombre de quien firma como Comandante o Presidente, si figura.
+- **directorNombre**: Nombre de quien firma como Director Administrativo o Tesorero, si figura.
+
+Si algun campo no es legible o no esta presente, usa string vacio "" (o 0 para monto, [] para detalle si no hay ningun concepto legible). NO inventes datos.
+
+=== FORMATO DE RESPUESTA (SOLO JSON) ===
+
+{
+  "fecha": "15/03/2020",
+  "bancoNombre": "UENO BANK",
+  "bancoCuenta": "1234567",
+  "detalle": [
+    { "descripcion": "Compra de combustible", "bancoAlias": "Petropar", "nroCuenta": "", "monto": 500000 }
+  ],
+  "observaciones": "",
+  "comandanteNombre": "Juan Perez",
+  "directorNombre": "Maria Gomez"
+}
+
+INSTRUCCION FINAL: Analiza el documento y devolve UNICAMENTE el JSON, sin texto adicional, sin markdown, sin explicaciones.`;
+
+  const payload = {
+    contents: [
+      {
+        parts: [
+          { text: prompt } as GeminiPart,
+          {
+            inline_data: {
+              mime_type: mimeType,
+              data: base64Content,
+            },
+          } as unknown as GeminiPart,
+        ],
+      },
+    ],
+    generationConfig: {
+      temperature: 0.1,
+      topP: 0.1,
+      topK: 1,
+      responseMimeType: "application/json",
+    },
+  };
+
+  const url = `${GEMINI_API_URL}?key=${apiKey}`;
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
+  }
+
+  const result = (await response.json()) as GeminiResponse;
+
+  if (result.error) {
+    throw new Error(`Gemini API error: ${result.error.message}`);
+  }
+
+  const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!text) {
+    throw new Error("No content in Gemini response");
+  }
+
+  const jsonClean = text.replace(/```json\s*|```\s*|```/g, "").trim();
+  try {
+    return JSON.parse(jsonClean) as Record<string, unknown>;
+  } catch {
+    throw new Error("Failed to parse Gemini response as JSON");
+  }
+}

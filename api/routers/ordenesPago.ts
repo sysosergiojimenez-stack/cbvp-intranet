@@ -2,6 +2,10 @@ import { z } from "zod";
 import { createRouter, publicQuery } from "../middleware";
 import { getFirestoreClient } from "../services/firestore";
 import { TIPOS_MOVIMIENTO_ORDEN_PAGO } from "@contracts/ordenesPago";
+import { env } from "../lib/env";
+import { extractOrdenPagoData } from "../services/gemini";
+import { uploadFile as uploadToGCS } from "../services/storage";
+import { normalizarFechaDDMMYYYY } from "../lib/fechas";
 
 function colOrdenesPago() {
   return getFirestoreClient().collection("ordenesPago");
@@ -57,11 +61,76 @@ export const ordenesPagoRouter = createRouter({
           directorNombre: String(fila.directorNombre || ""),
           creadoPor: String(fila.creadoPor || ""),
           fechaCarga: String(fila.fechaCarga || ""),
+          urlDocumento: String(fila.urlDocumento || ""),
         };
       })
       .sort((a, b) => b.anio - a.anio || b.numero - a.numero);
     return { exito: true as const, ordenes };
   }),
+
+  // Extrae fecha, banco de origen, detalle de conceptos, observaciones y
+  // firmantes de una Orden de Pago vieja (en papel, de antes de este
+  // sistema) subida como foto/PDF. El tipo de movimiento y la mesa de
+  // entrada no se extraen -- se completan a mano en el formulario porque
+  // son categorias propias de la app.
+  extraer: publicQuery
+    .input(
+      z.object({
+        base64: z.string().min(1),
+        mimeType: z.string().min(1),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const extraido = await extractOrdenPagoData(input.base64, input.mimeType);
+
+      const fecha = normalizarFechaDDMMYYYY(String(extraido.fecha || ""));
+      const bancoNombre = String(extraido.bancoNombre || "").trim();
+      const bancoCuenta = String(extraido.bancoCuenta || "").trim();
+      const detalleRaw = Array.isArray(extraido.detalle) ? extraido.detalle : [];
+      const detalle = detalleRaw.map((d) => {
+        const fila = d as Record<string, unknown>;
+        return {
+          descripcion: String(fila.descripcion || "").trim(),
+          bancoAlias: String(fila.bancoAlias || "").trim(),
+          nroCuenta: String(fila.nroCuenta || "").trim(),
+          monto: Number(fila.monto) || 0,
+        };
+      });
+      const observaciones = String(extraido.observaciones || "").trim();
+      const comandanteNombre = String(extraido.comandanteNombre || "").trim();
+      const directorNombre = String(extraido.directorNombre || "").trim();
+
+      let urlDocumento = "";
+      let uploadError = "";
+      const bucketName = env.GCS_BUCKET_NAME;
+      if (bucketName && bucketName !== "dummy-bucket") {
+        try {
+          urlDocumento = await uploadToGCS(
+            bucketName,
+            `orden_pago_antigua_${generateId()}.${input.mimeType.split("/")[1] || "pdf"}`,
+            input.mimeType,
+            input.base64
+          );
+        } catch (err) {
+          uploadError = err instanceof Error ? err.message : String(err);
+        }
+      } else {
+        uploadError = "GCS_BUCKET_NAME no configurado";
+      }
+
+      return {
+        exito: true as const,
+        fecha,
+        bancoNombre,
+        bancoCuenta,
+        detalle,
+        observaciones,
+        comandanteNombre,
+        directorNombre,
+        urlDocumento,
+        uploadError: uploadError || undefined,
+      };
+    }),
 
   guardar: publicQuery
     .input(
@@ -77,6 +146,7 @@ export const ordenesPagoRouter = createRouter({
         comandanteNombre: z.string(),
         directorNombre: z.string(),
         creadoPor: z.string().optional(),
+        urlDocumento: z.string().optional(),
       })
     )
     .mutation(async ({ input }) => {
@@ -109,6 +179,7 @@ export const ordenesPagoRouter = createRouter({
           comandanteNombre: input.comandanteNombre,
           directorNombre: input.directorNombre,
           creadoPor: input.creadoPor || "",
+          urlDocumento: input.urlDocumento || "",
           fechaCarga: new Date().toISOString(),
         });
 
