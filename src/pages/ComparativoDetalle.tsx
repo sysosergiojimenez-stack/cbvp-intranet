@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { trpc } from '@/providers/trpc';
-import { ArrowLeft, FileSpreadsheet, Plus, Trash2, Save, X, Pencil, Check } from 'lucide-react';
+import { ArrowLeft, FileSpreadsheet, Plus, Trash2, Save, X, Pencil, Check, Download } from 'lucide-react';
+import { exportarComparativoPdf } from '@/lib/exportarComparativoPdf';
 
 interface ItemLocal {
   id: string;
@@ -67,6 +68,7 @@ export default function ComparativoDetalle() {
   const [hojaActivaId, setHojaActivaId] = useState<string>('');
   const [huboCambios, setHuboCambios] = useState(false);
   const [guardando, setGuardando] = useState(false);
+  const [exportando, setExportando] = useState(false);
   const [error, setError] = useState('');
 
   const [mostrarNuevaHoja, setMostrarNuevaHoja] = useState(false);
@@ -183,6 +185,25 @@ export default function ComparativoDetalle() {
     setEditandoNombreHoja(false);
   };
 
+  const handleExportar = async () => {
+    if (!data?.exito) return;
+    setExportando(true);
+    try {
+      await exportarComparativoPdf({
+        nombre: data.nombre,
+        hojas: hojas.map((h) => ({
+          nombre: h.nombre,
+          proveedores: h.proveedores,
+          items: h.items
+            .filter((it) => it.item.trim() || it.cantidad.trim() || it.precios.some((p) => p.trim()))
+            .map((it) => ({ item: it.item, cantidad: parsePrecio(it.cantidad), precios: it.precios.map(parsePrecio) })),
+        })),
+      });
+    } finally {
+      setExportando(false);
+    }
+  };
+
   const handleGuardar = async () => {
     if (!id) return;
     setError('');
@@ -279,6 +300,9 @@ export default function ComparativoDetalle() {
 
           <div className="flex items-center gap-2">
             {huboCambios && <span className="text-xs text-cbvp-yellow">Cambios sin guardar</span>}
+            <button onClick={handleExportar} disabled={exportando} className="px-4 py-2 bg-white/5 hover:bg-white/10 disabled:opacity-40 text-white/70 text-sm font-medium rounded-lg transition-colors flex items-center gap-2">
+              <Download className="w-4 h-4" /> {exportando ? 'Generando PDF...' : 'Exportar PDF'}
+            </button>
             <button onClick={handleGuardar} disabled={guardando || !huboCambios} className="px-4 py-2 bg-cbvp-green hover:bg-cbvp-green/80 disabled:opacity-40 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2">
               <Save className="w-4 h-4" /> {guardando ? 'Guardando...' : 'Guardar Cambios'}
             </button>
@@ -353,9 +377,9 @@ export default function ComparativoDetalle() {
                 <thead>
                   <tr className="bg-white/5 border-b border-white/10">
                     <th className="text-left px-2 py-2 font-medium text-white/50">Item</th>
-                    <th className="text-left px-2 py-2 font-medium text-white/50 w-[36px]">Cantidad</th>
+                    <th className="text-left px-2 py-2 font-medium text-white/50 w-[72px]">Cantidad</th>
                     {[0, 1, 2].map((idx) => (
-                      <th key={idx} className="text-left px-2 py-2 font-medium text-white/50 w-[56px]">
+                      <th key={idx} className="text-left px-2 py-2 font-medium text-white/50 w-[112px]">
                         <input
                           type="text"
                           value={hojaActiva.proveedores[idx]}
