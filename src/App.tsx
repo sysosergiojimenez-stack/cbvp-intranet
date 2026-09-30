@@ -24,6 +24,8 @@ import ComandanteCompania from '@/pages/ComandanteCompania';
 import PrimerOficial from '@/pages/PrimerOficial';
 import SegundoOficial from '@/pages/SegundoOficial';
 import DireccionAdministrativa from '@/pages/DireccionAdministrativa';
+import Comparativos from '@/pages/Comparativos';
+import ComparativoDetalle from '@/pages/ComparativoDetalle';
 import RendicionesCombustible from '@/pages/RendicionesCombustible';
 import CuotasBomberos from '@/pages/CuotasBomberos';
 import OrdenesPago from '@/pages/OrdenesPago';
@@ -172,6 +174,16 @@ function AppRoutes() {
         <Route path="/campana-socios" element={
           <ProtectedRoute>
             {permisos.puedeVerDireccionAdministrativa ? <CampanaSocios /> : <Navigate to="/" replace />}
+          </ProtectedRoute>
+        } />
+        <Route path="/comparativos" element={
+          <ProtectedRoute>
+            {permisos.puedeVerDireccionAdministrativa ? <Comparativos /> : <Navigate to="/" replace />}
+          </ProtectedRoute>
+        } />
+        <Route path="/comparativos/:id" element={
+          <ProtectedRoute>
+            {permisos.puedeVerDireccionAdministrativa ? <ComparativoDetalle /> : <Navigate to="/" replace />}
           </ProtectedRoute>
         } />
         <Route path="/comandante-compania" element={

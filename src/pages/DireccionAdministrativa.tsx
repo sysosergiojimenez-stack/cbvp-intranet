@@ -4,7 +4,7 @@ import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Toolti
 import { trpc } from '@/providers/trpc';
 import {
   Landmark, Plus, Trash2, Save, ChartColumn, Wallet, TrendingUp, TrendingDown,
-  Fuel, Receipt, FileText, HandCoins, ChevronRight,
+  Fuel, Receipt, FileText, HandCoins, FileSpreadsheet, ChevronRight,
 } from 'lucide-react';
 
 function formatearGs(valor: number): string {
@@ -116,6 +116,15 @@ const SUBMODULOS = [
     color: 'text-cbvp-purple',
     bg: 'bg-cbvp-purple/8',
     border: 'border-cbvp-purple/15 hover:border-cbvp-purple/30',
+  },
+  {
+    title: 'Comparativos de Compras',
+    description: 'Compara precios de items entre proveedores, por pestañas.',
+    icon: FileSpreadsheet,
+    path: '/comparativos',
+    color: 'text-cbvp-blue',
+    bg: 'bg-cbvp-blue/8',
+    border: 'border-cbvp-blue/15 hover:border-cbvp-blue/30',
   },
 ];
 
