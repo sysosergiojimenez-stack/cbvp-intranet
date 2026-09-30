@@ -349,13 +349,13 @@ export default function ComparativoDetalle() {
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full text-xs sm:text-sm border-collapse">
+              <table className="w-full text-xs sm:text-sm border-collapse table-fixed">
                 <thead>
                   <tr className="bg-white/5 border-b border-white/10">
-                    <th className="text-left px-2 py-2 font-medium text-white/50 min-w-[200px]">Item</th>
-                    <th className="text-left px-2 py-2 font-medium text-white/50 min-w-[36px]">Cantidad</th>
+                    <th className="text-left px-2 py-2 font-medium text-white/50">Item</th>
+                    <th className="text-left px-2 py-2 font-medium text-white/50 w-[36px]">Cantidad</th>
                     {[0, 1, 2].map((idx) => (
-                      <th key={idx} className="text-left px-2 py-2 font-medium text-white/50 min-w-[56px]">
+                      <th key={idx} className="text-left px-2 py-2 font-medium text-white/50 w-[56px]">
                         <input
                           type="text"
                           value={hojaActiva.proveedores[idx]}
