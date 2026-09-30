@@ -373,13 +373,13 @@ export default function ComparativoDetalle() {
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full text-xs sm:text-sm border-collapse table-fixed">
+              <table className="w-full text-xs sm:text-sm border-collapse">
                 <thead>
                   <tr className="bg-white/5 border-b border-white/10">
-                    <th className="text-left px-2 py-2 font-medium text-white/50">Item</th>
-                    <th className="text-left px-2 py-2 font-medium text-white/50 w-[72px]">Cantidad</th>
+                    <th className="text-left px-2 py-2 font-medium text-white/50 w-1/2">Item</th>
+                    <th className="text-left px-2 py-2 font-medium text-white/50">Cantidad</th>
                     {[0, 1, 2].map((idx) => (
-                      <th key={idx} className="text-left px-2 py-2 font-medium text-white/50 w-[112px]">
+                      <th key={idx} className="text-left px-2 py-2 font-medium text-white/50">
                         <input
                           type="text"
                           value={hojaActiva.proveedores[idx]}
@@ -396,9 +396,20 @@ export default function ComparativoDetalle() {
                     const valoresNumericos = it.precios.map(parsePrecio);
                     const minimo = valoresNumericos.some((v) => v !== null) ? Math.min(...valoresNumericos.filter((v): v is number => v !== null)) : null;
                     return (
-                      <tr key={it.id} className="border-b border-white/5">
+                      <tr key={it.id} className="border-b border-white/5 align-top">
                         <td className="px-2 py-1.5">
-                          <input type="text" value={it.item} onChange={(e) => actualizarItemCampo(it.id, e.target.value)} placeholder="Nombre del item" className="w-full bg-white/5 border border-white/10 rounded px-2 py-1.5 text-white focus:border-cbvp-red/50 focus:outline-none" />
+                          <textarea
+                            ref={(el) => { if (el) { el.style.height = 'auto'; el.style.height = `${el.scrollHeight}px`; } }}
+                            value={it.item}
+                            onChange={(e) => {
+                              actualizarItemCampo(it.id, e.target.value);
+                              e.target.style.height = 'auto';
+                              e.target.style.height = `${e.target.scrollHeight}px`;
+                            }}
+                            rows={1}
+                            placeholder="Nombre del item"
+                            className="w-full bg-white/5 border border-white/10 rounded px-2 py-1.5 text-white focus:border-cbvp-red/50 focus:outline-none resize-none overflow-hidden block leading-snug"
+                          />
                         </td>
                         <td className="px-2 py-1.5">
                           <input type="text" inputMode="decimal" value={it.cantidad} onChange={(e) => actualizarCantidad(it.id, e.target.value)} placeholder="0" className="w-full bg-white/5 border border-white/10 rounded px-2 py-1.5 text-white text-right focus:border-cbvp-red/50 focus:outline-none" />
