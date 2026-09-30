@@ -22,6 +22,7 @@ function generateId(): string {
 const itemSchema = z.object({
   id: z.string().min(1),
   item: z.string(),
+  cantidad: z.number().nullable(),
   precios: z.array(z.number().nullable()).length(3),
 });
 

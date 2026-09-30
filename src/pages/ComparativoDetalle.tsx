@@ -6,6 +6,7 @@ import { ArrowLeft, FileSpreadsheet, Plus, Trash2, Save, X, Pencil, Check } from
 interface ItemLocal {
   id: string;
   item: string;
+  cantidad: string;
   precios: [string, string, string];
 }
 
@@ -19,6 +20,7 @@ interface HojaLocal {
 interface ItemServidor {
   id: string;
   item: string;
+  cantidad: number | null;
   precios: (number | null)[];
 }
 
@@ -34,7 +36,7 @@ function generarIdLocal(): string {
 }
 
 function itemVacio(): ItemLocal {
-  return { id: generarIdLocal(), item: '', precios: ['', '', ''] };
+  return { id: generarIdLocal(), item: '', cantidad: '', precios: ['', '', ''] };
 }
 
 function hojaVaciaLocal(nombre: string): HojaLocal {
@@ -46,6 +48,10 @@ function parsePrecio(valor: string): number | null {
   if (!limpio) return null;
   const n = parseFloat(limpio);
   return isNaN(n) ? null : n;
+}
+
+function formatearNumero(valor: number): string {
+  return valor.toLocaleString('es-PY', { maximumFractionDigits: 2 });
 }
 
 export default function ComparativoDetalle() {
@@ -79,6 +85,7 @@ export default function ComparativoDetalle() {
       items: (h.items || []).map((it) => ({
         id: it.id,
         item: it.item,
+        cantidad: it.cantidad === null || it.cantidad === undefined ? '' : String(it.cantidad),
         precios: [
           it.precios?.[0] === null || it.precios?.[0] === undefined ? '' : String(it.precios[0]),
           it.precios?.[1] === null || it.precios?.[1] === undefined ? '' : String(it.precios[1]),
@@ -92,6 +99,20 @@ export default function ComparativoDetalle() {
   }, [data]);
 
   const hojaActiva = hojas.find((h) => h.id === hojaActivaId);
+
+  // Suma, por proveedor, el precio unitario por la cantidad de cada item
+  // (items sin cantidad o sin precio cargado no aportan a ese total).
+  const totalesPorProveedor = hojaActiva
+    ? [0, 1, 2].map((idx) =>
+        hojaActiva.items.reduce((acc, it) => {
+          const cantidad = parsePrecio(it.cantidad);
+          const precio = parsePrecio(it.precios[idx]);
+          if (cantidad === null || precio === null) return acc;
+          return acc + cantidad * precio;
+        }, 0)
+      )
+    : [0, 0, 0];
+  const totalMinimo = totalesPorProveedor.some((t) => t > 0) ? Math.min(...totalesPorProveedor.filter((t) => t > 0)) : null;
 
   const actualizarHojaActiva = (fn: (hoja: HojaLocal) => HojaLocal) => {
     setHojas((prev) => prev.map((h) => (h.id === hojaActivaId ? fn(h) : h)));
@@ -108,6 +129,10 @@ export default function ComparativoDetalle() {
 
   const actualizarItemCampo = (itemId: string, valor: string) => {
     actualizarHojaActiva((h) => ({ ...h, items: h.items.map((it) => (it.id === itemId ? { ...it, item: valor } : it)) }));
+  };
+
+  const actualizarCantidad = (itemId: string, valor: string) => {
+    actualizarHojaActiva((h) => ({ ...h, items: h.items.map((it) => (it.id === itemId ? { ...it, cantidad: valor } : it)) }));
   };
 
   const actualizarPrecio = (itemId: string, idx: number, valor: string) => {
@@ -168,8 +193,8 @@ export default function ComparativoDetalle() {
         nombre: h.nombre,
         proveedores: h.proveedores,
         items: h.items
-          .filter((it) => it.item.trim() || it.precios.some((p) => p.trim()))
-          .map((it) => ({ id: it.id, item: it.item.trim(), precios: it.precios.map(parsePrecio) as [number | null, number | null, number | null] })),
+          .filter((it) => it.item.trim() || it.cantidad.trim() || it.precios.some((p) => p.trim()))
+          .map((it) => ({ id: it.id, item: it.item.trim(), cantidad: parsePrecio(it.cantidad), precios: it.precios.map(parsePrecio) as [number | null, number | null, number | null] })),
       }));
       await guardarHojasMutation.mutateAsync({ id, hojas: hojasParaGuardar });
 
@@ -328,6 +353,7 @@ export default function ComparativoDetalle() {
                 <thead>
                   <tr className="bg-white/5 border-b border-white/10">
                     <th className="text-left px-2 py-2 font-medium text-white/50 min-w-[200px]">Item</th>
+                    <th className="text-left px-2 py-2 font-medium text-white/50 min-w-[90px]">Cantidad</th>
                     {[0, 1, 2].map((idx) => (
                       <th key={idx} className="text-left px-2 py-2 font-medium text-white/50 min-w-[140px]">
                         <input
@@ -349,6 +375,9 @@ export default function ComparativoDetalle() {
                       <tr key={it.id} className="border-b border-white/5">
                         <td className="px-2 py-1.5">
                           <input type="text" value={it.item} onChange={(e) => actualizarItemCampo(it.id, e.target.value)} placeholder="Nombre del item" className="w-full bg-white/5 border border-white/10 rounded px-2 py-1.5 text-white focus:border-cbvp-red/50 focus:outline-none" />
+                        </td>
+                        <td className="px-2 py-1.5">
+                          <input type="text" inputMode="decimal" value={it.cantidad} onChange={(e) => actualizarCantidad(it.id, e.target.value)} placeholder="0" className="w-full bg-white/5 border border-white/10 rounded px-2 py-1.5 text-white text-right focus:border-cbvp-red/50 focus:outline-none" />
                         </td>
                         {[0, 1, 2].map((idx) => {
                           const esMinimo = minimo !== null && valoresNumericos[idx] === minimo;
@@ -376,6 +405,23 @@ export default function ComparativoDetalle() {
                     );
                   })}
                 </tbody>
+                {hojaActiva.items.length > 0 && (
+                  <tfoot>
+                    <tr className="bg-white/5 font-semibold border-t border-white/10">
+                      <td className="px-2 py-2 text-right text-white/70">TOTAL:</td>
+                      <td></td>
+                      {[0, 1, 2].map((idx) => {
+                        const esMinimo = totalMinimo !== null && totalesPorProveedor[idx] === totalMinimo;
+                        return (
+                          <td key={idx} className={`px-2 py-2 text-right ${esMinimo ? 'text-cbvp-green' : 'text-white'}`}>
+                            {formatearNumero(totalesPorProveedor[idx])}
+                          </td>
+                        );
+                      })}
+                      <td></td>
+                    </tr>
+                  </tfoot>
+                )}
               </table>
               {hojaActiva.items.length === 0 && (
                 <div className="text-center py-8 text-white/30 text-sm">Todavia no hay items en esta pestaña.</div>
