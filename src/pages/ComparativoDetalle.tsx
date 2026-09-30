@@ -353,9 +353,9 @@ export default function ComparativoDetalle() {
                 <thead>
                   <tr className="bg-white/5 border-b border-white/10">
                     <th className="text-left px-2 py-2 font-medium text-white/50 min-w-[200px]">Item</th>
-                    <th className="text-left px-2 py-2 font-medium text-white/50 min-w-[90px]">Cantidad</th>
+                    <th className="text-left px-2 py-2 font-medium text-white/50 min-w-[36px]">Cantidad</th>
                     {[0, 1, 2].map((idx) => (
-                      <th key={idx} className="text-left px-2 py-2 font-medium text-white/50 min-w-[140px]">
+                      <th key={idx} className="text-left px-2 py-2 font-medium text-white/50 min-w-[56px]">
                         <input
                           type="text"
                           value={hojaActiva.proveedores[idx]}
