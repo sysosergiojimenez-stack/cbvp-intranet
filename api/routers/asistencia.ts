@@ -508,9 +508,11 @@ export const asistenciaRouter = createRouter({
         if (!codigo || !primerNombre) continue;
         if (categoria !== input.categoria.toUpperCase()) continue;
         const cargo = String(fila[4] || "").trim().toUpperCase();
-        if (cargo === "RENTADO" || cargo === "ASPIRANTE") continue;
-        const primerApellido = fila[9] ? String(fila[9]).trim() : "";
         const rango = fila[5] ? String(fila[5]).trim() : "";
+        // "Aspirante" se registra en el Rango (Editar Bombero), no en el
+        // Cargo (que para la mayoria queda en "Voluntario(a)").
+        if (cargo === "RENTADO" || cargo === "ASPIRANTE" || rango.toUpperCase() === "ASPIRANTE") continue;
+        const primerApellido = fila[9] ? String(fila[9]).trim() : "";
         const nombre = formatearNombreCompleto(rango, categoria, primerNombre, primerApellido);
         const situ = String(fila[17] || "RN").trim() || "RN";
         const numero = (codigo.match(/\d+/) || [""])[0];
