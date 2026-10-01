@@ -581,8 +581,8 @@ export const planillasRouter = createRouter({
       const guardiasData = await obtenerGuardiasPersonalComoFilas();
       const diasDelMes = new Date(input.anio, input.mes, 0).getDate();
 
-      // Datos de practicas para la planilla de asistencia de activos
-      const tipoPorPlanilla = await obtenerTipoPorPlanillaAsistencia();
+      // Datos de actividades (practicas, citaciones, etc.) para la planilla
+      // de asistencia de activos
       const persData = await obtenerAsistenciaPersonalComoFilas();
 
       function calcular(p: { codigo: string; numero: string; nombre: string; situ: string; exencion: string; comisionadoDesde: string }, tipoRequerido: string) {
@@ -654,6 +654,9 @@ export const planillasRouter = createRouter({
       }
 
       function calcularActivo(p: { codigo: string; numero: string; nombre: string; situ: string; exencion: string; comisionadoDesde: string }) {
+        // La asistencia de Activos es binaria por mes: con una sola
+        // asistencia (guardia, practica, citacion, reunion de compania u
+        // otro) alcanza el 100%; sin ninguna asistencia en el mes, 0%.
         if (p.situ === "LM") {
           const dias = new Array(diasDelMes).fill("E");
           return { codigo: p.codigo, nombre: p.nombre, situ: p.situ, dias, totalGuardias: diasDelMes, presentes: diasDelMes, porcentaje: 100 };
@@ -691,15 +694,13 @@ export const planillasRouter = createRouter({
           if (score > scores[dia - 1]) scores[dia - 1] = score;
         }
 
-        // Practicas
+        // Practicas, citaciones, reuniones de compania y otras actividades
+        // (cuenta cualquier tipo de actividad, no solo practica).
         for (let i = 1; i < persData.length; i++) {
           const fila = persData[i];
           const codigoFila = String(fila[6] || "").trim();
           const numeroFila = (codigoFila.match(/\d+/) || [""])[0];
           if (!numeroFila || numeroFila !== p.numero) continue;
-          const idPlanilla = String(fila[1] || "").trim();
-          const tipo = tipoPorPlanilla.get(idPlanilla) || "";
-          if (!tipo.includes("PRACTICA")) continue;
           const fechaActividad = String(fila[3] || "").trim();
           const partes = fechaActividad.split("/");
           if (partes.length !== 3) continue;
@@ -741,15 +742,10 @@ export const planillasRouter = createRouter({
           if (s === 3 || s === 2) presentes++;
         }
 
-        const realPercent = total > 0 ? (presentes / total) * 100 : 0;
-        let porcentaje = realPercent;
-        if (p.situ === "B10A") {
-          porcentaje = Math.min(100, (realPercent / 50) * 100);
-        } else if (p.situ === "B15A") {
-          porcentaje = Math.min(100, (realPercent / 25) * 100);
-        } else if (p.situ === "B20A") {
-          porcentaje = presentes >= 1 ? 100 : 0;
-        }
+        // Asistencia binaria: alcanza con una sola asistencia en el mes
+        // (no aplican las reducciones proporcionales de B10A/B15A, que no
+        // tienen sentido con una regla binaria).
+        const porcentaje = presentes >= 1 ? 100 : 0;
 
         return {
           codigo: p.codigo,
@@ -991,15 +987,13 @@ export const planillasRouter = createRouter({
           if (score > scores[dia - 1]) scores[dia - 1] = score;
         }
 
-        // Practicas
+        // Practicas, citaciones, reuniones de compania y otras actividades
+        // (cuenta cualquier tipo de actividad, no solo practica).
         for (let i = 1; i < persData.length; i++) {
           const fila = persData[i];
           const codigoFila = String(fila[6] || "").trim();
           const numeroFila = (codigoFila.match(/\d+/) || [""])[0];
           if (!numeroFila || numeroFila !== p.numero) continue;
-          const idPlanilla = String(fila[1] || "").trim();
-          const tipo = tipoPorPlanilla.get(idPlanilla) || "";
-          if (!tipo.includes("PRACTICA")) continue;
           const fechaActividad = String(fila[3] || "").trim();
           const partes = fechaActividad.split("/");
           if (partes.length !== 3) continue;
@@ -1028,16 +1022,15 @@ export const planillasRouter = createRouter({
           }
         }
 
-        let total = 0;
         let presentes = 0;
         for (const s of scores) {
-          if (s === 0) continue;
-          total++;
           if (s === 3 || s === 2) presentes++;
         }
 
-        const realPercent = total > 0 ? (presentes / total) * 100 : 0;
-        return porcentajeConSitu(realPercent, presentes, p.situ);
+        // Asistencia binaria: alcanza con una sola asistencia en el mes
+        // (no aplican las reducciones proporcionales de B10A/B15A, que no
+        // tienen sentido con una regla binaria).
+        return presentes >= 1 ? 100 : 0;
       }
 
       const filas = personasBase.map((p) => {
