@@ -353,7 +353,7 @@ export const salidaMovilRouter = createRouter({
         return `${normalizarAnio(y)}-${m.padStart(2, "0")}-${d.padStart(2, "0")} ${hora}`;
       };
 
-      registros.sort((a, b) => claveOrden(b).localeCompare(claveOrden(a)));
+      registros.sort((a, b) => claveOrden(a).localeCompare(claveOrden(b)));
 
       return {
         exito: true as const,
