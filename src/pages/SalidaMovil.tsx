@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { trpc } from '@/providers/trpc';
 import DocumentScanModal from '@/components/DocumentScanModal';
-import { Upload, X, FileText, Clock, Zap, AlertTriangle, CheckCircle, ExternalLink, Edit3, RotateCcw, Save, Trash2, Plus, Camera, Image as ImageIcon, Filter, Flame, MoreVertical } from 'lucide-react';
+import { Upload, X, FileText, Clock, Zap, AlertTriangle, CheckCircle, ExternalLink, Edit3, RotateCcw, Save, Trash2, Plus, Camera, Image as ImageIcon, ChevronLeft, ChevronRight, Flame, MoreVertical } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { MOVILES_VALIDOS, type MovilValido } from '@contracts/moviles';
 import { TIPOS_SERVICIO_VALIDOS, type TipoServicioValido } from '@contracts/tiposServicio';
@@ -45,6 +45,11 @@ function hoyDDMMYYYY(): string {
 function ahoraHHmm(): string {
   const d = new Date();
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
+function fechaISOHoy(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 interface RegistroMovil {
@@ -91,23 +96,22 @@ export default function SalidaMovil() {
     .map(p => ({ value: `${p.primerNombre} ${p.primerApellido}`.trim(), label: p.nombreCompleto }))
     .filter(p => p.value)
     .sort((a, b) => a.label.localeCompare(b.label));
-  const [filtroFechaDesde, setFiltroFechaDesde] = useState('');
-  const [filtroFechaHasta, setFiltroFechaHasta] = useState('');
-  const [filtroMovil, setFiltroMovil] = useState('');
-  const [filtroTipoServicio, setFiltroTipoServicio] = useState('');
-  const hayFiltrosActivos = !!(filtroFechaDesde || filtroFechaHasta || filtroMovil || filtroTipoServicio);
-  const limpiarFiltros = () => {
-    setFiltroFechaDesde(''); setFiltroFechaHasta(''); setFiltroMovil(''); setFiltroTipoServicio('');
+  const hoyISO = fechaISOHoy();
+  const [movilActivo, setMovilActivo] = useState<MovilValido>(MOVILES_VALIDOS[0]);
+  const [fechaSeleccionada, setFechaSeleccionada] = useState(hoyISO);
+  const cambiarDia = (delta: number) => {
+    const [y, m, d] = fechaSeleccionada.split('-').map(Number);
+    const fecha = new Date(y, m - 1, d + delta);
+    setFechaSeleccionada(`${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}-${String(fecha.getDate()).padStart(2, '0')}`);
   };
   const { data: informesData } = trpc.informeIncendio.listado.useQuery();
   const informePorSalida = new Map(
     (informesData?.informes || []).filter(i => i.salidaId).map(i => [i.salidaId, i])
   );
   const { data: listadoData, isLoading: listadoLoading } = trpc.salidaMovil.listado.useQuery({
-    fechaDesde: filtroFechaDesde || undefined,
-    fechaHasta: filtroFechaHasta || undefined,
-    movil: filtroMovil || undefined,
-    tipoServicio: filtroTipoServicio || undefined,
+    fechaDesde: fechaSeleccionada,
+    fechaHasta: fechaSeleccionada,
+    movil: movilActivo,
   });
   const editarMutation = trpc.salidaMovil.editar.useMutation();
   const eliminarMutation = trpc.salidaMovil.eliminar.useMutation();
@@ -515,130 +519,139 @@ export default function SalidaMovil() {
 
       <div className="mt-6 bg-white/[0.03] border border-white/10 rounded-2xl overflow-hidden">
         <div className="px-4 py-3 border-b border-white/10">
-          <h3 className="text-sm font-semibold text-white">Registro de Salidas (mas reciente primero)</h3>
+          <h3 className="text-sm font-semibold text-white">Registro de Salidas</h3>
         </div>
-        <div className="px-4 py-3 border-b border-white/10 bg-white/[0.02]">
-          <div className="flex items-center gap-2 mb-3 text-xs font-medium text-white/40 uppercase tracking-wider">
-            <Filter className="w-3.5 h-3.5" /> Filtros
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div>
-              <label className="text-xs text-white/40 mb-1 block">Desde</label>
-              <input
-                type="date"
-                value={filtroFechaDesde}
-                onChange={e => setFiltroFechaDesde(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-cbvp-red/50 [color-scheme:dark]"
-              />
-            </div>
-            <div>
-              <label className="text-xs text-white/40 mb-1 block">Hasta</label>
-              <input
-                type="date"
-                value={filtroFechaHasta}
-                onChange={e => setFiltroFechaHasta(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-cbvp-red/50 [color-scheme:dark]"
-              />
-            </div>
-            <div>
-              <label className="text-xs text-white/40 mb-1 block">Movil</label>
-              <select
-                value={filtroMovil}
-                onChange={e => setFiltroMovil(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-cbvp-red/50"
-              >
-                <option value="">Todos</option>
-                {MOVILES_VALIDOS.map(m => (
-                  <option key={m} value={m}>{m}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="text-xs text-white/40 mb-1 block">Tipo Servicio</label>
-              <select
-                value={filtroTipoServicio}
-                onChange={e => setFiltroTipoServicio(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-cbvp-red/50"
-              >
-                <option value="">Todos</option>
-                {TIPOS_SERVICIO_VALIDOS.map(t => (
-                  <option key={t} value={t}>{t}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-          {hayFiltrosActivos && (
+
+        {/* Pestañas por movil operativo */}
+        <div className="flex items-center gap-1 px-4 pt-3 border-b border-white/10">
+          {MOVILES_VALIDOS.map(m => (
             <button
-              onClick={limpiarFiltros}
-              className="mt-3 text-xs text-white/40 hover:text-white flex items-center gap-1 transition-colors"
+              key={m}
+              onClick={() => setMovilActivo(m)}
+              className={`px-3 py-2 text-sm rounded-t-lg border-b-2 transition-colors ${
+                m === movilActivo ? 'border-cbvp-red text-white bg-white/[0.03]' : 'border-transparent text-white/40 hover:text-white/70'
+              }`}
             >
-              <X className="w-3 h-3" /> Limpiar filtros
+              {m}
             </button>
+          ))}
+        </div>
+
+        {/* Navegador de dia */}
+        <div className="px-4 py-3 border-b border-white/10 bg-white/[0.02] flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-2">
+            <button onClick={() => cambiarDia(-1)} className="p-2 rounded-lg hover:bg-white/10 text-white/50 hover:text-white transition-colors" title="Dia anterior">
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <input
+              type="date"
+              value={fechaSeleccionada}
+              onChange={e => setFechaSeleccionada(e.target.value)}
+              className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-cbvp-red/50 [color-scheme:dark]"
+            />
+            <button onClick={() => cambiarDia(1)} className="p-2 rounded-lg hover:bg-white/10 text-white/50 hover:text-white transition-colors" title="Dia siguiente">
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+          {fechaSeleccionada !== hoyISO && (
+            <button onClick={() => setFechaSeleccionada(hoyISO)} className="text-xs text-cbvp-red-light hover:underline">Volver a hoy</button>
           )}
         </div>
+
         {listadoLoading ? (
           <div className="p-4 text-sm text-white/40">Cargando...</div>
         ) : !listadoData?.registros || listadoData.registros.length === 0 ? (
-          <div className="p-4 text-sm text-white/40">{hayFiltrosActivos ? 'No hay registros que coincidan con los filtros' : 'No hay registros todavia'}</div>
+          <div className="p-4 text-sm text-white/40">No hay salidas registradas con {movilActivo} para esta fecha.</div>
         ) : (
-          <div className="p-4 space-y-2">
-            {listadoData.registros.map(r => (
-              <div key={r.id} className="rounded-xl border border-white/10 bg-white/[0.02]">
-                <div className="flex items-center justify-between gap-3 p-3">
-                  <button onClick={() => iniciarEdicion(r)} className="min-w-0 text-left flex-1">
-                    <p className="text-sm text-white">{r.fechaSalida} {r.horaSalida} · {r.movil || '-'} · <span className="text-cbvp-red-light">{r.tipoServicio || '-'}</span></p>
-                    <p className="text-xs text-white/40 truncate">{r.direccion || '-'} — Conductor: {r.conductor || '-'}{r.oficialACargo ? ` — A cargo: ${r.oficialACargo}` : ''}{r.kilometrajeLlegada ? ` — Km: ${r.kilometrajeLlegada}` : ''}</p>
-                  </button>
-                  {(r.tipoServicio.startsWith('10:40') || r.imageUrls.length > 0) && (
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <button className="p-2 rounded-lg hover:bg-white/10 text-white/40 hover:text-white transition-colors shrink-0" title="Acciones">
-                          <MoreVertical className="w-4 h-4" />
-                        </button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        {r.tipoServicio.startsWith('10:40') && (
-                          <DropdownMenuItem onClick={() => abrirInforme(r.id)}>
-                            <Flame className="w-3.5 h-3.5" />
-                            {informePorSalida.get(r.id)?.nServicio ? `Informe N° ${informePorSalida.get(r.id)?.nServicio}` : 'Cargar informe de servicio'}
-                          </DropdownMenuItem>
-                        )}
-                        {r.imageUrls.length > 0 && (
-                          <DropdownMenuItem asChild>
-                            <a href={r.imageUrls[0]} target="_blank" rel="noopener noreferrer">
-                              <ExternalLink className="w-3.5 h-3.5" /> Ver imagen
-                            </a>
-                          </DropdownMenuItem>
-                        )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  )}
-                </div>
-                {editandoId === r.id && (
-                  <div className="px-3 pb-4 border-t border-white/5 pt-3">
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
-                            <div><label className="text-xs text-white/40 mb-1 block">Movil</label><select value={editForm.movil} onChange={e => setEditForm({ ...editForm, movil: e.target.value as MovilValido })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none">{!(MOVILES_VALIDOS as readonly string[]).includes(editForm.movil) && editForm.movil && <option value={editForm.movil}>{editForm.movil} (anterior)</option>}{MOVILES_VALIDOS.map(m => <option key={m} value={m}>{m}</option>)}</select></div>
-                            <div><label className="text-xs text-white/40 mb-1 block">Conductor</label><input type="text" list="salida-movil-personal" value={editForm.conductor} onChange={e => setEditForm({ ...editForm, conductor: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
-                            <div><label className="text-xs text-white/40 mb-1 block">A Cargo</label><input type="text" list="salida-movil-personal" value={editForm.oficialACargo} onChange={e => setEditForm({ ...editForm, oficialACargo: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
-                            <div><label className="text-xs text-white/40 mb-1 block">Tripulantes</label><input type="text" value={editForm.nroTripulantes} onChange={e => setEditForm({ ...editForm, nroTripulantes: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
-                            <div className="col-span-2 md:col-span-4"><label className="text-xs text-white/40 mb-1 block">Tipo Servicio</label><select value={editForm.tipoServicio} onChange={e => setEditForm({ ...editForm, tipoServicio: e.target.value as TipoServicioValido })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none"><option value="">-- Seleccionar --</option>{!(TIPOS_SERVICIO_VALIDOS as readonly string[]).includes(editForm.tipoServicio) && editForm.tipoServicio && <option value={editForm.tipoServicio}>{editForm.tipoServicio} (anterior)</option>}{TIPOS_SERVICIO_VALIDOS.map(t => <option key={t} value={t}>{t}</option>)}</select></div>
-                            <div><label className="text-xs text-white/40 mb-1 block">Fecha Salida</label><input type="date" value={fechaDDMMYYYYaISO(editForm.fechaSalida)} onChange={e => setEditForm({ ...editForm, fechaSalida: fechaISOaDDMMYYYY(e.target.value) })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none [color-scheme:dark]" /></div>
-                            <div><label className="text-xs text-white/40 mb-1 block">Hora Salida</label><input type="time" value={editForm.horaSalida} onChange={e => setEditForm({ ...editForm, horaSalida: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none [color-scheme:dark]" /></div>
-                            <div><label className="text-xs text-white/40 mb-1 block">Km Salida</label><input type="text" value={editForm.kilometrajeSalida} onChange={e => setEditForm({ ...editForm, kilometrajeSalida: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
-                            <div><label className="text-xs text-white/40 mb-1 block">Direccion</label><input type="text" value={editForm.direccion} onChange={e => setEditForm({ ...editForm, direccion: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
-                            <div><label className="text-xs text-white/40 mb-1 block">Fecha Llegada</label><input type="date" value={fechaDDMMYYYYaISO(editForm.fechaLlegada)} onChange={e => setEditForm({ ...editForm, fechaLlegada: fechaISOaDDMMYYYY(e.target.value) })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none [color-scheme:dark]" /></div>
-                            <div><label className="text-xs text-white/40 mb-1 block">Hora Llegada</label><input type="time" value={editForm.horaLlegada} onChange={e => setEditForm({ ...editForm, horaLlegada: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none [color-scheme:dark]" /></div>
-                            <div><label className="text-xs text-white/40 mb-1 block">Km Llegada</label><input type="text" value={editForm.kilometrajeLlegada} onChange={e => setEditForm({ ...editForm, kilometrajeLlegada: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
-                          </div>
-                    <div className="flex gap-2">
-                      <button onClick={guardarEdicion} className="px-4 py-2 bg-cbvp-green hover:bg-cbvp-green/80 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2"><Save className="w-4 h-4" /> Guardar</button>
-                      <button onClick={() => setEditandoId(null)} className="px-4 py-2 bg-white/5 hover:bg-white/10 text-white/60 text-sm rounded-lg transition-colors">Cancelar</button>
-                      <button onClick={() => eliminarFila(r.id)} className="px-4 py-2 bg-cbvp-red/10 hover:bg-cbvp-red/20 text-cbvp-red-light text-sm font-medium rounded-lg transition-colors flex items-center gap-2"><Trash2 className="w-4 h-4" /> Eliminar</button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))}
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs sm:text-sm">
+              <thead>
+                <tr className="bg-white/5 border-b border-white/10">
+                  <th className="text-left px-2 py-2 font-medium text-white/50">Hora Salida</th>
+                  <th className="text-left px-2 py-2 font-medium text-white/50">Conductor</th>
+                  <th className="text-left px-2 py-2 font-medium text-white/50">A Cargo</th>
+                  <th className="text-left px-2 py-2 font-medium text-white/50">Tipo Servicio</th>
+                  <th className="text-left px-2 py-2 font-medium text-white/50">Direccion</th>
+                  <th className="text-left px-2 py-2 font-medium text-white/50">Km Salida</th>
+                  <th className="text-left px-2 py-2 font-medium text-white/50">Hora Llegada</th>
+                  <th className="text-left px-2 py-2 font-medium text-white/50">Km Llegada</th>
+                  <th className="w-10"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {listadoData.registros.map(r => {
+                  const editando = editandoId === r.id;
+                  return (
+                    <Fragment key={r.id}>
+                      <tr
+                        onClick={() => (editando ? setEditandoId(null) : iniciarEdicion(r))}
+                        className={`border-b border-white/5 hover:bg-white/[0.02] cursor-pointer ${editando ? 'bg-white/[0.02]' : ''}`}
+                      >
+                        <td className="px-2 py-1.5 text-white/80 whitespace-nowrap">{r.horaSalida || '-'}</td>
+                        <td className="px-2 py-1.5 text-white/70 whitespace-nowrap">{r.conductor || '-'}</td>
+                        <td className="px-2 py-1.5 text-white/70 whitespace-nowrap">{r.oficialACargo || '-'}</td>
+                        <td className="px-2 py-1.5 text-cbvp-red-light whitespace-nowrap">{r.tipoServicio || '-'}</td>
+                        <td className="px-2 py-1.5 text-white/60 max-w-[200px] truncate" title={r.direccion}>{r.direccion || '-'}</td>
+                        <td className="px-2 py-1.5 text-white/70 whitespace-nowrap">{r.kilometrajeSalida || '-'}</td>
+                        <td className="px-2 py-1.5 text-white/70 whitespace-nowrap">{r.horaLlegada || '-'}</td>
+                        <td className="px-2 py-1.5 text-white/70 whitespace-nowrap">{r.kilometrajeLlegada || '-'}</td>
+                        <td className="px-2 py-1.5" onClick={e => e.stopPropagation()}>
+                          {(r.tipoServicio.startsWith('10:40') || r.imageUrls.length > 0) && (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <button className="p-1.5 rounded-lg hover:bg-white/10 text-white/40 hover:text-white transition-colors shrink-0" title="Acciones">
+                                  <MoreVertical className="w-4 h-4" />
+                                </button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                {r.tipoServicio.startsWith('10:40') && (
+                                  <DropdownMenuItem onClick={() => abrirInforme(r.id)}>
+                                    <Flame className="w-3.5 h-3.5" />
+                                    {informePorSalida.get(r.id)?.nServicio ? `Informe N° ${informePorSalida.get(r.id)?.nServicio}` : 'Cargar informe de servicio'}
+                                  </DropdownMenuItem>
+                                )}
+                                {r.imageUrls.length > 0 && (
+                                  <DropdownMenuItem asChild>
+                                    <a href={r.imageUrls[0]} target="_blank" rel="noopener noreferrer">
+                                      <ExternalLink className="w-3.5 h-3.5" /> Ver imagen
+                                    </a>
+                                  </DropdownMenuItem>
+                                )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          )}
+                        </td>
+                      </tr>
+                      {editando && (
+                        <tr className="border-b border-white/5 bg-white/[0.02]">
+                          <td colSpan={9} className="px-3 pb-4 pt-3" onClick={e => e.stopPropagation()}>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+                              <div><label className="text-xs text-white/40 mb-1 block">Movil</label><select value={editForm.movil} onChange={e => setEditForm({ ...editForm, movil: e.target.value as MovilValido })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none">{!(MOVILES_VALIDOS as readonly string[]).includes(editForm.movil) && editForm.movil && <option value={editForm.movil}>{editForm.movil} (anterior)</option>}{MOVILES_VALIDOS.map(m => <option key={m} value={m}>{m}</option>)}</select></div>
+                              <div><label className="text-xs text-white/40 mb-1 block">Conductor</label><input type="text" list="salida-movil-personal" value={editForm.conductor} onChange={e => setEditForm({ ...editForm, conductor: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
+                              <div><label className="text-xs text-white/40 mb-1 block">A Cargo</label><input type="text" list="salida-movil-personal" value={editForm.oficialACargo} onChange={e => setEditForm({ ...editForm, oficialACargo: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
+                              <div><label className="text-xs text-white/40 mb-1 block">Tripulantes</label><input type="text" value={editForm.nroTripulantes} onChange={e => setEditForm({ ...editForm, nroTripulantes: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
+                              <div className="col-span-2 md:col-span-4"><label className="text-xs text-white/40 mb-1 block">Tipo Servicio</label><select value={editForm.tipoServicio} onChange={e => setEditForm({ ...editForm, tipoServicio: e.target.value as TipoServicioValido })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none"><option value="">-- Seleccionar --</option>{!(TIPOS_SERVICIO_VALIDOS as readonly string[]).includes(editForm.tipoServicio) && editForm.tipoServicio && <option value={editForm.tipoServicio}>{editForm.tipoServicio} (anterior)</option>}{TIPOS_SERVICIO_VALIDOS.map(t => <option key={t} value={t}>{t}</option>)}</select></div>
+                              <div><label className="text-xs text-white/40 mb-1 block">Fecha Salida</label><input type="date" value={fechaDDMMYYYYaISO(editForm.fechaSalida)} onChange={e => setEditForm({ ...editForm, fechaSalida: fechaISOaDDMMYYYY(e.target.value) })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none [color-scheme:dark]" /></div>
+                              <div><label className="text-xs text-white/40 mb-1 block">Hora Salida</label><input type="time" value={editForm.horaSalida} onChange={e => setEditForm({ ...editForm, horaSalida: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none [color-scheme:dark]" /></div>
+                              <div><label className="text-xs text-white/40 mb-1 block">Km Salida</label><input type="text" value={editForm.kilometrajeSalida} onChange={e => setEditForm({ ...editForm, kilometrajeSalida: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
+                              <div><label className="text-xs text-white/40 mb-1 block">Direccion</label><input type="text" value={editForm.direccion} onChange={e => setEditForm({ ...editForm, direccion: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
+                              <div><label className="text-xs text-white/40 mb-1 block">Fecha Llegada</label><input type="date" value={fechaDDMMYYYYaISO(editForm.fechaLlegada)} onChange={e => setEditForm({ ...editForm, fechaLlegada: fechaISOaDDMMYYYY(e.target.value) })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none [color-scheme:dark]" /></div>
+                              <div><label className="text-xs text-white/40 mb-1 block">Hora Llegada</label><input type="time" value={editForm.horaLlegada} onChange={e => setEditForm({ ...editForm, horaLlegada: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none [color-scheme:dark]" /></div>
+                              <div><label className="text-xs text-white/40 mb-1 block">Km Llegada</label><input type="text" value={editForm.kilometrajeLlegada} onChange={e => setEditForm({ ...editForm, kilometrajeLlegada: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
+                            </div>
+                            <div className="flex gap-2">
+                              <button onClick={guardarEdicion} className="px-4 py-2 bg-cbvp-green hover:bg-cbvp-green/80 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2"><Save className="w-4 h-4" /> Guardar</button>
+                              <button onClick={() => setEditandoId(null)} className="px-4 py-2 bg-white/5 hover:bg-white/10 text-white/60 text-sm rounded-lg transition-colors">Cancelar</button>
+                              <button onClick={() => eliminarFila(r.id)} className="px-4 py-2 bg-cbvp-red/10 hover:bg-cbvp-red/20 text-cbvp-red-light text-sm font-medium rounded-lg transition-colors flex items-center gap-2"><Trash2 className="w-4 h-4" /> Eliminar</button>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         )}
       </div>
