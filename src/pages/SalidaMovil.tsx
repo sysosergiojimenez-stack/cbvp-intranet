@@ -2,7 +2,7 @@ import { Fragment, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { trpc } from '@/providers/trpc';
 import DocumentScanModal from '@/components/DocumentScanModal';
-import { Upload, X, FileText, Clock, Zap, AlertTriangle, CheckCircle, ExternalLink, Edit3, RotateCcw, Save, Trash2, Plus, Camera, Image as ImageIcon, ChevronLeft, ChevronRight, Flame, MoreVertical } from 'lucide-react';
+import { X, FileText, Clock, Zap, AlertTriangle, CheckCircle, ExternalLink, Edit3, RotateCcw, Save, Trash2, Plus, Camera, ChevronLeft, ChevronRight, Flame, MoreVertical } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { MOVILES_VALIDOS, type MovilValido } from '@contracts/moviles';
 import { TIPOS_SERVICIO_VALIDOS, type TipoServicioValido } from '@contracts/tiposServicio';
@@ -195,7 +195,6 @@ export default function SalidaMovil() {
   const [files, setFiles] = useState<Array<{ file: File; preview: string | null }>>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState('');
-  const [dragOver, setDragOver] = useState(false);
   const [result, setResult] = useState<{ idPlanilla: string; totalRegistros: number; imageUrls: string[] } | null>(null);
   const [extraccion, setExtraccion] = useState<{ imageUrls: string[]; uploadError?: string; registros: RegistroMovil[] } | null>(null);
 
@@ -261,14 +260,6 @@ export default function SalidaMovil() {
 
   const removeFile = (idx: number) => {
     setFiles(prev => prev.filter((_, i) => i !== idx));
-  };
-
-  const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); setDragOver(true); };
-  const handleDragLeave = () => setDragOver(false);
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragOver(false);
-    if (e.dataTransfer.files.length > 0) handleFiles(e.dataTransfer.files);
   };
 
   const procesarPlanilla = async () => {
@@ -363,44 +354,42 @@ export default function SalidaMovil() {
       <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-6">
         {!extraccion && (
           <div className="flex justify-end mb-3">
-            <button onClick={iniciarSalidaManual} className="px-3 py-2 bg-cbvp-blue/10 hover:bg-cbvp-blue/20 text-cbvp-blue rounded-lg text-xs flex items-center gap-2 transition-colors">
-              <Plus className="w-3.5 h-3.5" /> Agregar Salida Manualmente
-            </button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="px-4 py-2 bg-cbvp-red hover:bg-cbvp-red/80 text-white rounded-lg text-sm font-medium flex items-center gap-2 transition-colors">
+                  <Plus className="w-4 h-4" /> Agregar Salida
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={iniciarSalidaManual}>
+                  <Edit3 className="w-3.5 h-3.5" /> Agregar Manualmente
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => document.getElementById('file-input-salida-movil-camara')?.click()}>
+                  <Camera className="w-3.5 h-3.5" /> Tomar Foto
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => document.getElementById('file-input-salida-movil-galeria')?.click()}>
+                  <FileText className="w-3.5 h-3.5" /> Subir Documento
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         )}
-        <div
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
-          className={`border-2 border-dashed rounded-xl p-6 text-center transition-colors ${dragOver ? 'border-cbvp-red bg-cbvp-red/5' : 'border-white/10'}`}
-        >
-          <Upload className="w-8 h-8 text-white/20 mx-auto mb-2" />
-          <p className="text-white/40 text-sm mb-3">Subi una o varias imagenes de la planilla</p>
-          <div className="flex gap-2 justify-center flex-wrap">
-            <button type="button" onClick={() => document.getElementById('file-input-salida-movil-camara')?.click()} className="px-4 py-2 bg-cbvp-red/10 hover:bg-cbvp-red/20 text-cbvp-red rounded-lg text-sm flex items-center gap-2 transition-colors">
-              <Camera className="w-4 h-4" /> Tomar Foto
-            </button>
-            <button type="button" onClick={() => document.getElementById('file-input-salida-movil-galeria')?.click()} className="px-4 py-2 bg-white/5 hover:bg-white/10 text-white/60 rounded-lg text-sm flex items-center gap-2 transition-colors">
-              <ImageIcon className="w-4 h-4" /> Galeria
-            </button>
-          </div>
-          <input
-            id="file-input-salida-movil-camara"
-            type="file"
-            accept="image/*"
-            capture="environment"
-            onChange={handleFileInput}
-            className="hidden"
-          />
-          <input
-            id="file-input-salida-movil-galeria"
-            type="file"
-            accept="image/*"
-            multiple
-            onChange={handleFileInput}
-            className="hidden"
-          />
-        </div>
+        <input
+          id="file-input-salida-movil-camara"
+          type="file"
+          accept="image/*"
+          capture="environment"
+          onChange={handleFileInput}
+          className="hidden"
+        />
+        <input
+          id="file-input-salida-movil-galeria"
+          type="file"
+          accept="image/*,.pdf,application/pdf"
+          multiple
+          onChange={handleFileInput}
+          className="hidden"
+        />
 
         {files.length > 0 && (
           <div className="mt-3 space-y-2">
