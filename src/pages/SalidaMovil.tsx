@@ -97,7 +97,7 @@ export default function SalidaMovil() {
     .filter(p => p.value)
     .sort((a, b) => a.label.localeCompare(b.label));
   const hoyISO = fechaISOHoy();
-  const [movilActivo, setMovilActivo] = useState<MovilValido>(MOVILES_VALIDOS[0]);
+  const [movilFiltro, setMovilFiltro] = useState<MovilValido | 'TODOS'>('TODOS');
   const [fechaSeleccionada, setFechaSeleccionada] = useState(hoyISO);
   const cambiarDia = (delta: number) => {
     const [y, m, d] = fechaSeleccionada.split('-').map(Number);
@@ -111,7 +111,7 @@ export default function SalidaMovil() {
   const { data: listadoData, isLoading: listadoLoading } = trpc.salidaMovil.listado.useQuery({
     fechaDesde: fechaSeleccionada,
     fechaHasta: fechaSeleccionada,
-    movil: movilActivo,
+    movil: movilFiltro === 'TODOS' ? undefined : movilFiltro,
   });
   const editarMutation = trpc.salidaMovil.editar.useMutation();
   const eliminarMutation = trpc.salidaMovil.eliminar.useMutation();
@@ -511,22 +511,7 @@ export default function SalidaMovil() {
           )}
         </div>
 
-        {/* Pestañas por movil operativo */}
-        <div className="flex items-center gap-1 px-4 pt-3 border-b border-white/10">
-          {MOVILES_VALIDOS.map(m => (
-            <button
-              key={m}
-              onClick={() => setMovilActivo(m)}
-              className={`px-3 py-2 text-sm rounded-t-lg border-b-2 transition-colors ${
-                m === movilActivo ? 'border-cbvp-red text-white bg-white/[0.03]' : 'border-transparent text-white/40 hover:text-white/70'
-              }`}
-            >
-              {m}
-            </button>
-          ))}
-        </div>
-
-        {/* Navegador de dia */}
+        {/* Navegador de dia + filtro de movil */}
         <div className="px-4 py-3 border-b border-white/10 bg-white/[0.02] flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-2">
             <button onClick={() => cambiarDia(-1)} className="p-2 rounded-lg hover:bg-white/10 text-white/50 hover:text-white transition-colors" title="Dia anterior">
@@ -541,21 +526,30 @@ export default function SalidaMovil() {
             <button onClick={() => cambiarDia(1)} className="p-2 rounded-lg hover:bg-white/10 text-white/50 hover:text-white transition-colors" title="Dia siguiente">
               <ChevronRight className="w-4 h-4" />
             </button>
+            {fechaSeleccionada !== hoyISO && (
+              <button onClick={() => setFechaSeleccionada(hoyISO)} className="text-xs text-cbvp-red-light hover:underline">Volver a hoy</button>
+            )}
           </div>
-          {fechaSeleccionada !== hoyISO && (
-            <button onClick={() => setFechaSeleccionada(hoyISO)} className="text-xs text-cbvp-red-light hover:underline">Volver a hoy</button>
-          )}
+          <select
+            value={movilFiltro}
+            onChange={e => setMovilFiltro(e.target.value as MovilValido | 'TODOS')}
+            className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-cbvp-red/50"
+          >
+            <option value="TODOS">Todos los moviles</option>
+            {MOVILES_VALIDOS.map(m => <option key={m} value={m}>{m}</option>)}
+          </select>
         </div>
 
         {listadoLoading ? (
           <div className="p-4 text-sm text-white/40">Cargando...</div>
         ) : !listadoData?.registros || listadoData.registros.length === 0 ? (
-          <div className="p-4 text-sm text-white/40">No hay salidas registradas con {movilActivo} para esta fecha.</div>
+          <div className="p-4 text-sm text-white/40">No hay salidas registradas para esta fecha{movilFiltro !== 'TODOS' ? ` con ${movilFiltro}` : ''}.</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-xs sm:text-sm">
               <thead>
                 <tr className="bg-white/5 border-b border-white/10">
+                  <th className="text-left px-2 py-2 font-medium text-white/50">Movil</th>
                   <th className="text-left px-2 py-2 font-medium text-white/50">Hora Salida</th>
                   <th className="text-left px-2 py-2 font-medium text-white/50">Conductor</th>
                   <th className="text-left px-2 py-2 font-medium text-white/50">A Cargo</th>
@@ -576,6 +570,7 @@ export default function SalidaMovil() {
                         onClick={() => (editando ? setEditandoId(null) : iniciarEdicion(r))}
                         className={`border-b border-white/5 hover:bg-white/[0.02] cursor-pointer ${editando ? 'bg-white/[0.02]' : ''}`}
                       >
+                        <td className="px-2 py-1.5 text-white/80 whitespace-nowrap font-medium">{r.movil || '-'}</td>
                         <td className="px-2 py-1.5 text-white/80 whitespace-nowrap">{r.horaSalida || '-'}</td>
                         <td className="px-2 py-1.5 text-white/70 whitespace-nowrap">{r.conductor || '-'}</td>
                         <td className="px-2 py-1.5 text-white/70 whitespace-nowrap">{r.oficialACargo || '-'}</td>
@@ -613,7 +608,7 @@ export default function SalidaMovil() {
                       </tr>
                       {editando && (
                         <tr className="border-b border-white/5 bg-white/[0.02]">
-                          <td colSpan={9} className="px-3 pb-4 pt-3" onClick={e => e.stopPropagation()}>
+                          <td colSpan={10} className="px-3 pb-4 pt-3" onClick={e => e.stopPropagation()}>
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
                               <div><label className="text-xs text-white/40 mb-1 block">Movil</label><select value={editForm.movil} onChange={e => setEditForm({ ...editForm, movil: e.target.value as MovilValido })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none">{!(MOVILES_VALIDOS as readonly string[]).includes(editForm.movil) && editForm.movil && <option value={editForm.movil}>{editForm.movil} (anterior)</option>}{MOVILES_VALIDOS.map(m => <option key={m} value={m}>{m}</option>)}</select></div>
                               <div><label className="text-xs text-white/40 mb-1 block">Conductor</label><input type="text" list="salida-movil-personal" value={editForm.conductor} onChange={e => setEditForm({ ...editForm, conductor: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none" /></div>
