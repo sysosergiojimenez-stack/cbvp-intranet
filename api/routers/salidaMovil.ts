@@ -347,10 +347,10 @@ export const salidaMovilRouter = createRouter({
 
       const claveOrden = (r: (typeof registros)[0]): string => {
         const partes = r.fechaSalida.split("/");
-        if (partes.length !== 3) return "0000-00-00 00:00";
+        if (partes.length !== 3) return `${r.movil} 0000-00-00 00:00`;
         const [d, m, y] = partes;
         const hora = r.horaSalida || "00:00";
-        return `${normalizarAnio(y)}-${m.padStart(2, "0")}-${d.padStart(2, "0")} ${hora}`;
+        return `${r.movil} ${normalizarAnio(y)}-${m.padStart(2, "0")}-${d.padStart(2, "0")} ${hora}`;
       };
 
       registros.sort((a, b) => claveOrden(a).localeCompare(claveOrden(b)));
