@@ -351,46 +351,25 @@ export default function SalidaMovil() {
           onCancel={handleScanCancel}
         />
       )}
-      <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-6">
-        {!extraccion && (
-          <div className="flex justify-end mb-3">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button className="px-4 py-2 bg-cbvp-red hover:bg-cbvp-red/80 text-white rounded-lg text-sm font-medium flex items-center gap-2 transition-colors">
-                  <Plus className="w-4 h-4" /> Agregar Salida
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={iniciarSalidaManual}>
-                  <Edit3 className="w-3.5 h-3.5" /> Agregar Manualmente
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => document.getElementById('file-input-salida-movil-camara')?.click()}>
-                  <Camera className="w-3.5 h-3.5" /> Tomar Foto
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => document.getElementById('file-input-salida-movil-galeria')?.click()}>
-                  <FileText className="w-3.5 h-3.5" /> Subir Documento
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        )}
-        <input
-          id="file-input-salida-movil-camara"
-          type="file"
-          accept="image/*"
-          capture="environment"
-          onChange={handleFileInput}
-          className="hidden"
-        />
-        <input
-          id="file-input-salida-movil-galeria"
-          type="file"
-          accept="image/*,.pdf,application/pdf"
-          multiple
-          onChange={handleFileInput}
-          className="hidden"
-        />
+      <input
+        id="file-input-salida-movil-camara"
+        type="file"
+        accept="image/*"
+        capture="environment"
+        onChange={handleFileInput}
+        className="hidden"
+      />
+      <input
+        id="file-input-salida-movil-galeria"
+        type="file"
+        accept="image/*,.pdf,application/pdf"
+        multiple
+        onChange={handleFileInput}
+        className="hidden"
+      />
 
+      {(files.length > 0 || extraccion || error || result) && (
+      <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-6">
         {files.length > 0 && (
           <div className="mt-3 space-y-2">
             {files.map((f, idx) => (
@@ -505,10 +484,31 @@ export default function SalidaMovil() {
           </div>
         )}
       </div>
+      )}
 
       <div className="mt-6 bg-white/[0.03] border border-white/10 rounded-2xl overflow-hidden">
-        <div className="px-4 py-3 border-b border-white/10">
+        <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between gap-3">
           <h3 className="text-sm font-semibold text-white">Registro de Salidas</h3>
+          {!extraccion && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="px-4 py-2 bg-cbvp-red hover:bg-cbvp-red/80 text-white rounded-lg text-sm font-medium flex items-center gap-2 transition-colors">
+                  <Plus className="w-4 h-4" /> Agregar Salida
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={iniciarSalidaManual}>
+                  <Edit3 className="w-3.5 h-3.5" /> Agregar Manualmente
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => document.getElementById('file-input-salida-movil-camara')?.click()}>
+                  <Camera className="w-3.5 h-3.5" /> Tomar Foto
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => document.getElementById('file-input-salida-movil-galeria')?.click()}>
+                  <FileText className="w-3.5 h-3.5" /> Subir Documento
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
 
         {/* Pestañas por movil operativo */}
