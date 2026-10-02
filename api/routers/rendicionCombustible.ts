@@ -106,6 +106,7 @@ export const rendicionCombustibleRouter = createRouter({
           return {
             salidaId: s.id,
             fechaSalida: String(s.fechaSalida || ""),
+            horaSalida: String(s.horaSalida || ""),
             conductor: String(s.conductor || ""),
             ci: String(carga.ciManual || ciAuto || ""),
             kilometrajeSalida,
@@ -118,7 +119,7 @@ export const rendicionCombustibleRouter = createRouter({
             importe: String(carga.importe || ""),
           };
         })
-        .sort((a, b) => fechaISO(a.fechaSalida).localeCompare(fechaISO(b.fechaSalida)));
+        .sort((a, b) => `${fechaISO(a.fechaSalida)} ${a.horaSalida || "00:00"}`.localeCompare(`${fechaISO(b.fechaSalida)} ${b.horaSalida || "00:00"}`));
 
       return {
         exito: true as const,
