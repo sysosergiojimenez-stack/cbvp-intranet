@@ -1,5 +1,6 @@
 import { sendTelegramMessage, consumirCodigoVinculacion, obtenerCodigoUsuarioPorChatId } from "./services/telegram";
 import { obtenerEstadoGuardiaHoy } from "./routers/rolesGuardia";
+import { responderComoAgente, type AgentTool } from "./services/geminiAgent";
 
 interface TelegramUpdate {
   message?: {
@@ -8,8 +9,23 @@ interface TelegramUpdate {
   };
 }
 
-// Despacha un Update de Telegram por texto del mensaje. Cada comando nuevo
-// (ademas de /start, /vincular, /guardia) se agrega acá como un nuevo caso.
+// Herramientas que el agente de IA puede invocar. El codigoUsuario nunca lo
+// decide el modelo -- ya viene resuelto por chatId antes de armar esta
+// lista, asi que cada tool solo expone lo necesario para responder.
+function construirTools(codigoUsuario: string): AgentTool[] {
+  return [
+    {
+      name: "consultar_guardia_hoy",
+      description: "Devuelve si al bombero que escribe le toca guardia hoy, y en que grupo/radial, segun el rol de guardia vigente.",
+      parameters: { type: "object", properties: {}, required: [] },
+      ejecutar: () => obtenerEstadoGuardiaHoy(codigoUsuario),
+    },
+  ];
+}
+
+// Despacha un Update de Telegram. /start y /vincular son flujos de
+// seguridad y se manejan con match exacto; cualquier otro mensaje pasa por
+// el agente de IA, que decide si necesita alguna de las tools de arriba.
 export async function handleTelegramWebhook(update: TelegramUpdate): Promise<void> {
   const message = update.message;
   if (!message?.text) return;
@@ -35,27 +51,16 @@ export async function handleTelegramWebhook(update: TelegramUpdate): Promise<voi
       await sendTelegramMessage(chatId, `No se pudo vincular: ${resultado.error}`);
       return;
     }
-    await sendTelegramMessage(chatId, "Cuenta vinculada correctamente. Ya podés usar /guardia.");
+    await sendTelegramMessage(chatId, "Cuenta vinculada correctamente. Ya podés preguntarme lo que necesites.");
     return;
   }
 
-  if (texto === "/guardia") {
-    const codigoUsuario = await obtenerCodigoUsuarioPorChatId(chatId);
-    if (!codigoUsuario) {
-      await sendTelegramMessage(chatId, "Primero vinculá tu cuenta con /vincular <código> (generalo desde la app).");
-      return;
-    }
-    const estado = await obtenerEstadoGuardiaHoy(codigoUsuario);
-    if (!estado.exito) {
-      await sendTelegramMessage(chatId, estado.error);
-      return;
-    }
-    const mensaje = estado.tieneGuardiaHoy
-      ? `Hoy te toca guardia${estado.nombreGrupo ? ` (${estado.nombreGrupo})` : ""}.${estado.radial ? ` Radial: ${estado.radial}.` : ""}`
-      : `Hoy no te toca guardia${estado.nombreGrupo ? ` (grupo ${estado.nombreGrupo})` : ""}.`;
-    await sendTelegramMessage(chatId, mensaje);
+  const codigoUsuario = await obtenerCodigoUsuarioPorChatId(chatId);
+  if (!codigoUsuario) {
+    await sendTelegramMessage(chatId, "Primero vinculá tu cuenta con /vincular <código> (generalo desde la app).");
     return;
   }
 
-  await sendTelegramMessage(chatId, "No entendí ese comando. Probá /guardia o /vincular <código>.");
+  const respuesta = await responderComoAgente(texto, construirTools(codigoUsuario));
+  await sendTelegramMessage(chatId, respuesta);
 }
