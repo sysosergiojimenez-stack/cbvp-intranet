@@ -17,6 +17,7 @@ interface GeminiPart {
   text?: string;
   functionCall?: { name: string; args: Record<string, unknown> };
   functionResponse?: { name: string; response: unknown };
+  thoughtSignature?: string;
 }
 
 interface GeminiContent {
@@ -76,13 +77,16 @@ export async function responderComoAgente(mensajeUsuario: string, tools: AgentTo
       return texto?.trim() || "No pude procesar tu mensaje, intenta de nuevo.";
     }
 
-    const { name, args } = functionCallPart.functionCall;
+    const { name } = functionCallPart.functionCall;
     const tool = tools.find((t) => t.name === name);
     if (!tool) return "No pude procesar tu mensaje, intenta de nuevo.";
 
     const resultado = await tool.ejecutar();
 
-    contents.push({ role: "model", parts: [{ functionCall: { name, args } }] });
+    // Se reenvia la part de functionCall tal cual la devolvio el modelo (no
+    // reconstruida), porque trae un thoughtSignature que Gemini exige
+    // recibir de vuelta para mantener la continuidad del razonamiento.
+    contents.push({ role: "model", parts: [functionCallPart] });
     contents.push({ role: "user", parts: [{ functionResponse: { name, response: resultado as object } }] });
 
     const segundaRespuesta = await llamarGemini(contents, tools);
