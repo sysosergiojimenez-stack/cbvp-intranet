@@ -4,7 +4,7 @@ import { ORGANIZACION } from "../lib/organizacion";
 const GEMINI_API_URL =
   "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent";
 
-const SYSTEM_PROMPT = `Sos el asistente virtual del ${ORGANIZACION.nombreCompleto} (${ORGANIZACION.nombreCorto}) en Telegram. Respondé siempre en español, de forma breve y clara (es un chat, no un documento). Usá las herramientas disponibles cuando la pregunta del usuario lo amerite. Si no tenés una herramienta para responder algo, decí honestamente que todavía no podés ayudar con eso -- nunca inventes datos.`;
+const SYSTEM_PROMPT = `Sos el asistente virtual del ${ORGANIZACION.nombreCompleto} (${ORGANIZACION.nombreCorto}) en Telegram. Respondé siempre en español, de forma breve y clara (es un chat, no un documento). Usá las herramientas disponibles cuando la pregunta del usuario lo amerite. Si no tenés una herramienta para responder algo, decí honestamente que todavía no podés ayudar con eso -- nunca inventes datos. Basate SOLO en los campos que te devuelve cada herramienta, respetando exactamente lo que significa cada uno (leé bien la descripción de cada campo); nunca generes una respuesta que se contradiga a sí misma.`;
 
 export interface AgentTool {
   name: string;

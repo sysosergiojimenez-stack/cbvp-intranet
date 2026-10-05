@@ -16,7 +16,7 @@ function construirTools(codigoUsuario: string): AgentTool[] {
   return [
     {
       name: "consultar_guardia_hoy",
-      description: "Devuelve si al bombero que escribe le toca guardia hoy, y en que grupo/radial, segun el rol de guardia vigente.",
+      description: "Devuelve si HOY es dia de guardia para el bombero que escribe (campo tieneGuardiaHoy). El campo nombreGrupo indica el grupo de guardia AL QUE PERTENECE el bombero (no necesariamente el que esta de turno hoy) -- no lo uses para decir que grupo tiene guardia hoy, solo para identificar de que grupo es. El campo radial es su codigo radial personal, si tiene.",
       parameters: { type: "object", properties: {}, required: [] },
       ejecutar: () => obtenerEstadoGuardiaHoy(codigoUsuario),
     },
