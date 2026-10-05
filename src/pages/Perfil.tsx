@@ -4,23 +4,12 @@ import { trpc } from '@/providers/trpc';
 import type { Personal, GuardiaHistorial, EstadisticasGuardias } from '@/types';
 import {
   User, Shield, Award, Calendar, Radio, FileText, Mail, Hash,
-  Clock, ChevronDown, ChevronUp, MessageCircle
+  Clock, ChevronDown, ChevronUp
 } from 'lucide-react';
 
 export default function Perfil() {
   const { usuario } = useAuth();
   const [expandedStats, setExpandedStats] = useState(true);
-  const [codigoVinculacionTelegram, setCodigoVinculacionTelegram] = useState<string | null>(null);
-  const vincularTelegramMutation = trpc.telegram.generarCodigoVinculacion.useMutation();
-
-  const generarCodigoTelegram = async () => {
-    try {
-      const resp = await vincularTelegramMutation.mutateAsync();
-      setCodigoVinculacionTelegram(resp.codigo);
-    } catch (err: unknown) {
-      alert('Error al generar el código: ' + (err instanceof Error ? err.message : 'desconocido'));
-    }
-  };
   const personal = usuario ? {
     codigo: usuario.codigo,
     categoria: usuario.categoria,
@@ -67,31 +56,6 @@ export default function Perfil() {
               Nivel {usuario?.nivelPermiso} - {usuario?.descripcionPermiso}
             </span>
           </div>
-        </div>
-
-        {/* Bot de Telegram */}
-        <div className="bg-white/[0.03] border border-white/5 rounded-xl p-4 mb-6 flex items-center justify-between gap-4 flex-wrap">
-          <div className="flex items-center gap-3">
-            <MessageCircle className="w-5 h-5 text-cbvp-blue shrink-0" />
-            <div>
-              <p className="text-sm font-medium text-white">Bot de Telegram</p>
-              <p className="text-xs text-white/40">Vinculá tu cuenta para consultar tu guardia desde Telegram.</p>
-            </div>
-          </div>
-          {codigoVinculacionTelegram ? (
-            <div className="text-sm text-white/80">
-              Código: <span className="font-mono text-cbvp-red-light text-base">{codigoVinculacionTelegram}</span>
-              <p className="text-xs text-white/40 mt-1">Enviá <span className="font-mono">/vincular {codigoVinculacionTelegram}</span> al bot (vence en 10 min).</p>
-            </div>
-          ) : (
-            <button
-              onClick={generarCodigoTelegram}
-              disabled={vincularTelegramMutation.isPending}
-              className="px-4 py-2 bg-cbvp-blue/10 hover:bg-cbvp-blue/20 disabled:opacity-50 text-cbvp-blue rounded-lg text-sm transition-colors"
-            >
-              {vincularTelegramMutation.isPending ? 'Generando...' : 'Vincular Telegram'}
-            </button>
-          )}
         </div>
 
         {personal && (
