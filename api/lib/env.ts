@@ -34,4 +34,10 @@ export const env = {
   // Secreto compartido para autenticar al job de Cloud Scheduler que dispara
   // los recordatorios de guardia (no es un usuario de la app, no tiene JWT).
   CRON_SECRET: envVar("CRON_SECRET"),
+
+  // Bot de Telegram: token de @BotFather para enviar mensajes, y secreto
+  // compartido que Telegram reenvia en cada webhook (header
+  // X-Telegram-Bot-Api-Secret-Token) para verificar que el POST es legitimo.
+  TELEGRAM_BOT_TOKEN: envVar("TELEGRAM_BOT_TOKEN"),
+  TELEGRAM_WEBHOOK_SECRET: envVar("TELEGRAM_WEBHOOK_SECRET"),
 };

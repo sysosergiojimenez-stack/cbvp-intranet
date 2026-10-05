@@ -11,6 +11,7 @@ import { serveStaticFiles } from "./lib/vite";
 import { getSheetsClient } from "./services/googleAuth";
 import { uploadFile } from "./services/drive";
 import { enviarRecordatoriosGuardia } from "./services/recordatoriosGuardia";
+import { handleTelegramWebhook } from "./telegramWebhook";
 
 const app = new Hono<{ Bindings: HttpBindings }>();
 
@@ -77,6 +78,22 @@ app.post("/api/cron/recordatorios-guardia", async (c) => {
   } catch (err: unknown) {
     return c.json({ ok: false, error: err instanceof Error ? err.message : String(err) }, 500);
   }
+});
+
+// Webhook del bot de Telegram. Telegram reenvia el secreto configurado en
+// setWebhook via este header, no es un usuario de la app (no tiene JWT).
+app.post("/api/webhooks/telegram", async (c) => {
+  if (!env.TELEGRAM_WEBHOOK_SECRET || c.req.header("x-telegram-bot-api-secret-token") !== env.TELEGRAM_WEBHOOK_SECRET) {
+    return c.json({ error: "No autorizado" }, 401);
+  }
+  try {
+    const update = await c.req.json();
+    await handleTelegramWebhook(update);
+  } catch (err: unknown) {
+    console.error("Error en webhook de Telegram:", err instanceof Error ? err.message : String(err));
+  }
+  // Siempre 200: un error nuestro no debe hacer que Telegram reintente el update.
+  return c.json({ ok: true }, 200);
 });
 
 app.use(bodyLimit({ maxSize: 50 * 1024 * 1024 }));
