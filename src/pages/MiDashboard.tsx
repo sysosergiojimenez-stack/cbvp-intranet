@@ -57,8 +57,9 @@ export default function MiDashboard() {
   const [codigoVinculacionTelegram, setCodigoVinculacionTelegram] = useState<string | null>(null);
   const vincularTelegramMutation = trpc.telegram.generarCodigoVinculacion.useMutation();
   const generarCodigoTelegram = async () => {
+    if (!usuario?.codigo) return;
     try {
-      const resp = await vincularTelegramMutation.mutateAsync();
+      const resp = await vincularTelegramMutation.mutateAsync({ codigo: usuario.codigo });
       setCodigoVinculacionTelegram(resp.codigo);
     } catch (err: unknown) {
       alert('Error al generar el código: ' + (err instanceof Error ? err.message : 'desconocido'));
