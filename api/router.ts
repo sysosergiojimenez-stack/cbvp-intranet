@@ -11,6 +11,7 @@ import { materialMenorRouter } from "./routers/materialMenor";
 import { controlMovilRouter } from "./routers/controlMovil";
 import { rendicionCombustibleRouter } from "./routers/rendicionCombustible";
 import { informeIncendioRouter } from "./routers/informeIncendio";
+import { informeAccidenteRouter } from "./routers/informeAccidente";
 import { notificacionesRouter } from "./routers/notificaciones";
 import { cuotasBomberosRouter } from "./routers/cuotasBomberos";
 import { ordenesPagoRouter } from "./routers/ordenesPago";
@@ -36,6 +37,7 @@ export const appRouter = createRouter({
   controlMovil: controlMovilRouter,
   rendicionCombustible: rendicionCombustibleRouter,
   informeIncendio: informeIncendioRouter,
+  informeAccidente: informeAccidenteRouter,
   notificaciones: notificacionesRouter,
   cuotasBomberos: cuotasBomberosRouter,
   ordenesPago: ordenesPagoRouter,

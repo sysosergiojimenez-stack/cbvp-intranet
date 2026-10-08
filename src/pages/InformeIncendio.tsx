@@ -151,9 +151,9 @@ function fechaParaGuardar(valor: string): string {
   return `${iso[3]}/${iso[2]}/${iso[1]}`;
 }
 
-const ACCEPT_FOTO_CROQUIS = 'image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp';
+export const ACCEPT_FOTO_CROQUIS = 'image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp';
 
-function mimeFotoCroquis(file: File): string {
+export function mimeFotoCroquis(file: File): string {
   const raw = (file.type || '').toLowerCase();
   if (raw === 'image/jpeg' || raw === 'image/png' || raw === 'image/webp') return raw;
   const ext = file.name.split('.').pop()?.toLowerCase() || '';
@@ -162,7 +162,7 @@ function mimeFotoCroquis(file: File): string {
   return 'image/jpeg';
 }
 
-function fileToBase64(file: File): Promise<string> {
+export function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve((reader.result as string).split(',')[1]);
@@ -175,9 +175,9 @@ function fileToBase64(file: File): Promise<string> {
 // Estilo "hoja de papel": blanco, texto negro, recuadros, como el
 // formulario oficial impreso del CBVP.
 // ========================================================================
-const papelInputCls = 'bg-transparent border-none outline-none text-black text-[13px] flex-1 min-w-0 placeholder:text-gray-400 py-1 disabled:text-gray-500';
+export const papelInputCls = 'bg-transparent border-none outline-none text-black text-[13px] flex-1 min-w-0 placeholder:text-gray-400 py-1 disabled:text-gray-500';
 
-function CampoPapel({ label, value, onChange, type = 'text', placeholder, list, disabled, flex }: {
+export function CampoPapel({ label, value, onChange, type = 'text', placeholder, list, disabled, flex }: {
   label: string; value: string; onChange?: (v: string) => void; type?: string; placeholder?: string; list?: string; disabled?: boolean; flex?: number;
 }) {
   return (
@@ -188,11 +188,11 @@ function CampoPapel({ label, value, onChange, type = 'text', placeholder, list, 
   );
 }
 
-function FilaCampos({ children }: { children: React.ReactNode }) {
+export function FilaCampos({ children }: { children: React.ReactNode }) {
   return <div className="flex flex-wrap divide-x divide-black border-b border-black">{children}</div>;
 }
 
-function CasillaPapel({ checked, onChange, label }: { checked: boolean; onChange: () => void; label: string }) {
+export function CasillaPapel({ checked, onChange, label }: { checked: boolean; onChange: () => void; label: string }) {
   return (
     <label className="inline-flex items-center gap-1 text-[12.5px] text-black cursor-pointer whitespace-nowrap">
       <input type="checkbox" checked={checked} onChange={onChange} className="w-3.5 h-3.5 accent-black shrink-0" />
@@ -201,7 +201,7 @@ function CasillaPapel({ checked, onChange, label }: { checked: boolean; onChange
   );
 }
 
-function FilaCheckboxes({ label, children }: { label: string; children: React.ReactNode }) {
+export function FilaCheckboxes({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-wrap items-center gap-3 px-2 py-2 border-b border-black">
       <span className="text-[12.5px] font-bold text-black shrink-0">{label}</span>
@@ -219,7 +219,7 @@ function CeldaEncabezadoValor({ header, value, onChange }: { header: string; val
   );
 }
 
-function BloqueEtiqueta({ etiqueta, children }: { etiqueta: string; children: React.ReactNode }) {
+export function BloqueEtiqueta({ etiqueta, children }: { etiqueta: string; children: React.ReactNode }) {
   return (
     <div className="flex border-b border-black">
       <div className="w-24 sm:w-32 shrink-0 flex items-center px-2 py-1 border-r border-black">
@@ -230,7 +230,7 @@ function BloqueEtiqueta({ etiqueta, children }: { etiqueta: string; children: Re
   );
 }
 
-function TituloSeccionPapel({ children }: { children: React.ReactNode }) {
+export function TituloSeccionPapel({ children }: { children: React.ReactNode }) {
   return <div className="text-center font-bold text-black text-sm py-2 border-b border-black bg-gray-50">{children}</div>;
 }
 
