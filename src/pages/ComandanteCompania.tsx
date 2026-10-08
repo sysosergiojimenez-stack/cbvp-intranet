@@ -1,21 +1,12 @@
 import { NavLink } from 'react-router-dom';
-import { Flame, Car, ChevronRight } from 'lucide-react';
+import { Flame, ChevronRight } from 'lucide-react';
 
 const SUBMODULOS = [
   {
     title: 'Informe de Servicios',
-    description: 'Carga y seguimiento de informes de incendios y servicios de la compania.',
+    description: 'Informes de incendios (10:40), accidentes y rescates (10:41 / 10:42) de la compania.',
     icon: Flame,
     path: '/informe-servicios',
-    color: 'text-cbvp-red',
-    bg: 'bg-cbvp-red/8',
-    border: 'border-cbvp-red/15 hover:border-cbvp-red/30',
-  },
-  {
-    title: 'Informe 10:41 / 10:42',
-    description: 'Informes de accidentes, extricaciones y rescates de la compania.',
-    icon: Car,
-    path: '/informe-accidentes',
     color: 'text-cbvp-red',
     bg: 'bg-cbvp-red/8',
     border: 'border-cbvp-red/15 hover:border-cbvp-red/30',

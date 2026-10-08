@@ -33,6 +33,7 @@ import FacturasGastos from '@/pages/FacturasGastos';
 import CampanaSocios from '@/pages/CampanaSocios';
 import InformeIncendio from '@/pages/InformeIncendio';
 import InformeAccidente from '@/pages/InformeAccidente';
+import InformesServicio from '@/pages/InformesServicio';
 import Notificaciones from '@/pages/Notificaciones';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -193,6 +194,11 @@ function AppRoutes() {
           </ProtectedRoute>
         } />
         <Route path="/informe-servicios" element={
+          <ProtectedRoute>
+            {permisos.puedeCargarPlanillas || permisos.puedeVerComandanteCompania ? <InformesServicio /> : <Navigate to="/" replace />}
+          </ProtectedRoute>
+        } />
+        <Route path="/informe-incendio" element={
           <ProtectedRoute>
             {permisos.puedeCargarPlanillas || permisos.puedeVerComandanteCompania ? <InformeIncendio /> : <Navigate to="/" replace />}
           </ProtectedRoute>
