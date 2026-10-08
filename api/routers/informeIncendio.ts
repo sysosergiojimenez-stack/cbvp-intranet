@@ -157,7 +157,7 @@ const informeIncendioInput = z.object({
 
 export type InformeIncendioInput = z.infer<typeof informeIncendioInput>;
 
-function normalizarFechaDDMMYYYY(valor: string): string {
+export function normalizarFechaDDMMYYYY(valor: string): string {
   const v = valor.trim();
   if (!v) return "";
   const iso = v.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
@@ -174,14 +174,14 @@ function normalizarFechaDDMMYYYY(valor: string): string {
   return v;
 }
 
-function numeroDe(valor: unknown): number {
+export function numeroDe(valor: unknown): number {
   const n = parseInt(String(valor || "").replace(/\D/g, ""), 10);
   return Number.isFinite(n) ? n : 0;
 }
 
 // El primer informe de la compania arranca en 1. Si ya habia informes con
 // un N° cargado a mano, el contador continua desde el mayor de esos.
-async function asignarNumeroCorrelativo(): Promise<string> {
+export async function asignarNumeroCorrelativo(): Promise<string> {
   const db = getFirestoreClient();
   const ref = db.collection("contadores").doc("informesServicio");
   const previo = await ref.get();
@@ -203,7 +203,7 @@ async function asignarNumeroCorrelativo(): Promise<string> {
   return String(siguiente);
 }
 
-function generateId(): string {
+export function generateId(): string {
   const now = new Date();
   return now.getFullYear().toString() +
     String(now.getMonth() + 1).padStart(2, "0") +
@@ -214,7 +214,7 @@ function generateId(): string {
     String(now.getMilliseconds()).padStart(3, "0");
 }
 
-function normalizarNombre(s: string): string {
+export function normalizarNombre(s: string): string {
   return s
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")

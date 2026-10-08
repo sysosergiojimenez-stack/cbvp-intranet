@@ -2,7 +2,7 @@ import { Fragment, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { trpc } from '@/providers/trpc';
 import DocumentScanModal from '@/components/DocumentScanModal';
-import { X, FileText, Clock, Zap, AlertTriangle, CheckCircle, ExternalLink, Edit3, RotateCcw, Save, Trash2, Plus, Camera, ChevronLeft, ChevronRight, Flame, MoreVertical } from 'lucide-react';
+import { X, FileText, Clock, Zap, AlertTriangle, CheckCircle, ExternalLink, Edit3, RotateCcw, Save, Trash2, Plus, Camera, ChevronLeft, ChevronRight, Flame, MoreVertical, Car } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { MOVILES_VALIDOS, type MovilValido } from '@contracts/moviles';
 import { TIPOS_SERVICIO_VALIDOS, type TipoServicioValido } from '@contracts/tiposServicio';
@@ -105,6 +105,10 @@ export default function SalidaMovil() {
     setFechaSeleccionada(`${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}-${String(fecha.getDate()).padStart(2, '0')}`);
   };
   const { data: informesData } = trpc.informeIncendio.listado.useQuery();
+  const { data: informesAccidenteData } = trpc.informeAccidente.listado.useQuery();
+  const informeAccidentePorSalida = new Map(
+    (informesAccidenteData?.informes || []).filter(i => i.salidaId).map(i => [i.salidaId, i])
+  );
   const informePorSalida = new Map(
     (informesData?.informes || []).filter(i => i.salidaId).map(i => [i.salidaId, i])
   );
@@ -140,6 +144,40 @@ export default function SalidaMovil() {
         desdeSalida: true,
         form: {
           salidaId,
+          movil: salida.datos.movil,
+          fecha: normalizarFechaISO(salida.datos.fecha),
+          horaSalida: salida.datos.horaSalida,
+          horaLlegada: salida.datos.horaLlegada,
+          direccion: salida.datos.direccion,
+          aCargoDeLaCompania: salida.datos.aCargoDeLaCompania,
+          nominaConductores: salida.datos.conductor
+            ? [{ movil: salida.datos.movil, conductor: salida.datos.conductor, codigo: salida.datos.codigoConductor }]
+            : [],
+        },
+      },
+    });
+  };
+
+  const abrirInformeAccidente = async (salidaId: string) => {
+    const existente = await utils.client.informeAccidente.porSalida.query({ salidaId });
+    if (existente.exito && existente.informe) {
+      const informe = existente.informe as { id: string; fecha?: string };
+      navigate('/informe-accidentes', {
+        state: {
+          desdeSalida: true,
+          form: { ...existente.informe, id: informe.id, fecha: normalizarFechaISO(String(informe.fecha || '')) },
+        },
+      });
+      return;
+    }
+    const salida = await utils.client.informeAccidente.datosDesdeSalida.query({ salidaId });
+    if (!salida.exito) return;
+    navigate('/informe-accidentes', {
+      state: {
+        desdeSalida: true,
+        form: {
+          salidaId,
+          tipoInforme: salida.datos.tipoInforme,
           movil: salida.datos.movil,
           fecha: normalizarFechaISO(salida.datos.fecha),
           horaSalida: salida.datos.horaSalida,
@@ -576,7 +614,7 @@ export default function SalidaMovil() {
                         <td className="px-2 py-1.5 text-white/70 whitespace-nowrap">{r.horaLlegada || '-'}</td>
                         <td className="px-2 py-1.5 text-white/70 whitespace-nowrap">{r.kilometrajeLlegada || '-'}</td>
                         <td className="px-2 py-1.5" onClick={e => e.stopPropagation()}>
-                          {(r.tipoServicio.startsWith('10:40') || r.imageUrls.length > 0) && (
+                          {(r.tipoServicio.startsWith('10:40') || r.tipoServicio.startsWith('10:41') || r.tipoServicio.startsWith('10:42') || r.imageUrls.length > 0) && (
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                 <button className="p-1.5 rounded-lg hover:bg-white/10 text-white/40 hover:text-white transition-colors shrink-0" title="Acciones">
@@ -588,6 +626,12 @@ export default function SalidaMovil() {
                                   <DropdownMenuItem onClick={() => abrirInforme(r.id)}>
                                     <Flame className="w-3.5 h-3.5" />
                                     {informePorSalida.get(r.id)?.nServicio ? `Informe N° ${informePorSalida.get(r.id)?.nServicio}` : 'Cargar informe de servicio'}
+                                  </DropdownMenuItem>
+                                )}
+                                {(r.tipoServicio.startsWith('10:41') || r.tipoServicio.startsWith('10:42')) && (
+                                  <DropdownMenuItem onClick={() => abrirInformeAccidente(r.id)}>
+                                    <Car className="w-3.5 h-3.5" />
+                                    {informeAccidentePorSalida.get(r.id)?.nServicio ? `Informe N° ${informeAccidentePorSalida.get(r.id)?.nServicio}` : 'Cargar informe de servicio'}
                                   </DropdownMenuItem>
                                 )}
                                 {r.imageUrls.length > 0 && (
