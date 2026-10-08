@@ -7,7 +7,7 @@ import { ORGANIZACION } from '@/config/organizacion';
 import {
   LayoutDashboard, ClipboardList,
   Users, Settings, LogOut, Shield, Menu, X,
-  ChevronLeft, ChevronRight, ChevronDown, Flame, Car, Crown,
+  ChevronLeft, ChevronRight, ChevronDown, Flame, Crown,
   UserCircle, Lock, BookOpen, Truck, WifiOff, ClipboardCheck, Package, Fuel, Building2, ShieldCheck, Wallet, Receipt, FileText, HandCoins, FileSpreadsheet
 } from 'lucide-react';
 
@@ -35,7 +35,6 @@ const NAV_ITEMS: NavItem[] = [
     checkAccess: (p) => p.puedeVerComandanteCompania,
     children: [
       { path: '/informe-servicios', label: 'Informe de Servicios', icon: Flame, checkAccess: p => p.puedeVerComandanteCompania },
-      { path: '/informe-accidentes', label: 'Informe 10:41 / 10:42', icon: Car, checkAccess: p => p.puedeVerComandanteCompania },
     ],
   },
   {

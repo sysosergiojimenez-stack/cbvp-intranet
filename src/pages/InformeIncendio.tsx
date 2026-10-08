@@ -1,9 +1,9 @@
 import { Fragment, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { trpc } from '@/providers/trpc';
-import { Flame, Plus, Save, Trash2, X, ArrowLeft, FileDown, Pencil, ClipboardList } from 'lucide-react';
+import { Plus, Save, X, ArrowLeft, FileDown } from 'lucide-react';
 import { exportarInformeIncendioPdf } from '@/lib/exportarInformeIncendioPdf';
-import { normalizarFechaISO } from '@/lib/fechas';
+import { ACCEPT_FOTO_CROQUIS, mimeFotoCroquis, fileToBase64 } from '@/lib/fotosCroquis';
 import { ORGANIZACION } from '@/config/organizacion';
 
 interface Persona { nombre: string; ci: string; edad: string; nacionalidad: string }
@@ -141,34 +141,10 @@ const ESTADOS_FUEGO = [
   { n: 10, titulo: 'Remoción', sub: '' },
 ];
 
-function fechaParaInput(valor: string): string {
-  return normalizarFechaISO(valor);
-}
-
 function fechaParaGuardar(valor: string): string {
   const iso = valor.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (!iso) return valor;
   return `${iso[3]}/${iso[2]}/${iso[1]}`;
-}
-
-export const ACCEPT_FOTO_CROQUIS = 'image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp';
-
-export function mimeFotoCroquis(file: File): string {
-  const raw = (file.type || '').toLowerCase();
-  if (raw === 'image/jpeg' || raw === 'image/png' || raw === 'image/webp') return raw;
-  const ext = file.name.split('.').pop()?.toLowerCase() || '';
-  if (ext === 'png') return 'image/png';
-  if (ext === 'webp') return 'image/webp';
-  return 'image/jpeg';
-}
-
-export function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve((reader.result as string).split(',')[1]);
-    reader.onerror = () => reject(new Error('No se pudo leer el archivo'));
-    reader.readAsDataURL(file);
-  });
 }
 
 // ========================================================================
@@ -239,15 +215,12 @@ export default function InformeIncendio() {
   const location = useLocation();
   const llegada = location.state as { form?: InformeForm; desdeSalida?: boolean } | null;
   const desdeSalida = !!llegada?.desdeSalida;
-  const [vista, setVista] = useState<'lista' | 'formulario'>(llegada?.form ? 'formulario' : 'lista');
   const [form, setForm] = useState<InformeForm>(llegada?.form ? { ...formVacio, ...llegada.form } : { ...formVacio });
   const [error, setError] = useState('');
 
   const utils = trpc.useUtils();
-  const { data: informesData, isLoading: cargandoInformes } = trpc.informeIncendio.listado.useQuery(undefined, { enabled: vista === 'lista' });
   const { data: personalData } = trpc.personal.list.useQuery();
   const guardarMutation = trpc.informeIncendio.guardar.useMutation();
-  const eliminarMutation = trpc.informeIncendio.eliminar.useMutation();
   const subirCroquisFotoMutation = trpc.informeIncendio.subirCroquisFoto.useMutation();
   const [subiendoCroquisIdx, setSubiendoCroquisIdx] = useState<number | null>(null);
 
@@ -255,15 +228,6 @@ export default function InformeIncendio() {
     .map(p => ({ value: `${p.primerNombre} ${p.primerApellido}`.trim(), label: p.nombreCompleto, codigo: p.codigoRadial }))
     .filter(p => p.value)
     .sort((a, b) => a.label.localeCompare(b.label));
-
-  const abrirInformeExistente = async (id: string) => {
-    setError('');
-    const resp = await utils.client.informeIncendio.obtener.query({ id });
-    if (!resp.exito) { setError('No se pudo cargar el informe.'); return; }
-    const informe = resp.informe as Partial<InformeForm>;
-    setForm({ ...formVacio, ...informe, id, fecha: fechaParaInput(String(informe.fecha || '')) });
-    setVista('formulario');
-  };
 
   const toggleEdificioTipo = (tipo: string) => {
     setForm(f => ({
@@ -355,17 +319,6 @@ export default function InformeIncendio() {
     }
   };
 
-  const eliminar = async (id: string) => {
-    if (!confirm('Eliminar este informe de incendio?')) return;
-    try {
-      await eliminarMutation.mutateAsync({ id });
-      utils.informeIncendio.listado.invalidate();
-      utils.informeIncendio.salidasPendientes.invalidate();
-    } catch (err: unknown) {
-      alert('Error al eliminar: ' + (err instanceof Error ? err.message : 'desconocido'));
-    }
-  };
-
   const exportar = async () => {
     try {
       await exportarInformeIncendioPdf({ ...form, fecha: fechaParaGuardar(form.fecha) });
@@ -374,44 +327,8 @@ export default function InformeIncendio() {
     }
   };
 
-  const informes = informesData?.informes || [];
-
-  if (vista === 'lista') {
-    return (
-      <div className="animate-fade-in space-y-6">
-        <datalist id="informe-incendio-personal">
-          {sugerenciasPersonal.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
-        </datalist>
-        <div className="flex items-center justify-between">
-          <h1 className="text-xl font-bold text-white flex items-center gap-2"><Flame className="w-5 h-5 text-cbvp-red" /> Informe de Servicios — Incendios</h1>
-        </div>
-
-        <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-6">
-          <h2 className="text-sm font-semibold text-white/60 uppercase tracking-wider mb-4 flex items-center gap-2"><ClipboardList className="w-4 h-4" /> Informes cargados</h2>
-          {cargandoInformes ? (
-            <p className="text-sm text-white/40">Cargando...</p>
-          ) : informes.length === 0 ? (
-            <p className="text-sm text-white/40">Todavia no hay informes. Se cargan desde el boton Informe de cada salida 10:40 en Salidas de Movil.</p>
-          ) : (
-            <div className="space-y-2">
-              {informes.map(i => (
-                <div key={i.id} className="flex items-center justify-between gap-3 p-3 rounded-xl border border-white/10 bg-white/[0.02]">
-                  <div className="min-w-0">
-                    <p className="text-sm text-white">N° {i.nServicio || '—'} — {i.fecha} · {i.movil}</p>
-                    <p className="text-xs text-white/40 truncate">{i.direccion} {i.magnitud && `· Magnitud: ${i.magnitud}`}</p>
-                  </div>
-                  <div className="flex items-center gap-1 shrink-0">
-                    <button onClick={() => abrirInformeExistente(i.id)} className="p-2 rounded-lg hover:bg-white/10 text-white/40 hover:text-white transition-colors" title="Editar"><Pencil className="w-4 h-4" /></button>
-                    <button onClick={() => eliminar(i.id)} className="p-2 rounded-lg hover:bg-cbvp-red/20 text-white/40 hover:text-cbvp-red transition-colors" title="Eliminar"><Trash2 className="w-4 h-4" /></button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  }
+  // Sin un informe cargado (entrada directa a la URL) se vuelve a la lista.
+  if (!llegada?.form) return <Navigate to="/informe-servicios" replace />;
 
   return (
     <div className="animate-fade-in space-y-4">
@@ -419,7 +336,7 @@ export default function InformeIncendio() {
         {sugerenciasPersonal.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
       </datalist>
       <div className="flex items-center justify-between">
-        <button onClick={() => desdeSalida ? navigate('/salida-movil') : setVista('lista')} className="flex items-center gap-2 text-white/60 hover:text-white transition-colors text-sm">
+        <button onClick={() => desdeSalida ? navigate('/salida-movil') : navigate('/informe-servicios')} className="flex items-center gap-2 text-white/60 hover:text-white transition-colors text-sm">
           <ArrowLeft className="w-4 h-4" /> {desdeSalida ? 'Volver a Salidas' : 'Volver'}
         </button>
         <div className="flex items-center gap-2">

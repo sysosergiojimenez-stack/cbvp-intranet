@@ -129,7 +129,7 @@ export default function SalidaMovil() {
     const existente = await utils.client.informeIncendio.porSalida.query({ salidaId });
     if (existente.exito && existente.informe) {
       const informe = existente.informe as { id: string; fecha?: string };
-      navigate('/informe-servicios', {
+      navigate('/informe-incendio', {
         state: {
           desdeSalida: true,
           form: { ...existente.informe, id: informe.id, fecha: normalizarFechaISO(String(informe.fecha || '')) },
@@ -139,7 +139,7 @@ export default function SalidaMovil() {
     }
     const salida = await utils.client.informeIncendio.datosDesdeSalida.query({ salidaId });
     if (!salida.exito) return;
-    navigate('/informe-servicios', {
+    navigate('/informe-incendio', {
       state: {
         desdeSalida: true,
         form: {
