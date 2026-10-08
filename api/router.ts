@@ -12,6 +12,7 @@ import { controlMovilRouter } from "./routers/controlMovil";
 import { rendicionCombustibleRouter } from "./routers/rendicionCombustible";
 import { informeIncendioRouter } from "./routers/informeIncendio";
 import { informeAccidenteRouter } from "./routers/informeAccidente";
+import { informePrehospitalarioRouter } from "./routers/informePrehospitalario";
 import { notificacionesRouter } from "./routers/notificaciones";
 import { cuotasBomberosRouter } from "./routers/cuotasBomberos";
 import { ordenesPagoRouter } from "./routers/ordenesPago";
@@ -38,6 +39,7 @@ export const appRouter = createRouter({
   rendicionCombustible: rendicionCombustibleRouter,
   informeIncendio: informeIncendioRouter,
   informeAccidente: informeAccidenteRouter,
+  informePrehospitalario: informePrehospitalarioRouter,
   notificaciones: notificacionesRouter,
   cuotasBomberos: cuotasBomberosRouter,
   ordenesPago: ordenesPagoRouter,

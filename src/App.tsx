@@ -33,6 +33,7 @@ import FacturasGastos from '@/pages/FacturasGastos';
 import CampanaSocios from '@/pages/CampanaSocios';
 import InformeIncendio from '@/pages/InformeIncendio';
 import InformeAccidente from '@/pages/InformeAccidente';
+import InformePrehospitalario from '@/pages/InformePrehospitalario';
 import InformesServicio from '@/pages/InformesServicio';
 import Notificaciones from '@/pages/Notificaciones';
 
@@ -206,6 +207,11 @@ function AppRoutes() {
         <Route path="/informe-accidentes" element={
           <ProtectedRoute>
             {permisos.puedeCargarPlanillas || permisos.puedeVerComandanteCompania ? <InformeAccidente /> : <Navigate to="/" replace />}
+          </ProtectedRoute>
+        } />
+        <Route path="/informe-prehospitalario" element={
+          <ProtectedRoute>
+            {permisos.puedeCargarPlanillas || permisos.puedeVerComandanteCompania ? <InformePrehospitalario /> : <Navigate to="/" replace />}
           </ProtectedRoute>
         } />
         <Route path="/configuracion" element={
