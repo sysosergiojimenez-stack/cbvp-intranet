@@ -89,6 +89,7 @@ interface InformeForm {
   nominaCombatientes: VoluntarioCombatiente[];
   nominaACargo: string;
   nominaFirma: string;
+  croquisFotos: string[];
 }
 
 const formVacio: InformeForm = {
@@ -115,6 +116,7 @@ const formVacio: InformeForm = {
   desarrolloDelInforme: '',
   nominaConductores: [], nominaCombatientes: [],
   nominaACargo: '', nominaFirma: '',
+  croquisFotos: [],
 };
 
 const EDIFICIO_TIPOS = ['Vivienda', 'Edificio', 'Comercial', 'Deposito', 'Industrial', 'Publico'];
@@ -140,6 +142,26 @@ function fechaParaGuardar(valor: string): string {
   const iso = valor.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (!iso) return valor;
   return `${iso[3]}/${iso[2]}/${iso[1]}`;
+}
+
+const ACCEPT_FOTO_CROQUIS = 'image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp';
+
+function mimeFotoCroquis(file: File): string {
+  const raw = (file.type || '').toLowerCase();
+  if (raw === 'image/jpeg' || raw === 'image/png' || raw === 'image/webp') return raw;
+  const ext = file.name.split('.').pop()?.toLowerCase() || '';
+  if (ext === 'png') return 'image/png';
+  if (ext === 'webp') return 'image/webp';
+  return 'image/jpeg';
+}
+
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve((reader.result as string).split(',')[1]);
+    reader.onerror = () => reject(new Error('No se pudo leer el archivo'));
+    reader.readAsDataURL(file);
+  });
 }
 
 const inputCls = 'w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none [color-scheme:dark]';
@@ -179,6 +201,8 @@ export default function InformeIncendio() {
   const { data: personalData } = trpc.personal.list.useQuery();
   const guardarMutation = trpc.informeIncendio.guardar.useMutation();
   const eliminarMutation = trpc.informeIncendio.eliminar.useMutation();
+  const subirCroquisFotoMutation = trpc.informeIncendio.subirCroquisFoto.useMutation();
+  const [subiendoCroquisIdx, setSubiendoCroquisIdx] = useState<number | null>(null);
 
   const sugerenciasPersonal = (personalData?.personal || [])
     .map(p => ({ value: `${p.primerNombre} ${p.primerApellido}`.trim(), label: p.nombreCompleto, codigo: p.codigoRadial }))
@@ -213,6 +237,33 @@ export default function InformeIncendio() {
   };
   const quitarPersona = (campo: 'heridos' | 'muertos', idx: number) => {
     setForm(f => ({ ...f, [campo]: f[campo].filter((_, i) => i !== idx) }));
+  };
+
+  const subirFotoCroquis = async (idx: number, file: File) => {
+    setError('');
+    setSubiendoCroquisIdx(idx);
+    try {
+      const base64 = await fileToBase64(file);
+      const mimeType = mimeFotoCroquis(file);
+      const resp = await subirCroquisFotoMutation.mutateAsync({ base64, mimeType });
+      if (!resp.exito) throw new Error(resp.error || 'Error al subir la foto');
+      setForm(f => {
+        const fotos = [...f.croquisFotos];
+        fotos[idx] = resp.url;
+        return { ...f, croquisFotos: fotos };
+      });
+    } catch (err: unknown) {
+      setError('Error al subir la foto: ' + (err instanceof Error ? err.message : 'desconocido'));
+    } finally {
+      setSubiendoCroquisIdx(null);
+    }
+  };
+  const quitarFotoCroquis = (idx: number) => {
+    setForm(f => {
+      const fotos = [...f.croquisFotos];
+      fotos[idx] = '';
+      return { ...f, croquisFotos: fotos };
+    });
   };
 
   const agregarConductor = () => setForm(f => ({ ...f, nominaConductores: [...f.nominaConductores, { movil: f.movil, conductor: '', codigo: '' }] }));
@@ -373,11 +424,11 @@ export default function InformeIncendio() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <div>
             <label className={labelCls}>Seguro</label>
-            <select value={form.seguro} onChange={e => setForm({ ...form, seguro: e.target.value })} className={inputCls}>
-              <option value="">-- Seleccionar --</option>
-              <option value="SI">SI</option>
-              <option value="NO">NO</option>
-            </select>
+            <div className="flex gap-2">
+              {['SI', 'NO'].map(v => (
+                <button key={v} type="button" onClick={() => setForm({ ...form, seguro: form.seguro === v ? '' : v })} className={`px-3 py-1.5 rounded-lg text-xs border transition-colors ${form.seguro === v ? 'bg-cbvp-red text-white border-cbvp-red' : 'bg-white/5 text-white/60 border-white/10 hover:text-white'}`}>{v}</button>
+              ))}
+            </div>
           </div>
           <Campo label="Empresa" value={form.seguroEmpresa} onChange={v => setForm({ ...form, seguroEmpresa: v })} />
           <Campo label="Valor" value={form.seguroValor} onChange={v => setForm({ ...form, seguroValor: v })} />
@@ -461,8 +512,9 @@ export default function InformeIncendio() {
           <label className={labelCls}>Estado del fuego a la llegada de la dotacion</label>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {ESTADOS_FUEGO.map(e => (
-              <label key={e.n} className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs border cursor-pointer transition-colors ${form.estadoFuego === e.n ? 'bg-cbvp-red/10 border-cbvp-red/40 text-cbvp-red-light' : 'bg-white/5 border-white/10 text-white/60'}`}>
-                <input type="radio" name="estadoFuego" checked={form.estadoFuego === e.n} onChange={() => setForm({ ...form, estadoFuego: e.n })} className="w-3.5 h-3.5" />
+              <label key={e.n} className={`flex items-center gap-3 px-3 py-2 rounded-lg text-xs border cursor-pointer transition-colors ${form.estadoFuego === e.n ? 'bg-cbvp-red/10 border-cbvp-red/40 text-cbvp-red-light' : 'bg-white/5 border-white/10 text-white/60'}`}>
+                <input type="radio" name="estadoFuego" checked={form.estadoFuego === e.n} onChange={() => setForm({ ...form, estadoFuego: e.n })} className="w-3.5 h-3.5 shrink-0" />
+                <img src={`/estado-fuego/${e.n}.png`} alt="" className="w-12 h-8 object-contain bg-white rounded shrink-0" />
                 <span><b>{e.n}.</b> {e.label}</span>
               </label>
             ))}
@@ -539,6 +591,11 @@ export default function InformeIncendio() {
         <textarea value={form.desarrolloDelInforme} onChange={e => setForm({ ...form, desarrolloDelInforme: e.target.value })} rows={8} className={inputCls} placeholder="Relato cronologico de la intervencion..." />
       </Seccion>
 
+      <Seccion titulo="Prioridad de Rescate">
+        <p className="text-xs text-white/40">Referencia: orden de prioridad para el rescate de personas segun su ubicacion (A, B, C, D).</p>
+        <img src="/prioridad-rescate.png" alt="Diagrama de prioridad de rescate" className="max-w-md w-full rounded-lg bg-white p-2" />
+      </Seccion>
+
       <Seccion titulo="Nomina de voluntarios">
         <div>
           <div className="flex items-center justify-between mb-2">
@@ -580,7 +637,31 @@ export default function InformeIncendio() {
           <Campo label="A Cargo" value={form.nominaACargo} onChange={v => setForm({ ...form, nominaACargo: v })} list="informe-incendio-personal" />
           <Campo label="Firma (aclaracion)" value={form.nominaFirma} onChange={v => setForm({ ...form, nominaFirma: v })} />
         </div>
-        <p className="text-xs text-white/30 italic">El Croquis del Lugar y la Prioridad de Rescate se completan a mano sobre el PDF impreso — son campos de dibujo, no de texto.</p>
+      </Seccion>
+
+      <Seccion titulo="Croquis del lugar">
+        <p className="text-xs text-white/40">Hasta 9 fotos del lugar del siniestro.</p>
+        <div className="grid grid-cols-3 gap-2 max-w-md">
+          {Array.from({ length: 9 }, (_, idx) => form.croquisFotos[idx] || '').map((foto, idx) => (
+            <div key={idx} className="aspect-square rounded-lg border border-white/10 bg-white/5 overflow-hidden relative">
+              {foto ? (
+                <>
+                  <img src={foto} alt={`Foto ${idx + 1}`} className="w-full h-full object-cover" />
+                  <button type="button" onClick={() => quitarFotoCroquis(idx)} className="absolute top-1 right-1 bg-black/60 hover:bg-cbvp-red text-white rounded-full p-1 transition-colors"><X className="w-3 h-3" /></button>
+                </>
+              ) : (
+                <label className="w-full h-full flex items-center justify-center cursor-pointer text-white/30 hover:text-white/60 transition-colors">
+                  {subiendoCroquisIdx === idx ? (
+                    <span className="text-xs">...</span>
+                  ) : (
+                    <Plus className="w-5 h-5" />
+                  )}
+                  <input type="file" accept={ACCEPT_FOTO_CROQUIS} className="hidden" disabled={subiendoCroquisIdx !== null} onChange={e => { const file = e.target.files?.[0]; if (file) subirFotoCroquis(idx, file); e.target.value = ''; }} />
+                </label>
+              )}
+            </div>
+          ))}
+        </div>
       </Seccion>
 
       {error && <div className="p-3 bg-cbvp-red/10 border border-cbvp-red/20 rounded-lg text-sm text-cbvp-red-light">{error}</div>}

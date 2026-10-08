@@ -84,6 +84,7 @@ export interface InformeIncendioPdf {
   nominaCombatientes: VoluntarioCombatiente[];
   nominaACargo: string;
   nominaFirma: string;
+  croquisFotos: string[];
 }
 
 const ESTADOS_FUEGO_LABEL: Record<number, string> = {
@@ -112,6 +113,12 @@ async function cargarImagenBase64(ruta: string): Promise<string | null> {
   } catch {
     return null;
   }
+}
+
+function formatoDeDataUrl(dataUrl: string): 'PNG' | 'JPEG' | 'WEBP' {
+  if (dataUrl.startsWith('data:image/png')) return 'PNG';
+  if (dataUrl.startsWith('data:image/webp')) return 'WEBP';
+  return 'JPEG';
 }
 
 function dibujarCheckbox(doc: jsPDF, x: number, y: number, marcado: boolean, label: string): number {
@@ -184,7 +191,15 @@ export async function exportarInformeIncendioPdf(informe: InformeIncendioPdf) {
   linea(`Entre: ${informe.entreCalle1 || '-'}   y   ${informe.entreCalle2 || '-'}`);
   linea(`Ciudad: ${informe.ciudad || '-'}      Barrio: ${informe.barrio || '-'}      Zona: ${informe.zona || '-'}`);
   linea(`Al mando del Acto: ${informe.alMandoDelActo || '-'}      A cargo de la Compañia: ${informe.aCargoDeLaCompania || '-'}`);
-  linea(`Seguro: ${informe.seguro || '-'}      Empresa: ${informe.seguroEmpresa || '-'}      Valor: ${informe.seguroValor || '-'}`);
+  checkPageBreak(6);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Seguro:', marginLeft, y);
+  doc.setFont('helvetica', 'normal');
+  let xSeguro = marginLeft + 14;
+  xSeguro = dibujarCheckbox(doc, xSeguro, y, informe.seguro === 'SI', 'SI');
+  xSeguro = dibujarCheckbox(doc, xSeguro, y, informe.seguro === 'NO', 'NO');
+  doc.text(`Empresa: ${informe.seguroEmpresa || '-'}      Valor: ${informe.seguroValor || '-'}`, xSeguro, y);
+  y += 5.5;
   linea(`Magnitud: ${informe.magnitud || '-'}`);
   linea(`Transporte — Aereo: ${informe.transporteAereoTipo || '-'}  ·  Terrestre: ${informe.transporteTerrestreTipo || '-'}  ·  Acuatico: ${informe.transporteAcuaticoTipo || '-'}`);
 
@@ -232,12 +247,30 @@ export async function exportarInformeIncendioPdf(informe: InformeIncendioPdf) {
   doc.text(origenLineas, marginLeft, y + 5);
   y += 5 + origenLineas.length * 4.2 + 3;
 
-  checkPageBreak(10);
+  checkPageBreak(18);
   doc.setFont('helvetica', 'bold');
   doc.text('Estado del fuego a la llegada de la dotacion:', marginLeft, y);
   doc.setFont('helvetica', 'normal');
   y += 5;
-  linea(informe.estadoFuego ? ESTADOS_FUEGO_LABEL[informe.estadoFuego] : '-');
+  if (informe.estadoFuego) {
+    const iconoEstado = await cargarImagenBase64(`/estado-fuego/${informe.estadoFuego}.png`);
+    if (iconoEstado) {
+      try {
+        const props = doc.getImageProperties(iconoEstado);
+        const ratio = props.width / props.height || 1;
+        const iconH = 11;
+        doc.addImage(iconoEstado, 'PNG', marginLeft, y - 4, iconH * ratio, iconH);
+        doc.text(ESTADOS_FUEGO_LABEL[informe.estadoFuego], marginLeft + iconH * ratio + 3, y);
+      } catch {
+        doc.text(ESTADOS_FUEGO_LABEL[informe.estadoFuego], marginLeft, y);
+      }
+    } else {
+      doc.text(ESTADOS_FUEGO_LABEL[informe.estadoFuego], marginLeft, y);
+    }
+    y += 9;
+  } else {
+    linea('-');
+  }
   linea(`Factores de propagacion: ${informe.factoresPropagacion || '-'}`);
   linea(`Acceso al local: ${informe.accesoLocal || '-'}   Violentado por: ${informe.accesoViolentadoPor || '-'}`);
   linea(`Color de las llamas: ${informe.colorLlamas || '-'}   Color del Humo: ${informe.colorHumo || '-'}   Olores: ${informe.oloresIdentificados || '-'}`);
@@ -347,13 +380,57 @@ export async function exportarInformeIncendioPdf(informe: InformeIncendioPdf) {
   y += 4;
   doc.text('Firma', marginLeft, y);
 
-  doc.setFontSize(7);
-  doc.setFont('helvetica', 'italic');
-  doc.setTextColor(120, 120, 120);
-  doc.text(
-    'El Croquis del Lugar y la Prioridad de Rescate se completan a mano sobre esta hoja impresa.',
-    marginLeft, pageHeight - 8
-  );
+  // ---- Prioridad de Rescate (diagrama de referencia estatico) ----
+  doc.addPage();
+  y = 15;
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(0, 0, 0);
+  doc.text('Prioridad de Rescate', marginLeft, y);
+  y += 6;
+  const prioridadRescate = await cargarImagenBase64('/prioridad-rescate.png');
+  if (prioridadRescate) {
+    try {
+      const props = doc.getImageProperties(prioridadRescate);
+      const ratio = props.width / props.height || 1;
+      const imgW = 110;
+      doc.addImage(prioridadRescate, 'PNG', marginLeft, y, imgW, imgW / ratio);
+      y += imgW / ratio + 8;
+    } catch { /* ignore */ }
+  }
+
+  // ---- Croquis del Lugar (hasta 9 fotos, grilla 3x3) ----
+  checkPageBreak(80);
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Croquis del Lugar', marginLeft, y);
+  y += 6;
+  const celda = (contentWidth - 2 * 4) / 3;
+  const celdaAlto = 35;
+  for (let fila = 0; fila < 3; fila++) {
+    checkPageBreak(celdaAlto + 4);
+    for (let col = 0; col < 3; col++) {
+      const idx = fila * 3 + col;
+      const cx = marginLeft + col * (celda + 4);
+      doc.setDrawColor(150, 150, 150);
+      doc.rect(cx, y, celda, celdaAlto);
+      const url = informe.croquisFotos[idx];
+      if (url) {
+        const foto = await cargarImagenBase64(url);
+        if (foto) {
+          try {
+            const props = doc.getImageProperties(foto);
+            const ratio = props.width / props.height || 1;
+            let w = celda - 2;
+            let h = w / ratio;
+            if (h > celdaAlto - 2) { h = celdaAlto - 2; w = h * ratio; }
+            doc.addImage(foto, formatoDeDataUrl(foto), cx + (celda - w) / 2, y + (celdaAlto - h) / 2, w, h);
+          } catch { /* ignore, deja el recuadro vacio */ }
+        }
+      }
+    }
+    y += celdaAlto + 4;
+  }
 
   const nombreArchivo = `INFORME_DE_INCENDIO_${(informe.nServicio || 'sin_numero').replace(/[\\/]/g, '_')}_${(informe.fecha || '').replace(/\//g, '-')}.pdf`;
   doc.save(nombreArchivo);
