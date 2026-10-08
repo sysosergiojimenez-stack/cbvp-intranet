@@ -23,6 +23,7 @@ const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
   '/informe-servicios': { title: 'Informes de Servicio', subtitle: 'Informes generados a partir de las salidas de movil' },
   '/informe-incendio': { title: 'Informe de Incendio', subtitle: 'Informe 10:40 generado a partir de una salida de movil' },
   '/informe-accidentes': { title: 'Informe 10:41 / 10:42', subtitle: 'Informe de accidente o rescate generado a partir de una salida de movil' },
+  '/informe-prehospitalario': { title: 'Historia Prehospitalaria', subtitle: 'Informe de asistencia a pacientes generado a partir de una salida de movil' },
   '/cuotas-bomberos': { title: 'Cuotas de Bomberos', subtitle: 'Registro de pagos de cuota mensual' },
   '/direccion-administrativa': { title: 'Direccion Administrativa', subtitle: 'Saldos, ingresos y egresos, y acceso rapido a cada submodulo' },
   '/comandante-compania': { title: 'Comandante de Compania', subtitle: 'Elegi un submodulo para continuar' },

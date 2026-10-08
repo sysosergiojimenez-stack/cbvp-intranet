@@ -4,7 +4,7 @@ import { Flame, ChevronRight } from 'lucide-react';
 const SUBMODULOS = [
   {
     title: 'Informe de Servicios',
-    description: 'Informes de incendios (10:40), accidentes y rescates (10:41 / 10:42) de la compania.',
+    description: 'Informes de incendios (10:40), accidentes y rescates (10:41 / 10:42) e historias prehospitalarias (10:44, 10:49, 10:50, 10:51).',
     icon: Flame,
     path: '/informe-servicios',
     color: 'text-cbvp-red',

@@ -3,11 +3,11 @@ import { trpc } from '@/providers/trpc';
 import { FileText, Trash2, ClipboardList } from 'lucide-react';
 import { normalizarFechaISO } from '@/lib/fechas';
 
-type TipoInforme = '10:40' | '10:41' | '10:42';
+type TipoInforme = string;
 
 interface InformeTarjeta {
   id: string;
-  origen: 'incendio' | 'accidente';
+  origen: 'incendio' | 'accidente' | 'prehospitalario';
   tipo: TipoInforme;
   nServicio: string;
   fecha: string;
@@ -21,7 +21,8 @@ function numeroDe(valor: string): number {
 }
 
 // Submodulo unico de Informes de Servicio: junta los informes de incendio
-// (10:40) y los de accidente/rescate (10:41 / 10:42) en una sola lista.
+// (10:40), los de accidente/rescate (10:41 / 10:42) y las historias
+// prehospitalarias (10:44, 10:49, 10:50, 10:51) en una sola lista.
 export default function InformesServicio() {
   const navigate = useNavigate();
   const utils = trpc.useUtils();
@@ -29,6 +30,8 @@ export default function InformesServicio() {
   const { data: accidentesData, isLoading: cargandoAccidentes } = trpc.informeAccidente.listado.useQuery();
   const eliminarIncendio = trpc.informeIncendio.eliminar.useMutation();
   const eliminarAccidente = trpc.informeAccidente.eliminar.useMutation();
+  const { data: prehospData, isLoading: cargandoPrehosp } = trpc.informePrehospitalario.listado.useQuery();
+  const eliminarPrehosp = trpc.informePrehospitalario.eliminar.useMutation();
 
   const informes: InformeTarjeta[] = [
     ...(incendiosData?.informes || []).map(i => ({
@@ -39,6 +42,10 @@ export default function InformesServicio() {
       id: i.id, origen: 'accidente' as const, tipo: (i.tipoInforme === '10:42' ? '10:42' : '10:41') as TipoInforme,
       nServicio: i.nServicio, fecha: i.fecha, movil: i.movil, direccion: i.direccion,
     })),
+    ...(prehospData?.informes || []).map(i => ({
+      id: i.id, origen: 'prehospitalario' as const, tipo: i.tipoInforme || '10:44',
+      nServicio: i.nServicio, fecha: i.fecha, movil: i.movil, direccion: i.direccion,
+    })),
   ].sort((a, b) => numeroDe(b.nServicio) - numeroDe(a.nServicio));
 
   const abrir = async (i: InformeTarjeta) => {
@@ -47,6 +54,11 @@ export default function InformesServicio() {
       if (!resp.exito) { alert('No se pudo cargar el informe.'); return; }
       const informe = resp.informe as { fecha?: string };
       navigate('/informe-incendio', { state: { form: { ...resp.informe, id: i.id, fecha: normalizarFechaISO(String(informe.fecha || '')) } } });
+    } else if (i.origen === 'prehospitalario') {
+      const resp = await utils.client.informePrehospitalario.obtener.query({ id: i.id });
+      if (!resp.exito) { alert('No se pudo cargar el informe.'); return; }
+      const informe = resp.informe as { fecha?: string };
+      navigate('/informe-prehospitalario', { state: { form: { ...resp.informe, id: i.id, fecha: normalizarFechaISO(String(informe.fecha || '')) } } });
     } else {
       const resp = await utils.client.informeAccidente.obtener.query({ id: i.id });
       if (!resp.exito) { alert('No se pudo cargar el informe.'); return; }
@@ -62,6 +74,9 @@ export default function InformesServicio() {
         await eliminarIncendio.mutateAsync({ id: i.id });
         utils.informeIncendio.listado.invalidate();
         utils.informeIncendio.salidasPendientes.invalidate();
+      } else if (i.origen === 'prehospitalario') {
+        await eliminarPrehosp.mutateAsync({ id: i.id });
+        utils.informePrehospitalario.listado.invalidate();
       } else {
         await eliminarAccidente.mutateAsync({ id: i.id });
         utils.informeAccidente.listado.invalidate();
@@ -71,7 +86,7 @@ export default function InformesServicio() {
     }
   };
 
-  const cargando = cargandoIncendios || cargandoAccidentes;
+  const cargando = cargandoIncendios || cargandoAccidentes || cargandoPrehosp;
 
   return (
     <div className="animate-fade-in space-y-6">
@@ -82,7 +97,7 @@ export default function InformesServicio() {
         {cargando ? (
           <p className="text-sm text-white/40">Cargando...</p>
         ) : informes.length === 0 ? (
-          <p className="text-sm text-white/40">Todavia no hay informes. Se cargan desde el menu de cada salida 10:40, 10:41 o 10:42 en Salidas de Movil.</p>
+          <p className="text-sm text-white/40">Todavia no hay informes. Se cargan desde el menu de cada salida (10:40, 10:41, 10:42, 10:44, 10:49, 10:50 o 10:51) en Salidas de Movil.</p>
         ) : (
           <div className="space-y-2">
             {informes.map(i => (
