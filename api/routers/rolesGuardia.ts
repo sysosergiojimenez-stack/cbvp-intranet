@@ -521,3 +521,51 @@ export const rolesGuardiaRouter = createRouter({
       return { exito: true as const };
     }),
 });
+
+// Dado solo un codigo de usuario (sin saber de antemano a que grupo/rol
+// pertenece), resuelve si hoy le toca guardia. Usado por el comando
+// /guardia del bot de Telegram -- a diferencia de obtenerParaMiGuardia, no
+// requiere idRol/idGrupo como input.
+export async function obtenerEstadoGuardiaHoy(codigoUsuario: string): Promise<
+  | { exito: true; tieneGuardiaHoy: boolean; nombreGrupo: string; radial: string }
+  | { exito: false; error: string }
+> {
+  const codigoNormalizado = codigoUsuario.trim();
+  const personalSnap = await colPersonal().where("codigo", "==", codigoNormalizado).get();
+  if (personalSnap.empty) {
+    return { exito: false, error: "No estas asignado a ningun grupo de guardia." };
+  }
+
+  const { dia, mes, anio } = fechaParaguay(0);
+
+  for (const personalDoc of personalSnap.docs) {
+    const filaPersonal = personalDoc.data();
+    const idGrupo = String(filaPersonal.idGrupo || "");
+    if (!idGrupo) continue;
+
+    const grupoDoc = await colGrupos().doc(idGrupo).get();
+    if (!grupoDoc.exists) continue;
+    const filaGrupo = grupoDoc.data()!;
+    const idRol = String(filaGrupo.idRol || "");
+
+    const cabeceraDoc = await colCabecera().doc(idRol).get();
+    if (!cabeceraDoc.exists) continue;
+    const filaCabecera = cabeceraDoc.data()!;
+    const desde = (Number(filaCabecera.anioInicio) || 0) * 12 + (Number(filaCabecera.mesInicio) || 1);
+    const hasta = (Number(filaCabecera.anioFin) || 0) * 12 + (Number(filaCabecera.mesFin) || 1);
+    const actual = anio * 12 + mes;
+    if (actual < desde || actual > hasta) continue; // rol de otro periodo (historico)
+
+    const calDoc = await colCalendario().doc(idCalendario(idGrupo, anio, mes)).get();
+    const diasGuardia: number[] = calDoc.exists && Array.isArray(calDoc.data()!.dias) ? calDoc.data()!.dias : [];
+
+    return {
+      exito: true,
+      tieneGuardiaHoy: diasGuardia.includes(dia),
+      nombreGrupo: String(filaGrupo.nombreGrupo || ""),
+      radial: String(filaPersonal.radial || ""),
+    };
+  }
+
+  return { exito: false, error: "No se encontro un rol de guardia vigente para tu grupo." };
+}

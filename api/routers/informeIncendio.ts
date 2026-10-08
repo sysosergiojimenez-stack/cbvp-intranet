@@ -2,6 +2,8 @@ import { z } from "zod";
 import { createRouter, publicQuery } from "../middleware";
 import { getFirestoreClient } from "../services/firestore";
 import { colUsuarios } from "../services/usuariosFirestore";
+import { uploadFile } from "../services/storage";
+import { env } from "../lib/env";
 
 // Los 7 tipos de servicio "10:40" del catalogo son, todos, despachos de
 // incendio (edificio, vivienda, pastizal, basural, deposito, local
@@ -148,6 +150,9 @@ const informeIncendioInput = z.object({
   nominaCombatientes: z.array(voluntarioCombatienteSchema),
   nominaACargo: z.string(),
   nominaFirma: z.string(),
+
+  // Dorso: croquis del lugar (hasta 9 fotos, URLs ya subidas a GCS)
+  croquisFotos: z.array(z.string()),
 });
 
 export type InformeIncendioInput = z.infer<typeof informeIncendioInput>;
@@ -361,5 +366,22 @@ export const informeIncendioRouter = createRouter({
     .mutation(async ({ input }) => {
       await informesIncendioCollection().doc(input.id).delete();
       return { exito: true as const };
+    }),
+
+  // Sube una foto del Croquis del Lugar a GCS y devuelve su URL publica.
+  // El cliente va subiendo cada foto apenas se elige y acumula las URLs
+  // en croquisFotos, igual que el resto del informe se guarda despues.
+  subirCroquisFoto: publicQuery
+    .input(z.object({ base64: z.string(), mimeType: z.string() }))
+    .mutation(async ({ input }) => {
+      if (!env.GCS_BUCKET_NAME) return { exito: false as const, error: "GCS no configurado" };
+      const ext = (input.mimeType || "image/jpeg").split("/")[1] || "jpg";
+      const url = await uploadFile(
+        env.GCS_BUCKET_NAME,
+        `informe_incendio_croquis_${generateId()}.${ext}`,
+        input.mimeType || "image/jpeg",
+        input.base64
+      );
+      return { exito: true as const, url };
     }),
 });
