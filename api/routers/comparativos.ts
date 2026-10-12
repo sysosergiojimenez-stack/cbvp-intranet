@@ -24,6 +24,10 @@ const itemSchema = z.object({
   item: z.string(),
   cantidad: z.number().nullable(),
   precios: z.array(z.number().nullable()).length(3),
+  // Indice (0, 1 o 2) del proveedor marcado para comprar este item, o null
+  // si todavia no se eligio. Solo los items marcados entran en la orden de
+  // compra y suman al resumen de totales.
+  seleccionado: z.number().int().min(0).max(2).nullable(),
 });
 
 const hojaSchema = z.object({

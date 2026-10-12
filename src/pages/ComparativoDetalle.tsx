@@ -1,14 +1,15 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { trpc } from '@/providers/trpc';
-import { ArrowLeft, FileSpreadsheet, Plus, Trash2, Save, X, Pencil, Check, Download } from 'lucide-react';
-import { exportarComparativoPdf } from '@/lib/exportarComparativoPdf';
+import { ArrowLeft, FileSpreadsheet, Plus, Trash2, Save, X, Pencil, Check, ShoppingCart } from 'lucide-react';
+import { exportarOrdenCompraPdf } from '@/lib/exportarOrdenCompraPdf';
 
 interface ItemLocal {
   id: string;
   item: string;
   cantidad: string;
   precios: [string, string, string];
+  seleccionado: number | null;
 }
 
 interface HojaLocal {
@@ -23,6 +24,7 @@ interface ItemServidor {
   item: string;
   cantidad: number | null;
   precios: (number | null)[];
+  seleccionado: number | null;
 }
 
 interface HojaServidor {
@@ -37,7 +39,7 @@ function generarIdLocal(): string {
 }
 
 function itemVacio(): ItemLocal {
-  return { id: generarIdLocal(), item: '', cantidad: '', precios: ['', '', ''] };
+  return { id: generarIdLocal(), item: '', cantidad: '', precios: ['', '', ''], seleccionado: null };
 }
 
 function hojaVaciaLocal(nombre: string): HojaLocal {
@@ -94,6 +96,7 @@ export default function ComparativoDetalle() {
           it.precios?.[1] === null || it.precios?.[1] === undefined ? '' : String(it.precios[1]),
           it.precios?.[2] === null || it.precios?.[2] === undefined ? '' : String(it.precios[2]),
         ],
+        seleccionado: typeof it.seleccionado === 'number' ? it.seleccionado : null,
       })),
     }));
     setHojas(hojasLocales);
@@ -120,27 +123,35 @@ export default function ComparativoDetalle() {
 
   const hojaActiva = hojas.find((h) => h.id === hojaActivaId);
 
-  // Subtotal por grupo/pestaña (el menor total entre proveedores) y total
-  // general, para el panel de resumen y el contraste con el presupuesto.
-  const resumenGrupos = hojas.map((h) => {
-    const totales = [0, 1, 2].map((idx) =>
-      h.items.reduce((acc, it) => {
-        const cantidad = parsePrecio(it.cantidad);
-        const precio = parsePrecio(it.precios[idx]);
-        if (cantidad === null || precio === null) return acc;
-        return acc + cantidad * precio;
-      }, 0)
-    );
-    const validos = totales.filter((t) => t > 0);
-    const subtotal = validos.length > 0 ? Math.min(...validos) : null;
-    const idxGanador = subtotal !== null ? totales.indexOf(subtotal) : -1;
-    return {
-      nombre: h.nombre,
-      proveedor: idxGanador >= 0 ? h.proveedores[idxGanador] : null,
-      subtotal,
-    };
-  });
-  const totalGeneral = resumenGrupos.reduce((acc, g) => acc + (g.subtotal ?? 0), 0);
+  // Agrupa por proveedor SOLO los items marcados (it.seleccionado), que son
+  // los que van a la orden de compra y cuentan en el resumen de totales.
+  // Items sin marcar (o marcados pero sin cantidad/precio cargado) quedan
+  // afuera y se contabilizan aparte para avisar que faltan decidir.
+  interface ResumenProveedor { proveedor: string; cantidadItems: number; total: number }
+  const resumenProveedores: ResumenProveedor[] = [];
+  const indiceProveedores = new Map<string, number>();
+  let itemsSinMarcar = 0;
+
+  for (const h of hojas) {
+    for (const it of h.items) {
+      const tieneContenido = it.item.trim() || it.cantidad.trim() || it.precios.some((p) => p.trim());
+      if (!tieneContenido) continue;
+      if (it.seleccionado === null) { itemsSinMarcar++; continue; }
+      const cantidad = parsePrecio(it.cantidad);
+      const precio = parsePrecio(it.precios[it.seleccionado]);
+      if (cantidad === null || precio === null) { itemsSinMarcar++; continue; }
+      const nombreProveedor = h.proveedores[it.seleccionado] || `Proveedor ${it.seleccionado + 1}`;
+      let i = indiceProveedores.get(nombreProveedor);
+      if (i === undefined) {
+        i = resumenProveedores.length;
+        indiceProveedores.set(nombreProveedor, i);
+        resumenProveedores.push({ proveedor: nombreProveedor, cantidadItems: 0, total: 0 });
+      }
+      resumenProveedores[i].cantidadItems += 1;
+      resumenProveedores[i].total += cantidad * precio;
+    }
+  }
+  const totalGeneral = resumenProveedores.reduce((acc, p) => acc + p.total, 0);
   const presupuestoNumero = parsePrecio(presupuestoForm);
   const remanente = presupuestoNumero !== null ? presupuestoNumero - totalGeneral : null;
 
@@ -191,6 +202,13 @@ export default function ComparativoDetalle() {
     }));
   };
 
+  const marcarSeleccion = (itemId: string, idx: number) => {
+    actualizarHojaActiva((h) => ({
+      ...h,
+      items: h.items.map((it) => (it.id === itemId ? { ...it, seleccionado: it.seleccionado === idx ? null : idx } : it)),
+    }));
+  };
+
   const agregarFila = () => actualizarHojaActiva((h) => ({ ...h, items: [...h.items, itemVacio()] }));
   const quitarFila = (itemId: string) => actualizarHojaActiva((h) => ({ ...h, items: h.items.filter((it) => it.id !== itemId) }));
 
@@ -231,15 +249,19 @@ export default function ComparativoDetalle() {
     if (!data?.exito) return;
     setExportando(true);
     try {
-      await exportarComparativoPdf({
+      await exportarOrdenCompraPdf({
         nombre: data.nombre,
         presupuesto: presupuestoNumero,
-        hojas: hojas.map((h) => ({
+        grupos: hojas.map((h) => ({
           nombre: h.nombre,
-          proveedores: h.proveedores,
           items: h.items
             .filter((it) => it.item.trim() || it.cantidad.trim() || it.precios.some((p) => p.trim()))
-            .map((it) => ({ item: it.item, cantidad: parsePrecio(it.cantidad), precios: it.precios.map(parsePrecio) })),
+            .map((it) => ({
+              item: it.item,
+              cantidad: parsePrecio(it.cantidad),
+              precioSeleccionado: it.seleccionado === null ? null : parsePrecio(it.precios[it.seleccionado]),
+              proveedorSeleccionado: it.seleccionado === null ? null : (h.proveedores[it.seleccionado] || `Proveedor ${it.seleccionado + 1}`),
+            })),
         })),
       });
     } finally {
@@ -258,7 +280,13 @@ export default function ComparativoDetalle() {
         proveedores: h.proveedores,
         items: h.items
           .filter((it) => it.item.trim() || it.cantidad.trim() || it.precios.some((p) => p.trim()))
-          .map((it) => ({ id: it.id, item: it.item.trim(), cantidad: parsePrecio(it.cantidad), precios: it.precios.map(parsePrecio) as [number | null, number | null, number | null] })),
+          .map((it) => ({
+            id: it.id,
+            item: it.item.trim(),
+            cantidad: parsePrecio(it.cantidad),
+            precios: it.precios.map(parsePrecio) as [number | null, number | null, number | null],
+            seleccionado: it.seleccionado,
+          })),
       }));
       await guardarHojasMutation.mutateAsync({ id, hojas: hojasParaGuardar });
 
@@ -344,7 +372,7 @@ export default function ComparativoDetalle() {
           <div className="flex items-center gap-2">
             {huboCambios && <span className="text-xs text-cbvp-yellow">Cambios sin guardar</span>}
             <button onClick={handleExportar} disabled={exportando} className="px-4 py-2 bg-white/5 hover:bg-white/10 disabled:opacity-40 text-white/70 text-sm font-medium rounded-lg transition-colors flex items-center gap-2">
-              <Download className="w-4 h-4" /> {exportando ? 'Generando PDF...' : 'Exportar PDF'}
+              <ShoppingCart className="w-4 h-4" /> {exportando ? 'Generando PDF...' : 'Generar Orden de Compra'}
             </button>
             <button onClick={handleGuardar} disabled={guardando || !huboCambios} className="px-4 py-2 bg-cbvp-green hover:bg-cbvp-green/80 disabled:opacity-40 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2">
               <Save className="w-4 h-4" /> {guardando ? 'Guardando...' : 'Guardar Cambios'}
@@ -459,18 +487,35 @@ export default function ComparativoDetalle() {
                         </td>
                         {[0, 1, 2].map((idx) => {
                           const esMinimo = minimo !== null && valoresNumericos[idx] === minimo;
+                          const esSeleccionado = it.seleccionado === idx;
+                          const puedeMarcar = it.precios[idx].trim() !== '';
                           return (
                             <td key={idx} className="px-2 py-1.5">
-                              <input
-                                type="text"
-                                inputMode="decimal"
-                                value={it.precios[idx]}
-                                onChange={(e) => actualizarPrecio(it.id, idx, e.target.value)}
-                                placeholder="0"
-                                className={`w-full border rounded px-2 py-1.5 text-right focus:outline-none ${
-                                  esMinimo ? 'bg-cbvp-green/10 border-cbvp-green/30 text-cbvp-green font-semibold' : 'bg-white/5 border-white/10 text-white focus:border-cbvp-red/50'
-                                }`}
-                              />
+                              <div className="flex items-center gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => marcarSeleccion(it.id, idx)}
+                                  disabled={!puedeMarcar}
+                                  title={esSeleccionado ? 'Quitar de la orden de compra' : 'Marcar para la orden de compra'}
+                                  className={`shrink-0 w-4 h-4 rounded-full border flex items-center justify-center transition-colors ${
+                                    esSeleccionado
+                                      ? 'bg-cbvp-red border-cbvp-red'
+                                      : 'border-white/20 hover:border-white/40 disabled:opacity-20 disabled:cursor-not-allowed disabled:hover:border-white/20'
+                                  }`}
+                                >
+                                  {esSeleccionado && <Check className="w-2.5 h-2.5 text-white" />}
+                                </button>
+                                <input
+                                  type="text"
+                                  inputMode="decimal"
+                                  value={it.precios[idx]}
+                                  onChange={(e) => actualizarPrecio(it.id, idx, e.target.value)}
+                                  placeholder="0"
+                                  className={`w-full border rounded px-2 py-1.5 text-right focus:outline-none ${
+                                    esMinimo ? 'bg-cbvp-green/10 border-cbvp-green/30 text-cbvp-green font-semibold' : 'bg-white/5 border-white/10 text-white focus:border-cbvp-red/50'
+                                  }`}
+                                />
+                              </div>
                             </td>
                           );
                         })}
@@ -514,34 +559,47 @@ export default function ComparativoDetalle() {
       </div>
 
       <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-6">
-        <h2 className="text-sm font-bold text-white mb-4">Resumen General</h2>
-
-        <div className="overflow-x-auto mb-4">
-          <table className="w-full text-xs sm:text-sm border-collapse">
-            <thead>
-              <tr className="bg-white/5 border-b border-white/10">
-                <th className="text-left px-2 py-2 font-medium text-white/50">Grupo</th>
-                <th className="text-left px-2 py-2 font-medium text-white/50">Mejor proveedor</th>
-                <th className="text-right px-2 py-2 font-medium text-white/50">Subtotal</th>
-              </tr>
-            </thead>
-            <tbody>
-              {resumenGrupos.map((g, i) => (
-                <tr key={i} className="border-b border-white/5">
-                  <td className="px-2 py-1.5 text-white/80">{g.nombre}</td>
-                  <td className="px-2 py-1.5 text-white/60">{g.proveedor || '-'}</td>
-                  <td className="px-2 py-1.5 text-right text-white">{g.subtotal === null ? '-' : formatearNumero(g.subtotal)}</td>
-                </tr>
-              ))}
-            </tbody>
-            <tfoot>
-              <tr className="bg-white/5 font-semibold border-t border-white/10">
-                <td colSpan={2} className="px-2 py-2 text-right text-white/70">TOTAL GENERAL:</td>
-                <td className="px-2 py-2 text-right text-white">{formatearNumero(totalGeneral)}</td>
-              </tr>
-            </tfoot>
-          </table>
+        <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
+          <h2 className="text-sm font-bold text-white">Resumen de la Orden de Compra</h2>
+          {itemsSinMarcar > 0 && (
+            <span className="text-xs text-cbvp-yellow">
+              {itemsSinMarcar} item{itemsSinMarcar === 1 ? '' : 's'} sin proveedor marcado (no {itemsSinMarcar === 1 ? 'suma' : 'suman'} al total)
+            </span>
+          )}
         </div>
+
+        {resumenProveedores.length === 0 ? (
+          <div className="text-center py-6 text-white/30 text-sm mb-4">
+            Todavia no marcaste ningun item para la orden de compra.
+          </div>
+        ) : (
+          <div className="overflow-x-auto mb-4">
+            <table className="w-full text-xs sm:text-sm border-collapse">
+              <thead>
+                <tr className="bg-white/5 border-b border-white/10">
+                  <th className="text-left px-2 py-2 font-medium text-white/50">Proveedor</th>
+                  <th className="text-right px-2 py-2 font-medium text-white/50">Items</th>
+                  <th className="text-right px-2 py-2 font-medium text-white/50">Subtotal</th>
+                </tr>
+              </thead>
+              <tbody>
+                {resumenProveedores.map((p, i) => (
+                  <tr key={i} className="border-b border-white/5">
+                    <td className="px-2 py-1.5 text-white/80">{p.proveedor}</td>
+                    <td className="px-2 py-1.5 text-right text-white/60">{p.cantidadItems}</td>
+                    <td className="px-2 py-1.5 text-right text-white">{formatearNumero(p.total)}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="bg-white/5 font-semibold border-t border-white/10">
+                  <td colSpan={2} className="px-2 py-2 text-right text-white/70">TOTAL GENERAL:</td>
+                  <td className="px-2 py-2 text-right text-white">{formatearNumero(totalGeneral)}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        )}
 
         <div className="flex flex-wrap items-end gap-4">
           <div>
