@@ -23,7 +23,9 @@ function formatearNumero(valor: number): string {
 
 export interface ItemComparativoExport {
   item: string;
-  codigo: string;
+  // Codigo/descripcion propia de cada proveedor para este item (puede
+  // diferir entre proveedores), alineado con el indice de "precios".
+  itemProveedor: string[];
   cantidad: number | null;
   precios: (number | null)[];
 }
@@ -134,14 +136,14 @@ export async function exportarComparativoPdf(comparativo: ComparativoExport) {
       autoTable(doc, {
         startY: y,
         theme: 'grid',
-        head: [['Ord', 'Item', 'Codigo', 'Cantidad', 'Precio Unitario', 'Costo Total']],
+        head: [['Ord', 'Item', 'Codigo y Descripcion del Proveedor', 'Cantidad', 'Precio Unitario', 'Costo Total']],
         body: hoja.items.map((it, i) => {
           const precio = it.precios[idx];
           const costoTotal = it.cantidad !== null && precio !== null ? it.cantidad * precio : null;
           return [
             String(i + 1),
             it.item || '-',
-            it.codigo || '-',
+            it.itemProveedor[idx] || '-',
             { content: it.cantidad === null ? '-' : formatearNumero(it.cantidad), styles: { halign: 'right' as const } },
             { content: precio === null ? '-' : formatearNumero(precio), styles: { halign: 'right' as const } },
             { content: costoTotal === null ? '-' : formatearNumero(costoTotal), styles: { halign: 'right' as const } },

@@ -16,7 +16,9 @@ interface ProveedorInfo {
 interface ItemLocal {
   id: string;
   item: string;
-  codigo: string;
+  // Codigo/descripcion propia de cada proveedor para este item (pueden
+  // catalogarlo distinto entre si).
+  itemProveedor: [string, string, string];
   cantidad: string;
   precios: [string, string, string];
   seleccionado: number | null;
@@ -32,7 +34,7 @@ interface HojaLocal {
 interface ItemServidor {
   id: string;
   item: string;
-  codigo?: string;
+  itemProveedor?: string[];
   cantidad: number | null;
   precios: (number | null)[];
   seleccionado: number | null;
@@ -54,7 +56,7 @@ function proveedorVacioLocal(nombre: string): ProveedorInfo {
 }
 
 function itemVacio(): ItemLocal {
-  return { id: generarIdLocal(), item: '', codigo: '', cantidad: '', precios: ['', '', ''], seleccionado: null };
+  return { id: generarIdLocal(), item: '', itemProveedor: ['', '', ''], cantidad: '', precios: ['', '', ''], seleccionado: null };
 }
 
 function hojaVaciaLocal(nombre: string): HojaLocal {
@@ -125,7 +127,11 @@ export default function ComparativoDetalle() {
       items: (h.items || []).map((it) => ({
         id: it.id,
         item: it.item,
-        codigo: it.codigo || '',
+        itemProveedor: [
+          it.itemProveedor?.[0] || '',
+          it.itemProveedor?.[1] || '',
+          it.itemProveedor?.[2] || '',
+        ],
         cantidad: it.cantidad === null || it.cantidad === undefined ? '' : String(it.cantidad),
         precios: [
           it.precios?.[0] === null || it.precios?.[0] === undefined ? '' : String(it.precios[0]),
@@ -222,8 +228,16 @@ export default function ComparativoDetalle() {
     actualizarHojaActiva((h) => ({ ...h, items: h.items.map((it) => (it.id === itemId ? { ...it, item: valor } : it)) }));
   };
 
-  const actualizarCodigo = (itemId: string, valor: string) => {
-    actualizarHojaActiva((h) => ({ ...h, items: h.items.map((it) => (it.id === itemId ? { ...it, codigo: valor } : it)) }));
+  const actualizarItemProveedor = (itemId: string, idx: number, valor: string) => {
+    actualizarHojaActiva((h) => ({
+      ...h,
+      items: h.items.map((it) => {
+        if (it.id !== itemId) return it;
+        const itemProveedor = [...it.itemProveedor] as [string, string, string];
+        itemProveedor[idx] = valor;
+        return { ...it, itemProveedor };
+      }),
+    }));
   };
 
   const actualizarCantidad = (itemId: string, valor: string) => {
@@ -324,7 +338,7 @@ export default function ComparativoDetalle() {
             .filter((it) => it.item.trim() || it.cantidad.trim() || it.precios.some((p) => p.trim()))
             .map((it) => ({
               item: it.item,
-              codigo: it.codigo,
+              itemProveedor: it.itemProveedor,
               cantidad: parsePrecio(it.cantidad),
               precios: it.precios.map(parsePrecio),
             })),
@@ -349,7 +363,7 @@ export default function ComparativoDetalle() {
           .map((it) => ({
             id: it.id,
             item: it.item.trim(),
-            codigo: it.codigo.trim(),
+            itemProveedor: it.itemProveedor.map((v) => v.trim()) as [string, string, string],
             cantidad: parsePrecio(it.cantidad),
             precios: it.precios.map(parsePrecio) as [number | null, number | null, number | null],
             seleccionado: it.seleccionado,
@@ -560,7 +574,6 @@ export default function ComparativoDetalle() {
                 <thead>
                   <tr className="bg-white/5 border-b border-white/10">
                     <th className="text-left px-2 py-2 font-medium text-white/50 w-1/2">Item</th>
-                    <th className="text-left px-2 py-2 font-medium text-white/50">Codigo</th>
                     <th className="text-left px-2 py-2 font-medium text-white/50">Cantidad</th>
                     {[0, 1, 2].map((idx) => (
                       <th key={idx} className="text-left px-2 py-2 font-medium text-white/50">
@@ -591,9 +604,6 @@ export default function ComparativoDetalle() {
                           />
                         </td>
                         <td className="px-2 py-1.5">
-                          <input type="text" value={it.codigo} onChange={(e) => actualizarCodigo(it.id, e.target.value)} placeholder="Codigo" className="w-full bg-white/5 border border-white/10 rounded px-2 py-1.5 text-white focus:border-cbvp-red/50 focus:outline-none" />
-                        </td>
-                        <td className="px-2 py-1.5">
                           <input type="text" inputMode="decimal" value={it.cantidad} onChange={(e) => actualizarCantidad(it.id, e.target.value)} placeholder="0" className="w-full bg-white/5 border border-white/10 rounded px-2 py-1.5 text-white text-right focus:border-cbvp-red/50 focus:outline-none" />
                         </td>
                         {[0, 1, 2].map((idx) => {
@@ -602,30 +612,39 @@ export default function ComparativoDetalle() {
                           const puedeMarcar = it.precios[idx].trim() !== '';
                           return (
                             <td key={idx} className="px-2 py-1.5">
-                              <div className="flex items-center gap-1.5">
-                                <button
-                                  type="button"
-                                  onClick={() => marcarSeleccion(it.id, idx)}
-                                  disabled={!puedeMarcar}
-                                  title={esSeleccionado ? 'Quitar de la orden de compra' : 'Marcar para la orden de compra'}
-                                  className={`shrink-0 w-4 h-4 rounded-full border flex items-center justify-center transition-colors ${
-                                    esSeleccionado
-                                      ? 'bg-cbvp-red border-cbvp-red'
-                                      : 'border-white/20 hover:border-white/40 disabled:opacity-20 disabled:cursor-not-allowed disabled:hover:border-white/20'
-                                  }`}
-                                >
-                                  {esSeleccionado && <Check className="w-2.5 h-2.5 text-white" />}
-                                </button>
+                              <div className="space-y-1">
                                 <input
                                   type="text"
-                                  inputMode="decimal"
-                                  value={it.precios[idx]}
-                                  onChange={(e) => actualizarPrecio(it.id, idx, e.target.value)}
-                                  placeholder="0"
-                                  className={`w-full border rounded px-2 py-1.5 text-right focus:outline-none ${
-                                    esMinimo ? 'bg-cbvp-green/10 border-cbvp-green/30 text-cbvp-green font-semibold' : 'bg-white/5 border-white/10 text-white focus:border-cbvp-red/50'
-                                  }`}
+                                  value={it.itemProveedor[idx]}
+                                  onChange={(e) => actualizarItemProveedor(it.id, idx, e.target.value)}
+                                  placeholder="Item/codigo del proveedor"
+                                  className="w-full bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-white/70 focus:border-cbvp-red/50 focus:outline-none"
                                 />
+                                <div className="flex items-center gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => marcarSeleccion(it.id, idx)}
+                                    disabled={!puedeMarcar}
+                                    title={esSeleccionado ? 'Quitar de la orden de compra' : 'Marcar para la orden de compra'}
+                                    className={`shrink-0 w-4 h-4 rounded-full border flex items-center justify-center transition-colors ${
+                                      esSeleccionado
+                                        ? 'bg-cbvp-red border-cbvp-red'
+                                        : 'border-white/20 hover:border-white/40 disabled:opacity-20 disabled:cursor-not-allowed disabled:hover:border-white/20'
+                                    }`}
+                                  >
+                                    {esSeleccionado && <Check className="w-2.5 h-2.5 text-white" />}
+                                  </button>
+                                  <input
+                                    type="text"
+                                    inputMode="decimal"
+                                    value={it.precios[idx]}
+                                    onChange={(e) => actualizarPrecio(it.id, idx, e.target.value)}
+                                    placeholder="0"
+                                    className={`w-full border rounded px-2 py-1.5 text-right focus:outline-none ${
+                                      esMinimo ? 'bg-cbvp-green/10 border-cbvp-green/30 text-cbvp-green font-semibold' : 'bg-white/5 border-white/10 text-white focus:border-cbvp-red/50'
+                                    }`}
+                                  />
+                                </div>
                               </div>
                             </td>
                           );
@@ -643,7 +662,6 @@ export default function ComparativoDetalle() {
                   <tfoot>
                     <tr className="bg-white/5 font-semibold border-t border-white/10">
                       <td className="px-2 py-2 text-right text-white/70">TOTAL:</td>
-                      <td></td>
                       <td></td>
                       {[0, 1, 2].map((idx) => {
                         const esMinimo = totalMinimo !== null && totalesPorProveedor[idx] === totalMinimo;

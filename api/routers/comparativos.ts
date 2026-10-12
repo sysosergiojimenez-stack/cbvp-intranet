@@ -21,9 +21,11 @@ function generateId(): string {
 
 const itemSchema = z.object({
   id: z.string().min(1),
+  // Nombre generico del item, el mismo para los 3 proveedores (para poder
+  // compararlos). itemProveedor es el codigo/descripcion que usa CADA
+  // proveedor para ese item, que puede ser distinto entre ellos.
   item: z.string(),
-  // Codigo/referencia del producto (se muestra en el PDF comparativo).
-  codigo: z.string(),
+  itemProveedor: z.array(z.string()).length(3),
   cantidad: z.number().nullable(),
   precios: z.array(z.number().nullable()).length(3),
   // Indice (0, 1 o 2) del proveedor marcado para comprar este item, o null
