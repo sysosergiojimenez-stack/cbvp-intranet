@@ -22,6 +22,8 @@ function generateId(): string {
 const itemSchema = z.object({
   id: z.string().min(1),
   item: z.string(),
+  // Codigo/referencia del producto (se muestra en el PDF comparativo).
+  codigo: z.string(),
   cantidad: z.number().nullable(),
   precios: z.array(z.number().nullable()).length(3),
   // Indice (0, 1 o 2) del proveedor marcado para comprar este item, o null
@@ -30,18 +32,30 @@ const itemSchema = z.object({
   seleccionado: z.number().int().min(0).max(2).nullable(),
 });
 
+const proveedorSchema = z.object({
+  nombre: z.string(),
+  ruc: z.string(),
+  telefono: z.string(),
+  direccion: z.string(),
+  contacto: z.string(),
+});
+
 const hojaSchema = z.object({
   id: z.string().min(1),
   nombre: z.string().min(1),
-  proveedores: z.array(z.string()).length(3),
+  proveedores: z.array(proveedorSchema).length(3),
   items: z.array(itemSchema),
 });
+
+function proveedorVacio(nombre: string): z.infer<typeof proveedorSchema> {
+  return { nombre, ruc: "", telefono: "", direccion: "", contacto: "" };
+}
 
 function hojaVacia(nombre: string): z.infer<typeof hojaSchema> {
   return {
     id: generateId(),
     nombre,
-    proveedores: ["Proveedor 1", "Proveedor 2", "Proveedor 3"],
+    proveedores: [proveedorVacio("Proveedor 1"), proveedorVacio("Proveedor 2"), proveedorVacio("Proveedor 3")],
     items: [],
   };
 }

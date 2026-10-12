@@ -1,12 +1,22 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { trpc } from '@/providers/trpc';
-import { ArrowLeft, FileSpreadsheet, Plus, Trash2, Save, X, Pencil, Check, ShoppingCart } from 'lucide-react';
+import { ArrowLeft, FileSpreadsheet, Plus, Trash2, Save, X, Pencil, Check, ShoppingCart, GitCompare } from 'lucide-react';
 import { exportarOrdenCompraPdf } from '@/lib/exportarOrdenCompraPdf';
+import { exportarComparativoPdf } from '@/lib/exportarComparativoPdf';
+
+interface ProveedorInfo {
+  nombre: string;
+  ruc: string;
+  telefono: string;
+  direccion: string;
+  contacto: string;
+}
 
 interface ItemLocal {
   id: string;
   item: string;
+  codigo: string;
   cantidad: string;
   precios: [string, string, string];
   seleccionado: number | null;
@@ -15,13 +25,14 @@ interface ItemLocal {
 interface HojaLocal {
   id: string;
   nombre: string;
-  proveedores: [string, string, string];
+  proveedores: [ProveedorInfo, ProveedorInfo, ProveedorInfo];
   items: ItemLocal[];
 }
 
 interface ItemServidor {
   id: string;
   item: string;
+  codigo?: string;
   cantidad: number | null;
   precios: (number | null)[];
   seleccionado: number | null;
@@ -30,7 +41,7 @@ interface ItemServidor {
 interface HojaServidor {
   id: string;
   nombre: string;
-  proveedores: string[];
+  proveedores: (string | Partial<ProveedorInfo>)[];
   items: ItemServidor[];
 }
 
@@ -38,12 +49,21 @@ function generarIdLocal(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+function proveedorVacioLocal(nombre: string): ProveedorInfo {
+  return { nombre, ruc: '', telefono: '', direccion: '', contacto: '' };
+}
+
 function itemVacio(): ItemLocal {
-  return { id: generarIdLocal(), item: '', cantidad: '', precios: ['', '', ''], seleccionado: null };
+  return { id: generarIdLocal(), item: '', codigo: '', cantidad: '', precios: ['', '', ''], seleccionado: null };
 }
 
 function hojaVaciaLocal(nombre: string): HojaLocal {
-  return { id: generarIdLocal(), nombre, proveedores: ['Proveedor 1', 'Proveedor 2', 'Proveedor 3'], items: [] };
+  return {
+    id: generarIdLocal(),
+    nombre,
+    proveedores: [proveedorVacioLocal('Proveedor 1'), proveedorVacioLocal('Proveedor 2'), proveedorVacioLocal('Proveedor 3')],
+    items: [],
+  };
 }
 
 function parsePrecio(valor: string): number | null {
@@ -83,13 +103,29 @@ export default function ComparativoDetalle() {
   useEffect(() => {
     if (!data?.exito) return;
     const hojasServidor = data.hojas as HojaServidor[];
+    const normalizarProveedor = (p: string | Partial<ProveedorInfo> | undefined, nombrePorDefecto: string): ProveedorInfo => {
+      if (!p) return proveedorVacioLocal(nombrePorDefecto);
+      if (typeof p === 'string') return proveedorVacioLocal(p || nombrePorDefecto);
+      return {
+        nombre: p.nombre || nombrePorDefecto,
+        ruc: p.ruc || '',
+        telefono: p.telefono || '',
+        direccion: p.direccion || '',
+        contacto: p.contacto || '',
+      };
+    };
     const hojasLocales: HojaLocal[] = hojasServidor.map((h) => ({
       id: h.id,
       nombre: h.nombre,
-      proveedores: [h.proveedores?.[0] || 'Proveedor 1', h.proveedores?.[1] || 'Proveedor 2', h.proveedores?.[2] || 'Proveedor 3'],
+      proveedores: [
+        normalizarProveedor(h.proveedores?.[0], 'Proveedor 1'),
+        normalizarProveedor(h.proveedores?.[1], 'Proveedor 2'),
+        normalizarProveedor(h.proveedores?.[2], 'Proveedor 3'),
+      ],
       items: (h.items || []).map((it) => ({
         id: it.id,
         item: it.item,
+        codigo: it.codigo || '',
         cantidad: it.cantidad === null || it.cantidad === undefined ? '' : String(it.cantidad),
         precios: [
           it.precios?.[0] === null || it.precios?.[0] === undefined ? '' : String(it.precios[0]),
@@ -140,7 +176,7 @@ export default function ComparativoDetalle() {
       const cantidad = parsePrecio(it.cantidad);
       const precio = parsePrecio(it.precios[it.seleccionado]);
       if (cantidad === null || precio === null) { itemsSinMarcar++; continue; }
-      const nombreProveedor = h.proveedores[it.seleccionado] || `Proveedor ${it.seleccionado + 1}`;
+      const nombreProveedor = h.proveedores[it.seleccionado]?.nombre || `Proveedor ${it.seleccionado + 1}`;
       let i = indiceProveedores.get(nombreProveedor);
       if (i === undefined) {
         i = resumenProveedores.length;
@@ -174,16 +210,20 @@ export default function ComparativoDetalle() {
     setHuboCambios(true);
   };
 
-  const actualizarProveedor = (idx: number, valor: string) => {
+  const actualizarProveedorCampo = (idx: number, campo: keyof ProveedorInfo, valor: string) => {
     actualizarHojaActiva((h) => {
-      const proveedores = [...h.proveedores] as [string, string, string];
-      proveedores[idx] = valor;
+      const proveedores = [...h.proveedores] as [ProveedorInfo, ProveedorInfo, ProveedorInfo];
+      proveedores[idx] = { ...proveedores[idx], [campo]: valor };
       return { ...h, proveedores };
     });
   };
 
   const actualizarItemCampo = (itemId: string, valor: string) => {
     actualizarHojaActiva((h) => ({ ...h, items: h.items.map((it) => (it.id === itemId ? { ...it, item: valor } : it)) }));
+  };
+
+  const actualizarCodigo = (itemId: string, valor: string) => {
+    actualizarHojaActiva((h) => ({ ...h, items: h.items.map((it) => (it.id === itemId ? { ...it, codigo: valor } : it)) }));
   };
 
   const actualizarCantidad = (itemId: string, valor: string) => {
@@ -260,12 +300,38 @@ export default function ComparativoDetalle() {
               item: it.item,
               cantidad: parsePrecio(it.cantidad),
               precioSeleccionado: it.seleccionado === null ? null : parsePrecio(it.precios[it.seleccionado]),
-              proveedorSeleccionado: it.seleccionado === null ? null : (h.proveedores[it.seleccionado] || `Proveedor ${it.seleccionado + 1}`),
+              proveedorSeleccionado: it.seleccionado === null ? null : (h.proveedores[it.seleccionado]?.nombre || `Proveedor ${it.seleccionado + 1}`),
             })),
         })),
       });
     } finally {
       setExportando(false);
+    }
+  };
+
+  const [exportandoComparativo, setExportandoComparativo] = useState(false);
+
+  const handleExportarComparativo = async () => {
+    if (!data?.exito) return;
+    setExportandoComparativo(true);
+    try {
+      await exportarComparativoPdf({
+        nombre: data.nombre,
+        hojas: hojas.map((h) => ({
+          nombre: h.nombre,
+          proveedores: h.proveedores,
+          items: h.items
+            .filter((it) => it.item.trim() || it.cantidad.trim() || it.precios.some((p) => p.trim()))
+            .map((it) => ({
+              item: it.item,
+              codigo: it.codigo,
+              cantidad: parsePrecio(it.cantidad),
+              precios: it.precios.map(parsePrecio),
+            })),
+        })),
+      });
+    } finally {
+      setExportandoComparativo(false);
     }
   };
 
@@ -283,6 +349,7 @@ export default function ComparativoDetalle() {
           .map((it) => ({
             id: it.id,
             item: it.item.trim(),
+            codigo: it.codigo.trim(),
             cantidad: parsePrecio(it.cantidad),
             precios: it.precios.map(parsePrecio) as [number | null, number | null, number | null],
             seleccionado: it.seleccionado,
@@ -371,6 +438,9 @@ export default function ComparativoDetalle() {
 
           <div className="flex items-center gap-2">
             {huboCambios && <span className="text-xs text-cbvp-yellow">Cambios sin guardar</span>}
+            <button onClick={handleExportarComparativo} disabled={exportandoComparativo} className="px-4 py-2 bg-white/5 hover:bg-white/10 disabled:opacity-40 text-white/70 text-sm font-medium rounded-lg transition-colors flex items-center gap-2">
+              <GitCompare className="w-4 h-4" /> {exportandoComparativo ? 'Generando PDF...' : 'Generar Comparativo'}
+            </button>
             <button onClick={handleExportar} disabled={exportando} className="px-4 py-2 bg-white/5 hover:bg-white/10 disabled:opacity-40 text-white/70 text-sm font-medium rounded-lg transition-colors flex items-center gap-2">
               <ShoppingCart className="w-4 h-4" /> {exportando ? 'Generando PDF...' : 'Generar Orden de Compra'}
             </button>
@@ -443,20 +513,58 @@ export default function ComparativoDetalle() {
               )}
             </div>
 
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+              {[0, 1, 2].map((idx) => (
+                <div key={idx} className="bg-white/[0.03] border border-white/10 rounded-xl p-3 space-y-1.5">
+                  <input
+                    type="text"
+                    value={hojaActiva.proveedores[idx].nombre}
+                    onChange={(e) => actualizarProveedorCampo(idx, 'nombre', e.target.value)}
+                    placeholder={`Proveedor ${idx + 1}`}
+                    className="w-full bg-transparent border border-white/10 rounded-lg px-2 py-1 text-white font-semibold focus:border-cbvp-red/50 focus:outline-none focus:bg-white/5"
+                  />
+                  <input
+                    type="text"
+                    value={hojaActiva.proveedores[idx].ruc}
+                    onChange={(e) => actualizarProveedorCampo(idx, 'ruc', e.target.value)}
+                    placeholder="RUC"
+                    className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-xs text-white/80 focus:border-cbvp-red/50 focus:outline-none"
+                  />
+                  <input
+                    type="text"
+                    value={hojaActiva.proveedores[idx].telefono}
+                    onChange={(e) => actualizarProveedorCampo(idx, 'telefono', e.target.value)}
+                    placeholder="Telefono"
+                    className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-xs text-white/80 focus:border-cbvp-red/50 focus:outline-none"
+                  />
+                  <input
+                    type="text"
+                    value={hojaActiva.proveedores[idx].direccion}
+                    onChange={(e) => actualizarProveedorCampo(idx, 'direccion', e.target.value)}
+                    placeholder="Direccion"
+                    className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-xs text-white/80 focus:border-cbvp-red/50 focus:outline-none"
+                  />
+                  <input
+                    type="text"
+                    value={hojaActiva.proveedores[idx].contacto}
+                    onChange={(e) => actualizarProveedorCampo(idx, 'contacto', e.target.value)}
+                    placeholder="Contacto"
+                    className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-xs text-white/80 focus:border-cbvp-red/50 focus:outline-none"
+                  />
+                </div>
+              ))}
+            </div>
+
             <div className="overflow-x-auto">
               <table className="w-full text-xs sm:text-sm border-collapse">
                 <thead>
                   <tr className="bg-white/5 border-b border-white/10">
                     <th className="text-left px-2 py-2 font-medium text-white/50 w-1/2">Item</th>
+                    <th className="text-left px-2 py-2 font-medium text-white/50">Codigo</th>
                     <th className="text-left px-2 py-2 font-medium text-white/50">Cantidad</th>
                     {[0, 1, 2].map((idx) => (
                       <th key={idx} className="text-left px-2 py-2 font-medium text-white/50">
-                        <input
-                          type="text"
-                          value={hojaActiva.proveedores[idx]}
-                          onChange={(e) => actualizarProveedor(idx, e.target.value)}
-                          className="w-full bg-transparent border border-white/10 rounded-lg px-2 py-1 text-white/80 font-medium focus:border-cbvp-red/50 focus:outline-none focus:bg-white/5"
-                        />
+                        {hojaActiva.proveedores[idx].nombre || `Proveedor ${idx + 1}`}
                       </th>
                     ))}
                     <th className="w-8"></th>
@@ -481,6 +589,9 @@ export default function ComparativoDetalle() {
                             placeholder="Nombre del item"
                             className="w-full bg-white/5 border border-white/10 rounded px-2 py-1.5 text-white focus:border-cbvp-red/50 focus:outline-none resize-none overflow-hidden block leading-snug"
                           />
+                        </td>
+                        <td className="px-2 py-1.5">
+                          <input type="text" value={it.codigo} onChange={(e) => actualizarCodigo(it.id, e.target.value)} placeholder="Codigo" className="w-full bg-white/5 border border-white/10 rounded px-2 py-1.5 text-white focus:border-cbvp-red/50 focus:outline-none" />
                         </td>
                         <td className="px-2 py-1.5">
                           <input type="text" inputMode="decimal" value={it.cantidad} onChange={(e) => actualizarCantidad(it.id, e.target.value)} placeholder="0" className="w-full bg-white/5 border border-white/10 rounded px-2 py-1.5 text-white text-right focus:border-cbvp-red/50 focus:outline-none" />
@@ -532,6 +643,7 @@ export default function ComparativoDetalle() {
                   <tfoot>
                     <tr className="bg-white/5 font-semibold border-t border-white/10">
                       <td className="px-2 py-2 text-right text-white/70">TOTAL:</td>
+                      <td></td>
                       <td></td>
                       {[0, 1, 2].map((idx) => {
                         const esMinimo = totalMinimo !== null && totalesPorProveedor[idx] === totalMinimo;
