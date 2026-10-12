@@ -527,100 +527,123 @@ export default function ComparativoDetalle() {
               )}
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
-              {[0, 1, 2].map((idx) => (
-                <div key={idx} className="bg-white/[0.03] border border-white/10 rounded-xl p-3 space-y-1.5">
-                  <input
-                    type="text"
-                    value={hojaActiva.proveedores[idx].nombre}
-                    onChange={(e) => actualizarProveedorCampo(idx, 'nombre', e.target.value)}
-                    placeholder={`Proveedor ${idx + 1}`}
-                    className="w-full bg-transparent border border-white/10 rounded-lg px-2 py-1 text-white font-semibold focus:border-cbvp-red/50 focus:outline-none focus:bg-white/5"
-                  />
-                  <input
-                    type="text"
-                    value={hojaActiva.proveedores[idx].ruc}
-                    onChange={(e) => actualizarProveedorCampo(idx, 'ruc', e.target.value)}
-                    placeholder="RUC"
-                    className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-xs text-white/80 focus:border-cbvp-red/50 focus:outline-none"
-                  />
-                  <input
-                    type="text"
-                    value={hojaActiva.proveedores[idx].telefono}
-                    onChange={(e) => actualizarProveedorCampo(idx, 'telefono', e.target.value)}
-                    placeholder="Telefono"
-                    className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-xs text-white/80 focus:border-cbvp-red/50 focus:outline-none"
-                  />
-                  <input
-                    type="text"
-                    value={hojaActiva.proveedores[idx].direccion}
-                    onChange={(e) => actualizarProveedorCampo(idx, 'direccion', e.target.value)}
-                    placeholder="Direccion"
-                    className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-xs text-white/80 focus:border-cbvp-red/50 focus:outline-none"
-                  />
-                  <input
-                    type="text"
-                    value={hojaActiva.proveedores[idx].contacto}
-                    onChange={(e) => actualizarProveedorCampo(idx, 'contacto', e.target.value)}
-                    placeholder="Contacto"
-                    className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-xs text-white/80 focus:border-cbvp-red/50 focus:outline-none"
-                  />
-                </div>
-              ))}
-            </div>
+            {hojaActiva.items.length === 0 ? (
+              <div className="text-center py-8 text-white/30 text-sm">Todavia no hay items en esta pestaña.</div>
+            ) : (
+              [0, 1, 2].map((idx) => {
+                const esMinimoTotal = totalMinimo !== null && totalesPorProveedor[idx] === totalMinimo;
+                return (
+                  <div key={idx} className="mb-5 bg-white/[0.02] border border-white/10 rounded-xl p-4">
+                    <div className="flex flex-wrap items-center gap-2 mb-2">
+                      <span className="text-xs font-bold text-cbvp-red shrink-0">PROVEEDOR {idx + 1}:</span>
+                      <input
+                        type="text"
+                        value={hojaActiva.proveedores[idx].nombre}
+                        onChange={(e) => actualizarProveedorCampo(idx, 'nombre', e.target.value)}
+                        placeholder={`Proveedor ${idx + 1}`}
+                        className="flex-1 min-w-[160px] bg-transparent border border-white/10 rounded-lg px-2 py-1 text-white font-semibold focus:border-cbvp-red/50 focus:outline-none focus:bg-white/5"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
+                      <input
+                        type="text"
+                        value={hojaActiva.proveedores[idx].ruc}
+                        onChange={(e) => actualizarProveedorCampo(idx, 'ruc', e.target.value)}
+                        placeholder="RUC"
+                        className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-xs text-white/80 focus:border-cbvp-red/50 focus:outline-none"
+                      />
+                      <input
+                        type="text"
+                        value={hojaActiva.proveedores[idx].telefono}
+                        onChange={(e) => actualizarProveedorCampo(idx, 'telefono', e.target.value)}
+                        placeholder="Telefono"
+                        className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-xs text-white/80 focus:border-cbvp-red/50 focus:outline-none"
+                      />
+                      <input
+                        type="text"
+                        value={hojaActiva.proveedores[idx].direccion}
+                        onChange={(e) => actualizarProveedorCampo(idx, 'direccion', e.target.value)}
+                        placeholder="Direccion"
+                        className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-xs text-white/80 focus:border-cbvp-red/50 focus:outline-none"
+                      />
+                      <input
+                        type="text"
+                        value={hojaActiva.proveedores[idx].contacto}
+                        onChange={(e) => actualizarProveedorCampo(idx, 'contacto', e.target.value)}
+                        placeholder="Contacto"
+                        className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-xs text-white/80 focus:border-cbvp-red/50 focus:outline-none"
+                      />
+                    </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs sm:text-sm border-collapse">
-                <thead>
-                  <tr className="bg-white/5 border-b border-white/10">
-                    <th className="text-left px-2 py-2 font-medium text-white/50 w-1/2">Item</th>
-                    <th className="text-left px-2 py-2 font-medium text-white/50">Cantidad</th>
-                    {[0, 1, 2].map((idx) => (
-                      <th key={idx} className="text-left px-2 py-2 font-medium text-white/50">
-                        {hojaActiva.proveedores[idx].nombre || `Proveedor ${idx + 1}`}
-                      </th>
-                    ))}
-                    <th className="w-8"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {hojaActiva.items.map((it) => {
-                    const valoresNumericos = it.precios.map(parsePrecio);
-                    const minimo = valoresNumericos.some((v) => v !== null) ? Math.min(...valoresNumericos.filter((v): v is number => v !== null)) : null;
-                    return (
-                      <tr key={it.id} className="border-b border-white/5 align-top">
-                        <td className="px-2 py-1.5">
-                          <textarea
-                            ref={(el) => { if (el) { el.style.height = 'auto'; el.style.height = `${el.scrollHeight}px`; } }}
-                            value={it.item}
-                            onChange={(e) => {
-                              actualizarItemCampo(it.id, e.target.value);
-                              e.target.style.height = 'auto';
-                              e.target.style.height = `${e.target.scrollHeight}px`;
-                            }}
-                            rows={1}
-                            placeholder="Nombre del item"
-                            className="w-full bg-white/5 border border-white/10 rounded px-2 py-1.5 text-white focus:border-cbvp-red/50 focus:outline-none resize-none overflow-hidden block leading-snug"
-                          />
-                        </td>
-                        <td className="px-2 py-1.5">
-                          <input type="text" inputMode="decimal" value={it.cantidad} onChange={(e) => actualizarCantidad(it.id, e.target.value)} placeholder="0" className="w-full bg-white/5 border border-white/10 rounded px-2 py-1.5 text-white text-right focus:border-cbvp-red/50 focus:outline-none" />
-                        </td>
-                        {[0, 1, 2].map((idx) => {
-                          const esMinimo = minimo !== null && valoresNumericos[idx] === minimo;
-                          const esSeleccionado = it.seleccionado === idx;
-                          const puedeMarcar = it.precios[idx].trim() !== '';
-                          return (
-                            <td key={idx} className="px-2 py-1.5">
-                              <div className="space-y-1">
-                                <input
-                                  type="text"
-                                  value={it.itemProveedor[idx]}
-                                  onChange={(e) => actualizarItemProveedor(it.id, idx, e.target.value)}
-                                  placeholder="Item/codigo del proveedor"
-                                  className="w-full bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-white/70 focus:border-cbvp-red/50 focus:outline-none"
-                                />
-                                <div className="flex items-center gap-1.5">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs sm:text-sm border-collapse">
+                        <thead>
+                          <tr className="bg-white/5 border-b border-white/10">
+                            <th className="text-left px-2 py-2 font-medium text-white/50 w-10">Ord</th>
+                            <th className="text-left px-2 py-2 font-medium text-white/50 w-2/5">Item</th>
+                            <th className="text-left px-2 py-2 font-medium text-white/50">Codigo/Desc. Proveedor</th>
+                            <th className="text-left px-2 py-2 font-medium text-white/50">Cantidad</th>
+                            <th className="text-left px-2 py-2 font-medium text-white/50">Precio Unitario</th>
+                            <th className="text-right px-2 py-2 font-medium text-white/50">Costo Total</th>
+                            <th className="w-8"></th>
+                            <th className="w-8"></th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {hojaActiva.items.map((it, i) => {
+                            const valoresNumericos = it.precios.map(parsePrecio);
+                            const minimo = valoresNumericos.some((v) => v !== null) ? Math.min(...valoresNumericos.filter((v): v is number => v !== null)) : null;
+                            const esMinimo = minimo !== null && valoresNumericos[idx] === minimo;
+                            const esSeleccionado = it.seleccionado === idx;
+                            const puedeMarcar = it.precios[idx].trim() !== '';
+                            const cantidadNum = parsePrecio(it.cantidad);
+                            const precioNum = valoresNumericos[idx];
+                            const costoTotal = cantidadNum !== null && precioNum !== null ? cantidadNum * precioNum : null;
+                            return (
+                              <tr key={it.id} className="border-b border-white/5 align-top">
+                                <td className="px-2 py-1.5 text-white/40">{i + 1}</td>
+                                <td className="px-2 py-1.5">
+                                  <textarea
+                                    ref={(el) => { if (el) { el.style.height = 'auto'; el.style.height = `${el.scrollHeight}px`; } }}
+                                    value={it.item}
+                                    onChange={(e) => {
+                                      actualizarItemCampo(it.id, e.target.value);
+                                      e.target.style.height = 'auto';
+                                      e.target.style.height = `${e.target.scrollHeight}px`;
+                                    }}
+                                    rows={1}
+                                    placeholder="Nombre del item"
+                                    className="w-full bg-white/5 border border-white/10 rounded px-2 py-1.5 text-white focus:border-cbvp-red/50 focus:outline-none resize-none overflow-hidden block leading-snug"
+                                  />
+                                </td>
+                                <td className="px-2 py-1.5">
+                                  <input
+                                    type="text"
+                                    value={it.itemProveedor[idx]}
+                                    onChange={(e) => actualizarItemProveedor(it.id, idx, e.target.value)}
+                                    placeholder="Codigo/descripcion"
+                                    className="w-full bg-white/5 border border-white/10 rounded px-2 py-1.5 text-white focus:border-cbvp-red/50 focus:outline-none"
+                                  />
+                                </td>
+                                <td className="px-2 py-1.5">
+                                  <input type="text" inputMode="decimal" value={it.cantidad} onChange={(e) => actualizarCantidad(it.id, e.target.value)} placeholder="0" className="w-full bg-white/5 border border-white/10 rounded px-2 py-1.5 text-white text-right focus:border-cbvp-red/50 focus:outline-none" />
+                                </td>
+                                <td className="px-2 py-1.5">
+                                  <input
+                                    type="text"
+                                    inputMode="decimal"
+                                    value={it.precios[idx]}
+                                    onChange={(e) => actualizarPrecio(it.id, idx, e.target.value)}
+                                    placeholder="0"
+                                    className={`w-full border rounded px-2 py-1.5 text-right focus:outline-none ${
+                                      esMinimo ? 'bg-cbvp-green/10 border-cbvp-green/30 text-cbvp-green font-semibold' : 'bg-white/5 border-white/10 text-white focus:border-cbvp-red/50'
+                                    }`}
+                                  />
+                                </td>
+                                <td className={`px-2 py-1.5 text-right ${esMinimo ? 'text-cbvp-green font-semibold' : 'text-white/80'}`}>
+                                  {costoTotal === null ? '-' : formatearNumero(costoTotal)}
+                                </td>
+                                <td className="px-2 py-1.5">
                                   <button
                                     type="button"
                                     onClick={() => marcarSeleccion(it.id, idx)}
@@ -634,54 +657,34 @@ export default function ComparativoDetalle() {
                                   >
                                     {esSeleccionado && <Check className="w-2.5 h-2.5 text-white" />}
                                   </button>
-                                  <input
-                                    type="text"
-                                    inputMode="decimal"
-                                    value={it.precios[idx]}
-                                    onChange={(e) => actualizarPrecio(it.id, idx, e.target.value)}
-                                    placeholder="0"
-                                    className={`w-full border rounded px-2 py-1.5 text-right focus:outline-none ${
-                                      esMinimo ? 'bg-cbvp-green/10 border-cbvp-green/30 text-cbvp-green font-semibold' : 'bg-white/5 border-white/10 text-white focus:border-cbvp-red/50'
-                                    }`}
-                                  />
-                                </div>
-                              </div>
+                                </td>
+                                <td className="px-2 py-1.5">
+                                  <button onClick={() => quitarFila(it.id)} className="p-1.5 rounded-lg hover:bg-cbvp-red/20 text-white/40 hover:text-cbvp-red transition-colors" title="Quitar item">
+                                    <X className="w-3.5 h-3.5" />
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                        <tfoot>
+                          <tr className="bg-white/5 font-semibold border-t border-white/10">
+                            <td colSpan={5} className="px-2 py-2 text-right text-white/70">TOTAL:</td>
+                            <td className={`px-2 py-2 text-right ${esMinimoTotal ? 'text-cbvp-green' : 'text-white'}`}>
+                              {formatearNumero(totalesPorProveedor[idx])}
                             </td>
-                          );
-                        })}
-                        <td className="px-2 py-1.5">
-                          <button onClick={() => quitarFila(it.id)} className="p-1.5 rounded-lg hover:bg-cbvp-red/20 text-white/40 hover:text-cbvp-red transition-colors" title="Quitar item">
-                            <X className="w-3.5 h-3.5" />
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-                {hojaActiva.items.length > 0 && (
-                  <tfoot>
-                    <tr className="bg-white/5 font-semibold border-t border-white/10">
-                      <td className="px-2 py-2 text-right text-white/70">TOTAL:</td>
-                      <td></td>
-                      {[0, 1, 2].map((idx) => {
-                        const esMinimo = totalMinimo !== null && totalesPorProveedor[idx] === totalMinimo;
-                        return (
-                          <td key={idx} className={`px-2 py-2 text-right ${esMinimo ? 'text-cbvp-green' : 'text-white'}`}>
-                            {formatearNumero(totalesPorProveedor[idx])}
-                          </td>
-                        );
-                      })}
-                      <td></td>
-                    </tr>
-                  </tfoot>
-                )}
-              </table>
-              {hojaActiva.items.length === 0 && (
-                <div className="text-center py-8 text-white/30 text-sm">Todavia no hay items en esta pestaña.</div>
-              )}
-            </div>
+                            <td></td>
+                            <td></td>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
+                  </div>
+                );
+              })
+            )}
 
-            <button onClick={agregarFila} className="mt-3 px-3 py-1.5 bg-white/5 hover:bg-white/10 text-white/60 rounded-lg text-xs flex items-center gap-2 transition-colors">
+            <button onClick={agregarFila} className="mt-1 px-3 py-1.5 bg-white/5 hover:bg-white/10 text-white/60 rounded-lg text-xs flex items-center gap-2 transition-colors">
               <Plus className="w-3.5 h-3.5" /> Agregar item
             </button>
           </>
