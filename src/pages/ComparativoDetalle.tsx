@@ -581,8 +581,8 @@ export default function ComparativoDetalle() {
                           <tr className="bg-white/5 border-b border-white/10">
                             <th className="text-left px-2 py-2 font-medium text-white/50 w-10">Ord</th>
                             <th className="text-left px-2 py-2 font-medium text-white/50 w-2/5">Item</th>
-                            <th className="text-left px-2 py-2 font-medium text-white/50">Codigo/Desc. Proveedor</th>
                             <th className="text-left px-2 py-2 font-medium text-white/50">Cantidad</th>
+                            <th className="text-left px-2 py-2 font-medium text-white/50">Codigo/Desc. Proveedor</th>
                             <th className="text-left px-2 py-2 font-medium text-white/50">Precio Unitario</th>
                             <th className="text-right px-2 py-2 font-medium text-white/50">Costo Total</th>
                             <th className="w-8"></th>
@@ -617,6 +617,9 @@ export default function ComparativoDetalle() {
                                   />
                                 </td>
                                 <td className="px-2 py-1.5">
+                                  <input type="text" inputMode="decimal" value={it.cantidad} onChange={(e) => actualizarCantidad(it.id, e.target.value)} placeholder="0" className="w-full bg-white/5 border border-white/10 rounded px-2 py-1.5 text-white text-right focus:border-cbvp-red/50 focus:outline-none" />
+                                </td>
+                                <td className="px-2 py-1.5">
                                   <input
                                     type="text"
                                     value={it.itemProveedor[idx]}
@@ -624,9 +627,6 @@ export default function ComparativoDetalle() {
                                     placeholder="Codigo/descripcion"
                                     className="w-full bg-white/5 border border-white/10 rounded px-2 py-1.5 text-white focus:border-cbvp-red/50 focus:outline-none"
                                   />
-                                </td>
-                                <td className="px-2 py-1.5">
-                                  <input type="text" inputMode="decimal" value={it.cantidad} onChange={(e) => actualizarCantidad(it.id, e.target.value)} placeholder="0" className="w-full bg-white/5 border border-white/10 rounded px-2 py-1.5 text-white text-right focus:border-cbvp-red/50 focus:outline-none" />
                                 </td>
                                 <td className="px-2 py-1.5">
                                   <input
