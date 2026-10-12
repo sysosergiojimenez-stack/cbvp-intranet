@@ -36,6 +36,7 @@ export interface HojaComparativoExport {
 export interface ComparativoExport {
   nombre: string;
   hojas: HojaComparativoExport[];
+  presupuesto?: number | null;
 }
 
 export async function exportarComparativoPdf(comparativo: ComparativoExport) {
@@ -73,6 +74,8 @@ export async function exportarComparativoPdf(comparativo: ComparativoExport) {
   doc.line(10, y, pageWidth - 10, y);
   y += 8;
 
+  const resumenGrupos: { nombre: string; proveedor: string | null; monto: number | null }[] = [];
+
   for (const hoja of comparativo.hojas) {
     if (y > pageHeight - 45) {
       doc.addPage();
@@ -94,18 +97,27 @@ export async function exportarComparativoPdf(comparativo: ComparativoExport) {
       }, 0)
     );
     const totalMinimo = totales.some((t) => t > 0) ? Math.min(...totales.filter((t) => t > 0)) : null;
+    const idxGanador = totalMinimo !== null ? totales.indexOf(totalMinimo) : -1;
+    resumenGrupos.push({
+      nombre: hoja.nombre,
+      proveedor: idxGanador >= 0 ? (hoja.proveedores[idxGanador] || `Proveedor ${idxGanador + 1}`) : null,
+      monto: totalMinimo,
+    });
 
     const body = hoja.items.map((it) => {
       const minimo = it.precios.some((v) => v !== null) ? Math.min(...(it.precios.filter((v): v is number => v !== null))) : null;
       return [
         it.item || '-',
-        it.cantidad === null ? '-' : formatearNumero(it.cantidad),
+        { content: it.cantidad === null ? '-' : formatearNumero(it.cantidad), styles: { halign: 'right' as const } },
         ...[0, 1, 2].map((idx) => {
           const valor = it.precios[idx];
           const esMinimo = minimo !== null && valor === minimo;
           return {
             content: valor === null ? '-' : formatearNumero(valor),
-            styles: esMinimo ? { fontStyle: 'bold' as const, textColor: [20, 130, 60] as [number, number, number] } : {},
+            styles: {
+              halign: 'right' as const,
+              ...(esMinimo ? { fontStyle: 'bold' as const, textColor: [20, 130, 60] as [number, number, number] } : {}),
+            },
           };
         }),
       ];
@@ -121,6 +133,7 @@ export async function exportarComparativoPdf(comparativo: ComparativoExport) {
         ...[0, 1, 2].map((idx) => ({
           content: formatearNumero(totales[idx]),
           styles: {
+            halign: 'right' as const,
             fontStyle: 'bold' as const,
             fillColor: [230, 230, 230] as [number, number, number],
             textColor: (totalMinimo !== null && totales[idx] === totalMinimo ? [20, 130, 60] : [0, 0, 0]) as [number, number, number],
@@ -139,6 +152,72 @@ export async function exportarComparativoPdf(comparativo: ComparativoExport) {
     });
     // @ts-expect-error lastAutoTable se agrega dinamicamente por el plugin
     y = doc.lastAutoTable.finalY + 10;
+  }
+
+  // Hoja de resumen: subtotal (mejor precio) por grupo y total general,
+  // mas el contraste contra el presupuesto disponible si fue indicado.
+  doc.addPage();
+  y = 15;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(14);
+  doc.setTextColor(180, 30, 30);
+  doc.text('RESUMEN GENERAL', pageWidth / 2, y, { align: 'center' });
+  doc.setTextColor(0, 0, 0);
+  y += 10;
+
+  const totalGeneral = resumenGrupos.reduce((acc, g) => acc + (g.monto ?? 0), 0);
+
+  autoTable(doc, {
+    startY: y,
+    theme: 'grid',
+    head: [['Grupo', 'Mejor proveedor', 'Subtotal']],
+    body: resumenGrupos.map((g) => [
+      g.nombre,
+      g.proveedor ?? '-',
+      { content: g.monto === null ? '-' : formatearNumero(g.monto), styles: { halign: 'right' as const } },
+    ]),
+    foot: [[
+      { content: 'TOTAL GENERAL:', colSpan: 2, styles: { halign: 'right', fontStyle: 'bold', fillColor: [230, 230, 230], textColor: [0, 0, 0] } },
+      { content: formatearNumero(totalGeneral), styles: { halign: 'right' as const, fontStyle: 'bold' as const, fillColor: [230, 230, 230] as [number, number, number], textColor: [0, 0, 0] as [number, number, number] } },
+    ]],
+    styles: { fontSize: 9, cellPadding: 2.5 },
+    headStyles: { fillColor: [20, 20, 20], textColor: 255 },
+    columnStyles: { 2: { halign: 'right', cellWidth: 35 } },
+    margin: { left: 10, right: 10 },
+  });
+  // @ts-expect-error lastAutoTable se agrega dinamicamente por el plugin
+  y = doc.lastAutoTable.finalY + 12;
+
+  if (typeof comparativo.presupuesto === 'number') {
+    const remanente = comparativo.presupuesto - totalGeneral;
+    const esFaltante = remanente < 0;
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.text('CONTROL DE PRESUPUESTO', 10, y);
+    y += 6;
+
+    autoTable(doc, {
+      startY: y,
+      theme: 'grid',
+      head: [['Presupuesto disponible', 'Total general', esFaltante ? 'Faltante' : 'Remanente']],
+      body: [[
+        { content: formatearNumero(comparativo.presupuesto), styles: { halign: 'right' as const } },
+        { content: formatearNumero(totalGeneral), styles: { halign: 'right' as const } },
+        {
+          content: formatearNumero(Math.abs(remanente)),
+          styles: {
+            halign: 'right' as const,
+            fontStyle: 'bold' as const,
+            textColor: (esFaltante ? [200, 30, 30] : [20, 130, 60]) as [number, number, number],
+          },
+        },
+      ]],
+      styles: { fontSize: 9, cellPadding: 2.5 },
+      headStyles: { fillColor: [20, 20, 20], textColor: 255 },
+      columnStyles: { 0: { halign: 'right' }, 1: { halign: 'right' }, 2: { halign: 'right' } },
+      margin: { left: 10, right: 10 },
+    });
   }
 
   const totalPaginas = doc.getNumberOfPages();

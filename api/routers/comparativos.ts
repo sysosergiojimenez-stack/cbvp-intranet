@@ -76,6 +76,7 @@ export const comparativosRouter = createRouter({
         fechaCreacion: String(fila.fechaCreacion || ""),
         creadoPor: String(fila.creadoPor || ""),
         hojas: Array.isArray(fila.hojas) ? fila.hojas : [],
+        presupuesto: typeof fila.presupuesto === "number" ? fila.presupuesto : null,
       };
     }),
 
@@ -114,6 +115,13 @@ export const comparativosRouter = createRouter({
     .input(z.object({ id: z.string().min(1), hojas: z.array(hojaSchema) }))
     .mutation(async ({ input }) => {
       await colComparativos().doc(input.id).update({ hojas: input.hojas });
+      return { exito: true as const };
+    }),
+
+  actualizarPresupuesto: publicQuery
+    .input(z.object({ id: z.string().min(1), presupuesto: z.number().nullable() }))
+    .mutation(async ({ input }) => {
+      await colComparativos().doc(input.id).update({ presupuesto: input.presupuesto });
       return { exito: true as const };
     }),
 

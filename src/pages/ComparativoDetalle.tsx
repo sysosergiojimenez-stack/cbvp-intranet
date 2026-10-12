@@ -63,6 +63,7 @@ export default function ComparativoDetalle() {
   const { data, isLoading } = trpc.comparativos.obtener.useQuery({ id: id || '' }, { enabled: !!id });
   const guardarHojasMutation = trpc.comparativos.guardarHojas.useMutation();
   const renombrarMutation = trpc.comparativos.renombrar.useMutation();
+  const actualizarPresupuestoMutation = trpc.comparativos.actualizarPresupuesto.useMutation();
 
   const [hojas, setHojas] = useState<HojaLocal[]>([]);
   const [hojaActivaId, setHojaActivaId] = useState<string>('');
@@ -100,7 +101,48 @@ export default function ComparativoDetalle() {
     setHuboCambios(false);
   }, [data]);
 
+  const [presupuestoForm, setPresupuestoForm] = useState('');
+  useEffect(() => {
+    if (!data?.exito) return;
+    setPresupuestoForm(data.presupuesto === null || data.presupuesto === undefined ? '' : String(data.presupuesto));
+  }, [data]);
+
+  const guardarPresupuesto = async () => {
+    if (!id) return;
+    const valor = parsePrecio(presupuestoForm);
+    try {
+      await actualizarPresupuestoMutation.mutateAsync({ id, presupuesto: valor });
+      utils.comparativos.obtener.invalidate({ id });
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Error al guardar el presupuesto');
+    }
+  };
+
   const hojaActiva = hojas.find((h) => h.id === hojaActivaId);
+
+  // Subtotal por grupo/pestaña (el menor total entre proveedores) y total
+  // general, para el panel de resumen y el contraste con el presupuesto.
+  const resumenGrupos = hojas.map((h) => {
+    const totales = [0, 1, 2].map((idx) =>
+      h.items.reduce((acc, it) => {
+        const cantidad = parsePrecio(it.cantidad);
+        const precio = parsePrecio(it.precios[idx]);
+        if (cantidad === null || precio === null) return acc;
+        return acc + cantidad * precio;
+      }, 0)
+    );
+    const validos = totales.filter((t) => t > 0);
+    const subtotal = validos.length > 0 ? Math.min(...validos) : null;
+    const idxGanador = subtotal !== null ? totales.indexOf(subtotal) : -1;
+    return {
+      nombre: h.nombre,
+      proveedor: idxGanador >= 0 ? h.proveedores[idxGanador] : null,
+      subtotal,
+    };
+  });
+  const totalGeneral = resumenGrupos.reduce((acc, g) => acc + (g.subtotal ?? 0), 0);
+  const presupuestoNumero = parsePrecio(presupuestoForm);
+  const remanente = presupuestoNumero !== null ? presupuestoNumero - totalGeneral : null;
 
   // Suma, por proveedor, el precio unitario por la cantidad de cada item
   // (items sin cantidad o sin precio cargado no aportan a ese total).
@@ -191,6 +233,7 @@ export default function ComparativoDetalle() {
     try {
       await exportarComparativoPdf({
         nombre: data.nombre,
+        presupuesto: presupuestoNumero,
         hojas: hojas.map((h) => ({
           nombre: h.nombre,
           proveedores: h.proveedores,
@@ -468,6 +511,62 @@ export default function ComparativoDetalle() {
             </button>
           </>
         )}
+      </div>
+
+      <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-6">
+        <h2 className="text-sm font-bold text-white mb-4">Resumen General</h2>
+
+        <div className="overflow-x-auto mb-4">
+          <table className="w-full text-xs sm:text-sm border-collapse">
+            <thead>
+              <tr className="bg-white/5 border-b border-white/10">
+                <th className="text-left px-2 py-2 font-medium text-white/50">Grupo</th>
+                <th className="text-left px-2 py-2 font-medium text-white/50">Mejor proveedor</th>
+                <th className="text-right px-2 py-2 font-medium text-white/50">Subtotal</th>
+              </tr>
+            </thead>
+            <tbody>
+              {resumenGrupos.map((g, i) => (
+                <tr key={i} className="border-b border-white/5">
+                  <td className="px-2 py-1.5 text-white/80">{g.nombre}</td>
+                  <td className="px-2 py-1.5 text-white/60">{g.proveedor || '-'}</td>
+                  <td className="px-2 py-1.5 text-right text-white">{g.subtotal === null ? '-' : formatearNumero(g.subtotal)}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr className="bg-white/5 font-semibold border-t border-white/10">
+                <td colSpan={2} className="px-2 py-2 text-right text-white/70">TOTAL GENERAL:</td>
+                <td className="px-2 py-2 text-right text-white">{formatearNumero(totalGeneral)}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        <div className="flex flex-wrap items-end gap-4">
+          <div>
+            <label className="block text-xs text-white/50 mb-1">Presupuesto disponible</label>
+            <input
+              type="text"
+              inputMode="decimal"
+              value={presupuestoForm}
+              onChange={(e) => setPresupuestoForm(e.target.value)}
+              onBlur={guardarPresupuesto}
+              onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+              placeholder="0"
+              className="w-48 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-right focus:border-cbvp-red/50 focus:outline-none"
+            />
+          </div>
+
+          {remanente !== null && (
+            <div className={`px-4 py-2 rounded-lg border ${remanente < 0 ? 'bg-cbvp-red/10 border-cbvp-red/30' : 'bg-cbvp-green/10 border-cbvp-green/30'}`}>
+              <span className="text-xs text-white/50 mr-2">{remanente < 0 ? 'Faltante:' : 'Remanente:'}</span>
+              <span className={`font-semibold ${remanente < 0 ? 'text-cbvp-red' : 'text-cbvp-green'}`}>
+                {formatearNumero(Math.abs(remanente))}
+              </span>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
