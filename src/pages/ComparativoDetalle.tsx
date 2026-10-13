@@ -1,9 +1,26 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { trpc } from '@/providers/trpc';
-import { ArrowLeft, FileSpreadsheet, Plus, Trash2, Save, X, Pencil, Check, ShoppingCart, GitCompare } from 'lucide-react';
+import { ArrowLeft, FileSpreadsheet, Plus, Trash2, Save, X, Pencil, Check, ShoppingCart, GitCompare, ClipboardList } from 'lucide-react';
 import { exportarOrdenCompraPdf } from '@/lib/exportarOrdenCompraPdf';
 import { exportarComparativoPdf } from '@/lib/exportarComparativoPdf';
+
+interface OrdenCompraItem {
+  grupo: string;
+  item: string;
+  cantidad: number;
+  precioUnitario: number;
+  subtotal: number;
+}
+
+interface OrdenCompraRegistro {
+  id: string;
+  proveedor: string;
+  monto: number;
+  fechaGeneracion: string;
+  estado: 'pendiente' | 'ejecutada';
+  items: OrdenCompraItem[];
+}
 
 interface ProveedorInfo {
   nombre: string;
@@ -88,6 +105,9 @@ export default function ComparativoDetalle() {
   const guardarHojasMutation = trpc.comparativos.guardarHojas.useMutation();
   const renombrarMutation = trpc.comparativos.renombrar.useMutation();
   const actualizarPresupuestoMutation = trpc.comparativos.actualizarPresupuesto.useMutation();
+  const agregarOrdenesCompraMutation = trpc.comparativos.agregarOrdenesCompra.useMutation();
+  const actualizarEstadoOrdenCompraMutation = trpc.comparativos.actualizarEstadoOrdenCompra.useMutation();
+  const eliminarOrdenCompraMutation = trpc.comparativos.eliminarOrdenCompra.useMutation();
 
   const [hojas, setHojas] = useState<HojaLocal[]>([]);
   const [hojaActivaId, setHojaActivaId] = useState<string>('');
@@ -152,6 +172,12 @@ export default function ComparativoDetalle() {
     setPresupuestoForm(data.presupuesto === null || data.presupuesto === undefined ? '' : String(data.presupuesto));
   }, [data]);
 
+  const [ordenesCompra, setOrdenesCompra] = useState<OrdenCompraRegistro[]>([]);
+  useEffect(() => {
+    if (!data?.exito) return;
+    setOrdenesCompra((data.ordenesCompra as OrdenCompraRegistro[]) || []);
+  }, [data]);
+
   const guardarPresupuesto = async () => {
     if (!id) return;
     const valor = parsePrecio(presupuestoForm);
@@ -163,13 +189,40 @@ export default function ComparativoDetalle() {
     }
   };
 
+  const alternarEstadoOrden = async (orden: OrdenCompraRegistro) => {
+    if (!id) return;
+    const nuevoEstado = orden.estado === 'ejecutada' ? 'pendiente' : 'ejecutada';
+    setOrdenesCompra((prev) => prev.map((o) => (o.id === orden.id ? { ...o, estado: nuevoEstado } : o)));
+    try {
+      await actualizarEstadoOrdenCompraMutation.mutateAsync({ id, ordenId: orden.id, estado: nuevoEstado });
+    } catch (err: unknown) {
+      setOrdenesCompra((prev) => prev.map((o) => (o.id === orden.id ? { ...o, estado: orden.estado } : o)));
+      alert(err instanceof Error ? err.message : 'Error al actualizar el estado de la orden');
+    }
+  };
+
+  const eliminarOrden = async (ordenId: string) => {
+    if (!id) return;
+    if (!confirm('Eliminar esta orden de compra generada?')) return;
+    const anteriores = ordenesCompra;
+    setOrdenesCompra((prev) => prev.filter((o) => o.id !== ordenId));
+    try {
+      await eliminarOrdenCompraMutation.mutateAsync({ id, ordenId });
+    } catch (err: unknown) {
+      setOrdenesCompra(anteriores);
+      alert(err instanceof Error ? err.message : 'Error al eliminar la orden');
+    }
+  };
+
   const hojaActiva = hojas.find((h) => h.id === hojaActivaId);
 
   // Agrupa por proveedor SOLO los items marcados (it.seleccionado), que son
-  // los que van a la orden de compra y cuentan en el resumen de totales.
-  // Items sin marcar (o marcados pero sin cantidad/precio cargado) quedan
-  // afuera y se contabilizan aparte para avisar que faltan decidir.
-  interface ResumenProveedor { proveedor: string; cantidadItems: number; total: number }
+  // los que van a entrar en la proxima Orden de Compra que se genere. Items
+  // sin marcar (o marcados pero sin cantidad/precio cargado) quedan afuera y
+  // se contabilizan aparte para avisar que faltan decidir. Esto es solo una
+  // vista previa: todavia no es "Total Presupuestado" (eso sale de las
+  // ordenes de compra ya generadas y guardadas, mas abajo).
+  interface ResumenProveedor { proveedor: string; cantidadItems: number; total: number; items: OrdenCompraItem[] }
   const resumenProveedores: ResumenProveedor[] = [];
   const indiceProveedores = new Map<string, number>();
   let itemsSinMarcar = 0;
@@ -187,15 +240,24 @@ export default function ComparativoDetalle() {
       if (i === undefined) {
         i = resumenProveedores.length;
         indiceProveedores.set(nombreProveedor, i);
-        resumenProveedores.push({ proveedor: nombreProveedor, cantidadItems: 0, total: 0 });
+        resumenProveedores.push({ proveedor: nombreProveedor, cantidadItems: 0, total: 0, items: [] });
       }
+      const subtotal = cantidad * precio;
       resumenProveedores[i].cantidadItems += 1;
-      resumenProveedores[i].total += cantidad * precio;
+      resumenProveedores[i].total += subtotal;
+      resumenProveedores[i].items.push({ grupo: h.nombre, item: it.item || '-', cantidad, precioUnitario: precio, subtotal });
     }
   }
   const totalGeneral = resumenProveedores.reduce((acc, p) => acc + p.total, 0);
   const presupuestoNumero = parsePrecio(presupuestoForm);
-  const remanente = presupuestoNumero !== null ? presupuestoNumero - totalGeneral : null;
+
+  // Total Presupuestado = suma de TODAS las ordenes de compra generadas
+  // (pendientes + ejecutadas). Total Ejecutado = solo las marcadas como
+  // ejecutada. El remanente se calcula contra lo ya ejecutado (lo pendiente
+  // todavia no salio de la plata disponible).
+  const totalPresupuestado = ordenesCompra.reduce((acc, o) => acc + o.monto, 0);
+  const totalEjecutado = ordenesCompra.filter((o) => o.estado === 'ejecutada').reduce((acc, o) => acc + o.monto, 0);
+  const remanente = presupuestoNumero !== null ? presupuestoNumero - totalEjecutado : null;
 
   // Suma, por proveedor, el precio unitario por la cantidad de cada item
   // (items sin cantidad o sin precio cargado no aportan a ese total).
@@ -300,7 +362,7 @@ export default function ComparativoDetalle() {
   };
 
   const handleExportar = async () => {
-    if (!data?.exito) return;
+    if (!data?.exito || !id) return;
     setExportando(true);
     try {
       await exportarOrdenCompraPdf({
@@ -318,6 +380,20 @@ export default function ComparativoDetalle() {
             })),
         })),
       });
+
+      if (resumenProveedores.length > 0) {
+        const fechaGeneracion = new Date().toISOString();
+        const nuevasOrdenes: OrdenCompraRegistro[] = resumenProveedores.map((p) => ({
+          id: generarIdLocal(),
+          proveedor: p.proveedor,
+          monto: p.total,
+          fechaGeneracion,
+          estado: 'pendiente',
+          items: p.items,
+        }));
+        await agregarOrdenesCompraMutation.mutateAsync({ id, ordenes: nuevasOrdenes });
+        utils.comparativos.obtener.invalidate({ id });
+      }
     } finally {
       setExportando(false);
     }
@@ -731,7 +807,7 @@ export default function ComparativoDetalle() {
               </tbody>
               <tfoot>
                 <tr className="bg-white/5 font-semibold border-t border-white/10">
-                  <td colSpan={2} className="px-2 py-2 text-right text-white/70">TOTAL GENERAL:</td>
+                  <td colSpan={2} className="px-2 py-2 text-right text-white/70">Subtotal (si se genera ahora):</td>
                   <td className="px-2 py-2 text-right text-white">{formatearNumero(totalGeneral)}</td>
                 </tr>
               </tfoot>
@@ -739,29 +815,87 @@ export default function ComparativoDetalle() {
           </div>
         )}
 
-        <div className="flex flex-wrap items-end gap-4">
-          <div>
-            <label className="block text-xs text-white/50 mb-1">Presupuesto disponible</label>
-            <input
-              type="text"
-              inputMode="decimal"
-              value={presupuestoForm}
-              onChange={(e) => setPresupuestoForm(e.target.value)}
-              onBlur={guardarPresupuesto}
-              onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
-              placeholder="0"
-              className="w-48 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-right focus:border-cbvp-red/50 focus:outline-none"
-            />
-          </div>
+        <div className="pt-4 mt-4 border-t border-white/10">
+          <label className="block text-xs text-white/50 mb-1">Presupuesto disponible</label>
+          <input
+            type="text"
+            inputMode="decimal"
+            value={presupuestoForm}
+            onChange={(e) => setPresupuestoForm(e.target.value)}
+            onBlur={guardarPresupuesto}
+            onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+            placeholder="0"
+            className="w-48 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-right focus:border-cbvp-red/50 focus:outline-none"
+          />
+        </div>
+      </div>
 
-          {remanente !== null && (
-            <div className={`px-4 py-2 rounded-lg border ${remanente < 0 ? 'bg-cbvp-red/10 border-cbvp-red/30' : 'bg-cbvp-green/10 border-cbvp-green/30'}`}>
-              <span className="text-xs text-white/50 mr-2">{remanente < 0 ? 'Faltante:' : 'Remanente:'}</span>
-              <span className={`font-semibold ${remanente < 0 ? 'text-cbvp-red' : 'text-cbvp-green'}`}>
-                {formatearNumero(Math.abs(remanente))}
-              </span>
-            </div>
-          )}
+      <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-6">
+        <h2 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
+          <ClipboardList className="w-4 h-4 text-cbvp-red" /> Ordenes de Compra Generadas
+        </h2>
+
+        {ordenesCompra.length === 0 ? (
+          <div className="text-center py-6 text-white/30 text-sm mb-4">
+            Todavia no se genero ninguna orden de compra. Usa "Generar Orden de Compra" arriba.
+          </div>
+        ) : (
+          <div className="overflow-x-auto mb-6">
+            <table className="w-full text-xs sm:text-sm border-collapse">
+              <thead>
+                <tr className="bg-white/5 border-b border-white/10">
+                  <th className="text-left px-2 py-2 font-medium text-white/50">Fecha</th>
+                  <th className="text-left px-2 py-2 font-medium text-white/50">Proveedor</th>
+                  <th className="text-right px-2 py-2 font-medium text-white/50">Monto</th>
+                  <th className="text-left px-2 py-2 font-medium text-white/50">Estado</th>
+                  <th className="w-8"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {ordenesCompra.map((o) => (
+                  <tr key={o.id} className="border-b border-white/5">
+                    <td className="px-2 py-1.5 text-white/60">{new Date(o.fechaGeneracion).toLocaleDateString('es-PY')}</td>
+                    <td className="px-2 py-1.5 text-white/80">{o.proveedor}</td>
+                    <td className="px-2 py-1.5 text-right text-white">{formatearNumero(o.monto)}</td>
+                    <td className="px-2 py-1.5">
+                      <button
+                        onClick={() => alternarEstadoOrden(o)}
+                        className={`px-2 py-1 rounded-full text-xs font-medium transition-colors ${
+                          o.estado === 'ejecutada'
+                            ? 'bg-cbvp-green/15 text-cbvp-green hover:bg-cbvp-green/25'
+                            : 'bg-cbvp-yellow/15 text-cbvp-yellow hover:bg-cbvp-yellow/25'
+                        }`}
+                      >
+                        {o.estado === 'ejecutada' ? 'Ejecutada' : 'Pendiente'}
+                      </button>
+                    </td>
+                    <td className="px-2 py-1.5">
+                      <button onClick={() => eliminarOrden(o.id)} className="p-1.5 rounded-lg hover:bg-cbvp-red/20 text-white/40 hover:text-cbvp-red transition-colors" title="Eliminar orden">
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="bg-white/[0.03] border border-white/10 rounded-lg px-4 py-3">
+            <span className="block text-xs text-white/50 mb-1">Total Presupuestado</span>
+            <span className="text-lg font-semibold text-white">{formatearNumero(totalPresupuestado)}</span>
+          </div>
+          <div className="bg-white/[0.03] border border-white/10 rounded-lg px-4 py-3">
+            <span className="block text-xs text-white/50 mb-1">Total Ejecutado</span>
+            <span className="text-lg font-semibold text-white">{formatearNumero(totalEjecutado)}</span>
+          </div>
+          <div className={`rounded-lg px-4 py-3 border ${remanente !== null && remanente < 0 ? 'bg-cbvp-red/10 border-cbvp-red/30' : 'bg-cbvp-green/10 border-cbvp-green/30'}`}>
+            <span className="block text-xs text-white/50 mb-1">{remanente !== null && remanente < 0 ? 'Faltante' : 'Remanente'}</span>
+            <span className={`text-lg font-semibold ${remanente !== null && remanente < 0 ? 'text-cbvp-red' : 'text-cbvp-green'}`}>
+              {remanente === null ? '-' : formatearNumero(Math.abs(remanente))}
+            </span>
+          </div>
         </div>
       </div>
     </div>

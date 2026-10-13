@@ -53,6 +53,26 @@ function proveedorVacio(nombre: string): z.infer<typeof proveedorSchema> {
   return { nombre, ruc: "", telefono: "", direccion: "", contacto: "" };
 }
 
+// Registro de una orden de compra generada (una por proveedor, ya que cada
+// una se envia/ejecuta de forma independiente). "ejecutada" es lo que ya se
+// efectivamente compro/pago; "pendiente" todavia no.
+const ordenCompraItemSchema = z.object({
+  grupo: z.string(),
+  item: z.string(),
+  cantidad: z.number(),
+  precioUnitario: z.number(),
+  subtotal: z.number(),
+});
+
+const ordenCompraSchema = z.object({
+  id: z.string().min(1),
+  proveedor: z.string(),
+  monto: z.number(),
+  fechaGeneracion: z.string(),
+  estado: z.enum(["pendiente", "ejecutada"]),
+  items: z.array(ordenCompraItemSchema),
+});
+
 function hojaVacia(nombre: string): z.infer<typeof hojaSchema> {
   return {
     id: generateId(),
@@ -97,6 +117,7 @@ export const comparativosRouter = createRouter({
         creadoPor: String(fila.creadoPor || ""),
         hojas: Array.isArray(fila.hojas) ? fila.hojas : [],
         presupuesto: typeof fila.presupuesto === "number" ? fila.presupuesto : null,
+        ordenesCompra: Array.isArray(fila.ordenesCompra) ? fila.ordenesCompra : [],
       };
     }),
 
@@ -142,6 +163,41 @@ export const comparativosRouter = createRouter({
     .input(z.object({ id: z.string().min(1), presupuesto: z.number().nullable() }))
     .mutation(async ({ input }) => {
       await colComparativos().doc(input.id).update({ presupuesto: input.presupuesto });
+      return { exito: true as const };
+    }),
+
+  // Agrega nuevas ordenes de compra generadas a la lista existente (no la
+  // reemplaza), para no perder el estado ejecutada/pendiente de las que ya
+  // estaban guardadas.
+  agregarOrdenesCompra: publicQuery
+    .input(z.object({ id: z.string().min(1), ordenes: z.array(ordenCompraSchema) }))
+    .mutation(async ({ input }) => {
+      const doc = await colComparativos().doc(input.id).get();
+      const existentes = Array.isArray(doc.data()?.ordenesCompra) ? doc.data()!.ordenesCompra : [];
+      await colComparativos()
+        .doc(input.id)
+        .update({ ordenesCompra: [...existentes, ...input.ordenes] });
+      return { exito: true as const };
+    }),
+
+  actualizarEstadoOrdenCompra: publicQuery
+    .input(z.object({ id: z.string().min(1), ordenId: z.string().min(1), estado: z.enum(["pendiente", "ejecutada"]) }))
+    .mutation(async ({ input }) => {
+      const doc = await colComparativos().doc(input.id).get();
+      const existentes: z.infer<typeof ordenCompraSchema>[] = Array.isArray(doc.data()?.ordenesCompra) ? doc.data()!.ordenesCompra : [];
+      const actualizadas = existentes.map((o) => (o.id === input.ordenId ? { ...o, estado: input.estado } : o));
+      await colComparativos().doc(input.id).update({ ordenesCompra: actualizadas });
+      return { exito: true as const };
+    }),
+
+  eliminarOrdenCompra: publicQuery
+    .input(z.object({ id: z.string().min(1), ordenId: z.string().min(1) }))
+    .mutation(async ({ input }) => {
+      const doc = await colComparativos().doc(input.id).get();
+      const existentes: z.infer<typeof ordenCompraSchema>[] = Array.isArray(doc.data()?.ordenesCompra) ? doc.data()!.ordenesCompra : [];
+      await colComparativos()
+        .doc(input.id)
+        .update({ ordenesCompra: existentes.filter((o) => o.id !== input.ordenId) });
       return { exito: true as const };
     }),
 
