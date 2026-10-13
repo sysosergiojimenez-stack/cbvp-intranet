@@ -66,6 +66,9 @@ const ordenCompraItemSchema = z.object({
 
 const ordenCompraSchema = z.object({
   id: z.string().min(1),
+  // Numero correlativo dentro del comparativo (1, 2, 3...), para poder
+  // identificar cada orden facilmente.
+  numero: z.number().int().min(1),
   proveedor: z.string(),
   monto: z.number(),
   fechaGeneracion: z.string(),

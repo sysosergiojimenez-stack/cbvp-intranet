@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { trpc } from '@/providers/trpc';
-import { ArrowLeft, FileSpreadsheet, Plus, Trash2, Save, X, Pencil, Check, ShoppingCart, GitCompare, ClipboardList } from 'lucide-react';
-import { exportarOrdenCompraPdf } from '@/lib/exportarOrdenCompraPdf';
+import { ArrowLeft, FileSpreadsheet, Plus, Trash2, Save, X, Pencil, Check, ShoppingCart, GitCompare, ClipboardList, Download } from 'lucide-react';
+import { exportarOrdenCompraPdf, exportarOrdenIndividualPdf } from '@/lib/exportarOrdenCompraPdf';
 import { exportarComparativoPdf } from '@/lib/exportarComparativoPdf';
 
 interface OrdenCompraItem {
@@ -15,6 +15,7 @@ interface OrdenCompraItem {
 
 interface OrdenCompraRegistro {
   id: string;
+  numero: number;
   proveedor: string;
   monto: number;
   fechaGeneracion: string;
@@ -175,7 +176,10 @@ export default function ComparativoDetalle() {
   const [ordenesCompra, setOrdenesCompra] = useState<OrdenCompraRegistro[]>([]);
   useEffect(() => {
     if (!data?.exito) return;
-    setOrdenesCompra((data.ordenesCompra as OrdenCompraRegistro[]) || []);
+    const crudas = (data.ordenesCompra as (OrdenCompraRegistro & { numero?: number })[]) || [];
+    // Ordenes guardadas antes de agregar la numeracion no tienen "numero":
+    // se les asigna uno segun su posicion para que no queden en blanco.
+    setOrdenesCompra(crudas.map((o, i) => ({ ...o, numero: typeof o.numero === 'number' ? o.numero : i + 1 })));
   }, [data]);
 
   const guardarPresupuesto = async () => {
@@ -198,6 +202,26 @@ export default function ComparativoDetalle() {
     } catch (err: unknown) {
       setOrdenesCompra((prev) => prev.map((o) => (o.id === orden.id ? { ...o, estado: orden.estado } : o)));
       alert(err instanceof Error ? err.message : 'Error al actualizar el estado de la orden');
+    }
+  };
+
+  const [descargandoOrdenId, setDescargandoOrdenId] = useState<string | null>(null);
+
+  const descargarOrden = async (orden: OrdenCompraRegistro) => {
+    if (!data?.exito) return;
+    setDescargandoOrdenId(orden.id);
+    try {
+      await exportarOrdenIndividualPdf({
+        numero: orden.numero,
+        nombreComparativo: data.nombre,
+        proveedor: orden.proveedor,
+        fechaGeneracion: orden.fechaGeneracion,
+        estado: orden.estado,
+        monto: orden.monto,
+        items: orden.items,
+      });
+    } finally {
+      setDescargandoOrdenId(null);
     }
   };
 
@@ -379,8 +403,10 @@ export default function ComparativoDetalle() {
 
       if (resumenProveedores.length > 0) {
         const fechaGeneracion = new Date().toISOString();
-        const nuevasOrdenes: OrdenCompraRegistro[] = resumenProveedores.map((p) => ({
+        const numeroBase = ordenesCompra.reduce((max, o) => Math.max(max, o.numero), 0);
+        const nuevasOrdenes: OrdenCompraRegistro[] = resumenProveedores.map((p, i) => ({
           id: generarIdLocal(),
+          numero: numeroBase + i + 1,
           proveedor: p.proveedor,
           monto: p.total,
           fechaGeneracion,
@@ -782,16 +808,19 @@ export default function ComparativoDetalle() {
             <table className="w-full text-xs sm:text-sm border-collapse">
               <thead>
                 <tr className="bg-white/5 border-b border-white/10">
+                  <th className="text-left px-2 py-2 font-medium text-white/50">N°</th>
                   <th className="text-left px-2 py-2 font-medium text-white/50">Fecha</th>
                   <th className="text-left px-2 py-2 font-medium text-white/50">Proveedor</th>
                   <th className="text-right px-2 py-2 font-medium text-white/50">Monto</th>
                   <th className="text-left px-2 py-2 font-medium text-white/50">Estado</th>
+                  <th className="w-8"></th>
                   <th className="w-8"></th>
                 </tr>
               </thead>
               <tbody>
                 {ordenesCompra.map((o) => (
                   <tr key={o.id} className="border-b border-white/5">
+                    <td className="px-2 py-1.5 text-white/60">{o.numero}</td>
                     <td className="px-2 py-1.5 text-white/60">{new Date(o.fechaGeneracion).toLocaleDateString('es-PY')}</td>
                     <td className="px-2 py-1.5 text-white/80">{o.proveedor}</td>
                     <td className="px-2 py-1.5 text-right text-white">{formatearNumero(o.monto)}</td>
@@ -805,6 +834,16 @@ export default function ComparativoDetalle() {
                         }`}
                       >
                         {o.estado === 'ejecutada' ? 'Ejecutada' : 'Pendiente'}
+                      </button>
+                    </td>
+                    <td className="px-2 py-1.5">
+                      <button
+                        onClick={() => descargarOrden(o)}
+                        disabled={descargandoOrdenId === o.id}
+                        className="p-1.5 rounded-lg hover:bg-white/10 text-white/40 hover:text-white transition-colors disabled:opacity-40"
+                        title="Descargar orden"
+                      >
+                        <Download className="w-3.5 h-3.5" />
                       </button>
                     </td>
                     <td className="px-2 py-1.5">
