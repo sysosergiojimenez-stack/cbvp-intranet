@@ -231,7 +231,7 @@ export interface OrdenIndividualExport {
   nombreComparativo: string;
   proveedor: string;
   fechaGeneracion: string;
-  estado: 'pendiente' | 'ejecutada';
+  estado: 'pendiente' | 'ejecutada' | 'anulada';
   monto: number;
   items: ItemOrdenIndividualExport[];
 }
@@ -285,7 +285,8 @@ export async function exportarOrdenIndividualPdf(orden: OrdenIndividualExport) {
   doc.setFontSize(8.5);
   doc.setTextColor(100, 100, 100);
   const fecha = new Date(orden.fechaGeneracion).toLocaleDateString('es-PY');
-  doc.text(`Fecha de generacion: ${fecha}  -  Estado: ${orden.estado === 'ejecutada' ? 'Ejecutada' : 'Pendiente'}`, 10, y);
+  const etiquetaEstado = orden.estado === 'ejecutada' ? 'Ejecutada' : orden.estado === 'anulada' ? 'Anulada' : 'Pendiente';
+  doc.text(`Fecha de generacion: ${fecha}  -  Estado: ${etiquetaEstado}`, 10, y);
   doc.setTextColor(0, 0, 0);
   y += 5;
 

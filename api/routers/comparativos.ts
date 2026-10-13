@@ -57,6 +57,9 @@ function proveedorVacio(nombre: string): z.infer<typeof proveedorSchema> {
 // una se envia/ejecuta de forma independiente). "ejecutada" es lo que ya se
 // efectivamente compro/pago; "pendiente" todavia no.
 const ordenCompraItemSchema = z.object({
+  // Id del item original en la hoja (ItemLocal.id), para poder bloquear su
+  // seleccion mientras siga formando parte de una orden activa.
+  itemId: z.string(),
   grupo: z.string(),
   item: z.string(),
   cantidad: z.number(),
@@ -72,7 +75,9 @@ const ordenCompraSchema = z.object({
   proveedor: z.string(),
   monto: z.number(),
   fechaGeneracion: z.string(),
-  estado: z.enum(["pendiente", "ejecutada"]),
+  // "anulada" libera los items que tenia para que se puedan volver a
+  // seleccionar/incluir en una nueva orden.
+  estado: z.enum(["pendiente", "ejecutada", "anulada"]),
   items: z.array(ordenCompraItemSchema),
 });
 
@@ -184,7 +189,7 @@ export const comparativosRouter = createRouter({
     }),
 
   actualizarEstadoOrdenCompra: publicQuery
-    .input(z.object({ id: z.string().min(1), ordenId: z.string().min(1), estado: z.enum(["pendiente", "ejecutada"]) }))
+    .input(z.object({ id: z.string().min(1), ordenId: z.string().min(1), estado: z.enum(["pendiente", "ejecutada", "anulada"]) }))
     .mutation(async ({ input }) => {
       const doc = await colComparativos().doc(input.id).get();
       const existentes: z.infer<typeof ordenCompraSchema>[] = Array.isArray(doc.data()?.ordenesCompra) ? doc.data()!.ordenesCompra : [];

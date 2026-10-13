@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { trpc } from '@/providers/trpc';
-import { ArrowLeft, FileSpreadsheet, Plus, Trash2, Save, X, Pencil, Check, ShoppingCart, GitCompare, ClipboardList, Download } from 'lucide-react';
+import { ArrowLeft, FileSpreadsheet, Plus, Trash2, Save, X, Pencil, Check, ShoppingCart, GitCompare, ClipboardList, Download, Ban } from 'lucide-react';
 import { exportarOrdenCompraPdf, exportarOrdenIndividualPdf } from '@/lib/exportarOrdenCompraPdf';
 import { exportarComparativoPdf } from '@/lib/exportarComparativoPdf';
 
 interface OrdenCompraItem {
+  // Id del item original (ItemLocal.id) para poder bloquear su seleccion
+  // mientras la orden siga activa (pendiente o ejecutada).
+  itemId: string;
   grupo: string;
   item: string;
   cantidad: number;
@@ -19,7 +22,7 @@ interface OrdenCompraRegistro {
   proveedor: string;
   monto: number;
   fechaGeneracion: string;
-  estado: 'pendiente' | 'ejecutada';
+  estado: 'pendiente' | 'ejecutada' | 'anulada';
   items: OrdenCompraItem[];
 }
 
@@ -177,9 +180,16 @@ export default function ComparativoDetalle() {
   useEffect(() => {
     if (!data?.exito) return;
     const crudas = (data.ordenesCompra as (OrdenCompraRegistro & { numero?: number })[]) || [];
-    // Ordenes guardadas antes de agregar la numeracion no tienen "numero":
-    // se les asigna uno segun su posicion para que no queden en blanco.
-    setOrdenesCompra(crudas.map((o, i) => ({ ...o, numero: typeof o.numero === 'number' ? o.numero : i + 1 })));
+    // Ordenes guardadas antes de agregar la numeracion/bloqueo no tienen
+    // "numero" ni "itemId" en sus items: se completan con valores por
+    // defecto para que no queden en blanco ni rompan el bloqueo.
+    setOrdenesCompra(
+      crudas.map((o, i) => ({
+        ...o,
+        numero: typeof o.numero === 'number' ? o.numero : i + 1,
+        items: (o.items || []).map((it) => ({ ...it, itemId: it.itemId || '' })),
+      }))
+    );
   }, [data]);
 
   const guardarPresupuesto = async () => {
@@ -202,6 +212,19 @@ export default function ComparativoDetalle() {
     } catch (err: unknown) {
       setOrdenesCompra((prev) => prev.map((o) => (o.id === orden.id ? { ...o, estado: orden.estado } : o)));
       alert(err instanceof Error ? err.message : 'Error al actualizar el estado de la orden');
+    }
+  };
+
+  const anularOrden = async (orden: OrdenCompraRegistro) => {
+    if (!id) return;
+    if (!confirm(`Anular la orden N° ${orden.numero} (${orden.proveedor})? Los items que tenia quedaran libres para volver a marcarse.`)) return;
+    const anterior = orden.estado;
+    setOrdenesCompra((prev) => prev.map((o) => (o.id === orden.id ? { ...o, estado: 'anulada' } : o)));
+    try {
+      await actualizarEstadoOrdenCompraMutation.mutateAsync({ id, ordenId: orden.id, estado: 'anulada' });
+    } catch (err: unknown) {
+      setOrdenesCompra((prev) => prev.map((o) => (o.id === orden.id ? { ...o, estado: anterior } : o)));
+      alert(err instanceof Error ? err.message : 'Error al anular la orden');
     }
   };
 
@@ -240,10 +263,21 @@ export default function ComparativoDetalle() {
 
   const hojaActiva = hojas.find((h) => h.id === hojaActivaId);
 
-  // Agrupa por proveedor SOLO los items marcados (it.seleccionado), que son
-  // los que van a entrar en la proxima Orden de Compra que se genere (ver
-  // handleExportar). No se muestra en pantalla, solo se usa para armar los
-  // registros que se guardan al generar.
+  // Items que ya forman parte de una orden activa (pendiente o ejecutada):
+  // quedan bloqueados para seleccion hasta que esa orden se anule.
+  const itemsBloqueados = new Map<string, number>();
+  for (const o of ordenesCompra) {
+    if (o.estado === 'anulada') continue;
+    for (const it of o.items) {
+      itemsBloqueados.set(it.itemId, o.numero);
+    }
+  }
+
+  // Agrupa por proveedor SOLO los items marcados (it.seleccionado) que
+  // todavia no estan en una orden activa, que son los que van a entrar en
+  // la proxima Orden de Compra que se genere (ver handleExportar). No se
+  // muestra en pantalla, solo se usa para armar los registros que se
+  // guardan al generar.
   interface ResumenProveedor { proveedor: string; cantidadItems: number; total: number; items: OrdenCompraItem[] }
   const resumenProveedores: ResumenProveedor[] = [];
   const indiceProveedores = new Map<string, number>();
@@ -253,6 +287,7 @@ export default function ComparativoDetalle() {
       const tieneContenido = it.item.trim() || it.cantidad.trim() || it.precios.some((p) => p.trim());
       if (!tieneContenido) continue;
       if (it.seleccionado === null) continue;
+      if (itemsBloqueados.has(it.id)) continue;
       const cantidad = parsePrecio(it.cantidad);
       const precio = parsePrecio(it.precios[it.seleccionado]);
       if (cantidad === null || precio === null) continue;
@@ -266,16 +301,17 @@ export default function ComparativoDetalle() {
       const subtotal = cantidad * precio;
       resumenProveedores[i].cantidadItems += 1;
       resumenProveedores[i].total += subtotal;
-      resumenProveedores[i].items.push({ grupo: h.nombre, item: it.item || '-', cantidad, precioUnitario: precio, subtotal });
+      resumenProveedores[i].items.push({ itemId: it.id, grupo: h.nombre, item: it.item || '-', cantidad, precioUnitario: precio, subtotal });
     }
   }
   const presupuestoNumero = parsePrecio(presupuestoForm);
 
-  // Total Presupuestado = suma de TODAS las ordenes de compra generadas
-  // (pendientes + ejecutadas). Total Ejecutado = solo las marcadas como
-  // ejecutada. El remanente se calcula contra lo ya ejecutado (lo pendiente
-  // todavia no salio de la plata disponible).
-  const totalPresupuestado = ordenesCompra.reduce((acc, o) => acc + o.monto, 0);
+  // Total Presupuestado = suma de las ordenes de compra generadas que siguen
+  // activas (pendientes + ejecutadas; las anuladas no cuentan). Total
+  // Ejecutado = solo las marcadas como ejecutada. El remanente se calcula
+  // contra lo ya ejecutado (lo pendiente todavia no salio de la plata
+  // disponible).
+  const totalPresupuestado = ordenesCompra.filter((o) => o.estado !== 'anulada').reduce((acc, o) => acc + o.monto, 0);
   const totalEjecutado = ordenesCompra.filter((o) => o.estado === 'ejecutada').reduce((acc, o) => acc + o.monto, 0);
   const remanente = presupuestoNumero !== null ? presupuestoNumero - totalEjecutado : null;
 
@@ -693,7 +729,9 @@ export default function ComparativoDetalle() {
                             const minimo = valoresNumericos.some((v) => v !== null) ? Math.min(...valoresNumericos.filter((v): v is number => v !== null)) : null;
                             const esMinimo = minimo !== null && valoresNumericos[idx] === minimo;
                             const esSeleccionado = it.seleccionado === idx;
-                            const puedeMarcar = it.precios[idx].trim() !== '';
+                            const numeroOrdenBloqueo = itemsBloqueados.get(it.id);
+                            const bloqueado = numeroOrdenBloqueo !== undefined;
+                            const puedeMarcar = it.precios[idx].trim() !== '' && !bloqueado;
                             const cantidadNum = parsePrecio(it.cantidad);
                             const precioNum = valoresNumericos[idx];
                             const costoTotal = cantidadNum !== null && precioNum !== null ? cantidadNum * precioNum : null;
@@ -751,10 +789,18 @@ export default function ComparativoDetalle() {
                                     type="button"
                                     onClick={() => marcarSeleccion(it.id, idx)}
                                     disabled={!puedeMarcar}
-                                    title={esSeleccionado ? 'Quitar de la orden de compra' : 'Marcar para la orden de compra'}
+                                    title={
+                                      bloqueado
+                                        ? `Este item ya esta en la Orden de Compra N° ${numeroOrdenBloqueo}. Anula esa orden para poder cambiarlo.`
+                                        : esSeleccionado
+                                        ? 'Quitar de la orden de compra'
+                                        : 'Marcar para la orden de compra'
+                                    }
                                     className={`shrink-0 w-4 h-4 rounded-full border flex items-center justify-center transition-colors ${
                                       esSeleccionado
-                                        ? 'bg-cbvp-red border-cbvp-red'
+                                        ? bloqueado
+                                          ? 'bg-white/20 border-white/20'
+                                          : 'bg-cbvp-red border-cbvp-red'
                                         : 'border-white/20 hover:border-white/40 disabled:opacity-20 disabled:cursor-not-allowed disabled:hover:border-white/20'
                                     }`}
                                   >
@@ -815,26 +861,31 @@ export default function ComparativoDetalle() {
                   <th className="text-left px-2 py-2 font-medium text-white/50">Estado</th>
                   <th className="w-8"></th>
                   <th className="w-8"></th>
+                  <th className="w-8"></th>
                 </tr>
               </thead>
               <tbody>
                 {ordenesCompra.map((o) => (
-                  <tr key={o.id} className="border-b border-white/5">
+                  <tr key={o.id} className={`border-b border-white/5 ${o.estado === 'anulada' ? 'opacity-50' : ''}`}>
                     <td className="px-2 py-1.5 text-white/60">{o.numero}</td>
                     <td className="px-2 py-1.5 text-white/60">{new Date(o.fechaGeneracion).toLocaleDateString('es-PY')}</td>
-                    <td className="px-2 py-1.5 text-white/80">{o.proveedor}</td>
-                    <td className="px-2 py-1.5 text-right text-white">{formatearNumero(o.monto)}</td>
+                    <td className={`px-2 py-1.5 text-white/80 ${o.estado === 'anulada' ? 'line-through' : ''}`}>{o.proveedor}</td>
+                    <td className={`px-2 py-1.5 text-right text-white ${o.estado === 'anulada' ? 'line-through' : ''}`}>{formatearNumero(o.monto)}</td>
                     <td className="px-2 py-1.5">
-                      <button
-                        onClick={() => alternarEstadoOrden(o)}
-                        className={`px-2 py-1 rounded-full text-xs font-medium transition-colors ${
-                          o.estado === 'ejecutada'
-                            ? 'bg-cbvp-green/15 text-cbvp-green hover:bg-cbvp-green/25'
-                            : 'bg-cbvp-yellow/15 text-cbvp-yellow hover:bg-cbvp-yellow/25'
-                        }`}
-                      >
-                        {o.estado === 'ejecutada' ? 'Ejecutada' : 'Pendiente'}
-                      </button>
+                      {o.estado === 'anulada' ? (
+                        <span className="px-2 py-1 rounded-full text-xs font-medium bg-white/10 text-white/50">Anulada</span>
+                      ) : (
+                        <button
+                          onClick={() => alternarEstadoOrden(o)}
+                          className={`px-2 py-1 rounded-full text-xs font-medium transition-colors ${
+                            o.estado === 'ejecutada'
+                              ? 'bg-cbvp-green/15 text-cbvp-green hover:bg-cbvp-green/25'
+                              : 'bg-cbvp-yellow/15 text-cbvp-yellow hover:bg-cbvp-yellow/25'
+                          }`}
+                        >
+                          {o.estado === 'ejecutada' ? 'Ejecutada' : 'Pendiente'}
+                        </button>
+                      )}
                     </td>
                     <td className="px-2 py-1.5">
                       <button
@@ -845,6 +896,17 @@ export default function ComparativoDetalle() {
                       >
                         <Download className="w-3.5 h-3.5" />
                       </button>
+                    </td>
+                    <td className="px-2 py-1.5">
+                      {o.estado !== 'anulada' && (
+                        <button
+                          onClick={() => anularOrden(o)}
+                          className="p-1.5 rounded-lg hover:bg-cbvp-yellow/20 text-white/40 hover:text-cbvp-yellow transition-colors"
+                          title="Anular orden"
+                        >
+                          <Ban className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                     </td>
                     <td className="px-2 py-1.5">
                       <button onClick={() => eliminarOrden(o.id)} className="p-1.5 rounded-lg hover:bg-cbvp-red/20 text-white/40 hover:text-cbvp-red transition-colors" title="Eliminar orden">
