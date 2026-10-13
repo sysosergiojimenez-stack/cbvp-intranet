@@ -217,24 +217,21 @@ export default function ComparativoDetalle() {
   const hojaActiva = hojas.find((h) => h.id === hojaActivaId);
 
   // Agrupa por proveedor SOLO los items marcados (it.seleccionado), que son
-  // los que van a entrar en la proxima Orden de Compra que se genere. Items
-  // sin marcar (o marcados pero sin cantidad/precio cargado) quedan afuera y
-  // se contabilizan aparte para avisar que faltan decidir. Esto es solo una
-  // vista previa: todavia no es "Total Presupuestado" (eso sale de las
-  // ordenes de compra ya generadas y guardadas, mas abajo).
+  // los que van a entrar en la proxima Orden de Compra que se genere (ver
+  // handleExportar). No se muestra en pantalla, solo se usa para armar los
+  // registros que se guardan al generar.
   interface ResumenProveedor { proveedor: string; cantidadItems: number; total: number; items: OrdenCompraItem[] }
   const resumenProveedores: ResumenProveedor[] = [];
   const indiceProveedores = new Map<string, number>();
-  let itemsSinMarcar = 0;
 
   for (const h of hojas) {
     for (const it of h.items) {
       const tieneContenido = it.item.trim() || it.cantidad.trim() || it.precios.some((p) => p.trim());
       if (!tieneContenido) continue;
-      if (it.seleccionado === null) { itemsSinMarcar++; continue; }
+      if (it.seleccionado === null) continue;
       const cantidad = parsePrecio(it.cantidad);
       const precio = parsePrecio(it.precios[it.seleccionado]);
-      if (cantidad === null || precio === null) { itemsSinMarcar++; continue; }
+      if (cantidad === null || precio === null) continue;
       const nombreProveedor = h.proveedores[it.seleccionado]?.nombre || `Proveedor ${it.seleccionado + 1}`;
       let i = indiceProveedores.get(nombreProveedor);
       if (i === undefined) {
@@ -248,7 +245,6 @@ export default function ComparativoDetalle() {
       resumenProveedores[i].items.push({ grupo: h.nombre, item: it.item || '-', cantidad, precioUnitario: precio, subtotal });
     }
   }
-  const totalGeneral = resumenProveedores.reduce((acc, p) => acc + p.total, 0);
   const presupuestoNumero = parsePrecio(presupuestoForm);
 
   // Total Presupuestado = suma de TODAS las ordenes de compra generadas
@@ -773,64 +769,6 @@ export default function ComparativoDetalle() {
       </div>
 
       <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-6">
-        <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
-          <h2 className="text-sm font-bold text-white">Resumen de la Orden de Compra</h2>
-          {itemsSinMarcar > 0 && (
-            <span className="text-xs text-cbvp-yellow">
-              {itemsSinMarcar} item{itemsSinMarcar === 1 ? '' : 's'} sin proveedor marcado (no {itemsSinMarcar === 1 ? 'suma' : 'suman'} al total)
-            </span>
-          )}
-        </div>
-
-        {resumenProveedores.length === 0 ? (
-          <div className="text-center py-6 text-white/30 text-sm mb-4">
-            Todavia no marcaste ningun item para la orden de compra.
-          </div>
-        ) : (
-          <div className="overflow-x-auto mb-4">
-            <table className="w-full text-xs sm:text-sm border-collapse">
-              <thead>
-                <tr className="bg-white/5 border-b border-white/10">
-                  <th className="text-left px-2 py-2 font-medium text-white/50">Proveedor</th>
-                  <th className="text-right px-2 py-2 font-medium text-white/50">Items</th>
-                  <th className="text-right px-2 py-2 font-medium text-white/50">Subtotal</th>
-                </tr>
-              </thead>
-              <tbody>
-                {resumenProveedores.map((p, i) => (
-                  <tr key={i} className="border-b border-white/5">
-                    <td className="px-2 py-1.5 text-white/80">{p.proveedor}</td>
-                    <td className="px-2 py-1.5 text-right text-white/60">{p.cantidadItems}</td>
-                    <td className="px-2 py-1.5 text-right text-white">{formatearNumero(p.total)}</td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr className="bg-white/5 font-semibold border-t border-white/10">
-                  <td colSpan={2} className="px-2 py-2 text-right text-white/70">Subtotal (si se genera ahora):</td>
-                  <td className="px-2 py-2 text-right text-white">{formatearNumero(totalGeneral)}</td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        )}
-
-        <div className="pt-4 mt-4 border-t border-white/10">
-          <label className="block text-xs text-white/50 mb-1">Presupuesto disponible</label>
-          <input
-            type="text"
-            inputMode="decimal"
-            value={presupuestoForm}
-            onChange={(e) => setPresupuestoForm(e.target.value)}
-            onBlur={guardarPresupuesto}
-            onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
-            placeholder="0"
-            className="w-48 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-right focus:border-cbvp-red/50 focus:outline-none"
-          />
-        </div>
-      </div>
-
-      <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-6">
         <h2 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
           <ClipboardList className="w-4 h-4 text-cbvp-red" /> Ordenes de Compra Generadas
         </h2>
@@ -881,7 +819,20 @@ export default function ComparativoDetalle() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="bg-white/[0.03] border border-white/10 rounded-lg px-4 py-3">
+            <label className="block text-xs text-white/50 mb-1">Presupuesto disponible</label>
+            <input
+              type="text"
+              inputMode="decimal"
+              value={presupuestoForm}
+              onChange={(e) => setPresupuestoForm(e.target.value)}
+              onBlur={guardarPresupuesto}
+              onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+              placeholder="0"
+              className="w-full bg-transparent text-lg font-semibold text-white focus:outline-none"
+            />
+          </div>
           <div className="bg-white/[0.03] border border-white/10 rounded-lg px-4 py-3">
             <span className="block text-xs text-white/50 mb-1">Total Presupuestado</span>
             <span className="text-lg font-semibold text-white">{formatearNumero(totalPresupuestado)}</span>
