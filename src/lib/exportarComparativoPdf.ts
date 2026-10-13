@@ -108,7 +108,7 @@ export async function exportarComparativoPdf(comparativo: ComparativoExport) {
     doc.setTextColor(0, 0, 0);
     y += 9;
 
-    for (let idx = 0; idx < 3; idx++) {
+    for (let idx = 0; idx < hoja.proveedores.length; idx++) {
       const proveedor = hoja.proveedores[idx];
       if (!proveedor) continue;
       const nombreProveedor = proveedor.nombre.trim() || `Proveedor ${idx + 1}`;

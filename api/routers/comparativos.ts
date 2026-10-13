@@ -21,17 +21,20 @@ function generateId(): string {
 
 const itemSchema = z.object({
   id: z.string().min(1),
-  // Nombre generico del item, el mismo para los 3 proveedores (para poder
-  // compararlos). itemProveedor es el codigo/descripcion que usa CADA
-  // proveedor para ese item, que puede ser distinto entre ellos.
+  // Nombre generico del item, el mismo para todos los proveedores (para
+  // poder compararlos). itemProveedor es el codigo/descripcion que usa CADA
+  // proveedor para ese item, que puede ser distinto entre ellos. Su largo
+  // sigue siempre a la cantidad de proveedores de la hoja (puede ser
+  // cualquier cantidad, no solo 3).
   item: z.string(),
-  itemProveedor: z.array(z.string()).length(3),
+  itemProveedor: z.array(z.string()),
   cantidad: z.number().nullable(),
-  precios: z.array(z.number().nullable()).length(3),
-  // Indice (0, 1 o 2) del proveedor marcado para comprar este item, o null
-  // si todavia no se eligio. Solo los items marcados entran en la orden de
-  // compra y suman al resumen de totales.
-  seleccionado: z.number().int().min(0).max(2).nullable(),
+  precios: z.array(z.number().nullable()),
+  // Indice del proveedor marcado para comprar este item (dentro del
+  // arreglo de proveedores de la hoja), o null si todavia no se eligio.
+  // Solo los items marcados entran en la orden de compra y suman al
+  // resumen de totales.
+  seleccionado: z.number().int().min(0).nullable(),
 });
 
 const proveedorSchema = z.object({
@@ -45,13 +48,11 @@ const proveedorSchema = z.object({
 const hojaSchema = z.object({
   id: z.string().min(1),
   nombre: z.string().min(1),
-  proveedores: z.array(proveedorSchema).length(3),
+  // Cantidad libre de proveedores (uno, dos, tres o mas): se agregan y
+  // quitan de a uno manualmente desde la pantalla del comparativo.
+  proveedores: z.array(proveedorSchema),
   items: z.array(itemSchema),
 });
-
-function proveedorVacio(nombre: string): z.infer<typeof proveedorSchema> {
-  return { nombre, ruc: "", telefono: "", direccion: "", contacto: "" };
-}
 
 // Registro de una orden de compra generada (una por proveedor, ya que cada
 // una se envia/ejecuta de forma independiente). "ejecutada" es lo que ya se
@@ -91,7 +92,9 @@ function hojaVacia(nombre: string): z.infer<typeof hojaSchema> {
   return {
     id: generateId(),
     nombre,
-    proveedores: [proveedorVacio("Proveedor 1"), proveedorVacio("Proveedor 2"), proveedorVacio("Proveedor 3")],
+    // Arranca sin proveedores: se agregan manualmente de a uno desde la
+    // pantalla del comparativo.
+    proveedores: [],
     items: [],
   };
 }

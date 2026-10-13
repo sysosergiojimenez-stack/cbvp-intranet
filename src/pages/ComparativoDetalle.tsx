@@ -44,17 +44,19 @@ interface ItemLocal {
   id: string;
   item: string;
   // Codigo/descripcion propia de cada proveedor para este item (pueden
-  // catalogarlo distinto entre si).
-  itemProveedor: [string, string, string];
+  // catalogarlo distinto entre si). Su largo siempre sigue a la cantidad
+  // de proveedores de la hoja.
+  itemProveedor: string[];
   cantidad: string;
-  precios: [string, string, string];
+  precios: string[];
   seleccionado: number | null;
 }
 
 interface HojaLocal {
   id: string;
   nombre: string;
-  proveedores: [ProveedorInfo, ProveedorInfo, ProveedorInfo];
+  // Cantidad libre de proveedores: se agregan/quitan de a uno con un boton.
+  proveedores: ProveedorInfo[];
   items: ItemLocal[];
 }
 
@@ -82,17 +84,31 @@ function proveedorVacioLocal(nombre: string): ProveedorInfo {
   return { nombre, ruc: '', telefono: '', direccion: '', contacto: '' };
 }
 
-function itemVacio(): ItemLocal {
-  return { id: generarIdLocal(), item: '', itemProveedor: ['', '', ''], cantidad: '', precios: ['', '', ''], seleccionado: null };
+function itemVacio(cantidadProveedores: number): ItemLocal {
+  return {
+    id: generarIdLocal(),
+    item: '',
+    itemProveedor: Array(cantidadProveedores).fill(''),
+    cantidad: '',
+    precios: Array(cantidadProveedores).fill(''),
+    seleccionado: null,
+  };
 }
 
 function hojaVaciaLocal(nombre: string): HojaLocal {
   return {
     id: generarIdLocal(),
     nombre,
-    proveedores: [proveedorVacioLocal('Proveedor 1'), proveedorVacioLocal('Proveedor 2'), proveedorVacioLocal('Proveedor 3')],
+    // Arranca sin proveedores: se agregan de a uno con el boton "Agregar Proveedor".
+    proveedores: [],
     items: [],
   };
+}
+
+function ajustarLongitud(valores: string[], n: number): string[] {
+  const arr = valores.slice(0, n);
+  while (arr.length < n) arr.push('');
+  return arr;
 }
 
 function parsePrecio(valor: string): number | null {
@@ -146,31 +162,29 @@ export default function ComparativoDetalle() {
         contacto: p.contacto || '',
       };
     };
-    const hojasLocales: HojaLocal[] = hojasServidor.map((h) => ({
-      id: h.id,
-      nombre: h.nombre,
-      proveedores: [
-        normalizarProveedor(h.proveedores?.[0], 'Proveedor 1'),
-        normalizarProveedor(h.proveedores?.[1], 'Proveedor 2'),
-        normalizarProveedor(h.proveedores?.[2], 'Proveedor 3'),
-      ],
-      items: (h.items || []).map((it) => ({
-        id: it.id,
-        item: it.item,
-        itemProveedor: [
-          it.itemProveedor?.[0] || '',
-          it.itemProveedor?.[1] || '',
-          it.itemProveedor?.[2] || '',
-        ],
-        cantidad: it.cantidad === null || it.cantidad === undefined ? '' : String(it.cantidad),
-        precios: [
-          it.precios?.[0] === null || it.precios?.[0] === undefined ? '' : String(it.precios[0]),
-          it.precios?.[1] === null || it.precios?.[1] === undefined ? '' : String(it.precios[1]),
-          it.precios?.[2] === null || it.precios?.[2] === undefined ? '' : String(it.precios[2]),
-        ],
-        seleccionado: typeof it.seleccionado === 'number' ? it.seleccionado : null,
-      })),
-    }));
+    const hojasLocales: HojaLocal[] = hojasServidor.map((h) => {
+      const proveedores = (h.proveedores || []).map((p, idx) => normalizarProveedor(p, `Proveedor ${idx + 1}`));
+      const cantidadProveedores = proveedores.length;
+      return {
+        id: h.id,
+        nombre: h.nombre,
+        proveedores,
+        items: (h.items || []).map((it) => {
+          const precios = ajustarLongitud(
+            (it.precios || []).map((p) => (p === null || p === undefined ? '' : String(p))),
+            cantidadProveedores
+          );
+          return {
+            id: it.id,
+            item: it.item,
+            itemProveedor: ajustarLongitud(it.itemProveedor || [], cantidadProveedores),
+            cantidad: it.cantidad === null || it.cantidad === undefined ? '' : String(it.cantidad),
+            precios,
+            seleccionado: typeof it.seleccionado === 'number' && it.seleccionado < cantidadProveedores ? it.seleccionado : null,
+          };
+        }),
+      };
+    });
     setHojas(hojasLocales);
     if (hojasLocales.length > 0) setHojaActivaId(hojasLocales[0].id);
     setHuboCambios(false);
@@ -333,7 +347,7 @@ export default function ComparativoDetalle() {
   // Suma, por proveedor, el precio unitario por la cantidad de cada item
   // (items sin cantidad o sin precio cargado no aportan a ese total).
   const totalesPorProveedor = hojaActiva
-    ? [0, 1, 2].map((idx) =>
+    ? hojaActiva.proveedores.map((_, idx) =>
         hojaActiva.items.reduce((acc, it) => {
           const cantidad = parsePrecio(it.cantidad);
           const precio = parsePrecio(it.precios[idx]);
@@ -341,7 +355,7 @@ export default function ComparativoDetalle() {
           return acc + cantidad * precio;
         }, 0)
       )
-    : [0, 0, 0];
+    : [];
   const totalMinimo = totalesPorProveedor.some((t) => t > 0) ? Math.min(...totalesPorProveedor.filter((t) => t > 0)) : null;
 
   const actualizarHojaActiva = (fn: (hoja: HojaLocal) => HojaLocal) => {
@@ -351,10 +365,39 @@ export default function ComparativoDetalle() {
 
   const actualizarProveedorCampo = (idx: number, campo: keyof ProveedorInfo, valor: string) => {
     actualizarHojaActiva((h) => {
-      const proveedores = [...h.proveedores] as [ProveedorInfo, ProveedorInfo, ProveedorInfo];
+      const proveedores = [...h.proveedores];
       proveedores[idx] = { ...proveedores[idx], [campo]: valor };
       return { ...h, proveedores };
     });
+  };
+
+  const agregarProveedor = () => {
+    actualizarHojaActiva((h) => ({
+      ...h,
+      proveedores: [...h.proveedores, proveedorVacioLocal(`Proveedor ${h.proveedores.length + 1}`)],
+      items: h.items.map((it) => ({
+        ...it,
+        itemProveedor: [...it.itemProveedor, ''],
+        precios: [...it.precios, ''],
+      })),
+    }));
+  };
+
+  const quitarProveedor = (idx: number) => {
+    if (!hojaActiva) return;
+    const nombre = hojaActiva.proveedores[idx]?.nombre || `Proveedor ${idx + 1}`;
+    if (!confirm(`Quitar a "${nombre}"? Se perderan los precios cargados para este proveedor en todos los items.`)) return;
+    actualizarHojaActiva((h) => ({
+      ...h,
+      proveedores: h.proveedores.filter((_, i) => i !== idx),
+      items: h.items.map((it) => ({
+        ...it,
+        itemProveedor: it.itemProveedor.filter((_, i) => i !== idx),
+        precios: it.precios.filter((_, i) => i !== idx),
+        seleccionado:
+          it.seleccionado === idx ? null : it.seleccionado !== null && it.seleccionado > idx ? it.seleccionado - 1 : it.seleccionado,
+      })),
+    }));
   };
 
   const actualizarItemCampo = (itemId: string, valor: string) => {
@@ -366,7 +409,7 @@ export default function ComparativoDetalle() {
       ...h,
       items: h.items.map((it) => {
         if (it.id !== itemId) return it;
-        const itemProveedor = [...it.itemProveedor] as [string, string, string];
+        const itemProveedor = [...it.itemProveedor];
         itemProveedor[idx] = valor;
         return { ...it, itemProveedor };
       }),
@@ -382,7 +425,7 @@ export default function ComparativoDetalle() {
       ...h,
       items: h.items.map((it) => {
         if (it.id !== itemId) return it;
-        const precios = [...it.precios] as [string, string, string];
+        const precios = [...it.precios];
         precios[idx] = valor;
         return { ...it, precios };
       }),
@@ -396,7 +439,7 @@ export default function ComparativoDetalle() {
     }));
   };
 
-  const agregarFila = () => actualizarHojaActiva((h) => ({ ...h, items: [...h.items, itemVacio()] }));
+  const agregarFila = () => actualizarHojaActiva((h) => ({ ...h, items: [...h.items, itemVacio(h.proveedores.length)] }));
   const quitarFila = (itemId: string) => actualizarHojaActiva((h) => ({ ...h, items: h.items.filter((it) => it.id !== itemId) }));
 
   const agregarHoja = () => {
@@ -502,9 +545,9 @@ export default function ComparativoDetalle() {
           .map((it) => ({
             id: it.id,
             item: it.item.trim(),
-            itemProveedor: it.itemProveedor.map((v) => v.trim()) as [string, string, string],
+            itemProveedor: it.itemProveedor.map((v) => v.trim()),
             cantidad: parsePrecio(it.cantidad),
-            precios: it.precios.map(parsePrecio) as [number | null, number | null, number | null],
+            precios: it.precios.map(parsePrecio),
             seleccionado: it.seleccionado,
           })),
       }));
@@ -666,10 +709,12 @@ export default function ComparativoDetalle() {
               )}
             </div>
 
-            {hojaActiva.items.length === 0 ? (
-              <div className="text-center py-8 text-white/30 text-sm">Todavia no hay items en esta pestaña.</div>
+            {hojaActiva.proveedores.length === 0 ? (
+              <div className="text-center py-8 text-white/30 text-sm">
+                Todavia no hay proveedores en esta pestaña. Usa "Agregar Proveedor" para cargar el primero.
+              </div>
             ) : (
-              [0, 1, 2].map((idx) => {
+              hojaActiva.proveedores.map((proveedorActual, idx) => {
                 const esMinimoTotal = totalMinimo !== null && totalesPorProveedor[idx] === totalMinimo;
                 return (
                   <div key={idx} className="mb-5 bg-white/[0.02] border border-white/10 rounded-xl p-4">
@@ -677,43 +722,53 @@ export default function ComparativoDetalle() {
                       <span className="text-xs font-bold text-cbvp-red shrink-0">PROVEEDOR {idx + 1}:</span>
                       <input
                         type="text"
-                        value={hojaActiva.proveedores[idx].nombre}
+                        value={proveedorActual.nombre}
                         onChange={(e) => actualizarProveedorCampo(idx, 'nombre', e.target.value)}
                         placeholder={`Proveedor ${idx + 1}`}
                         className="flex-1 min-w-[160px] bg-transparent border border-white/10 rounded-lg px-2 py-1 text-white font-semibold focus:border-cbvp-red/50 focus:outline-none focus:bg-white/5"
                       />
+                      <button
+                        onClick={() => quitarProveedor(idx)}
+                        className="p-1.5 rounded-lg hover:bg-cbvp-red/20 text-white/40 hover:text-cbvp-red transition-colors shrink-0"
+                        title="Quitar proveedor"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
                       <input
                         type="text"
-                        value={hojaActiva.proveedores[idx].ruc}
+                        value={proveedorActual.ruc}
                         onChange={(e) => actualizarProveedorCampo(idx, 'ruc', e.target.value)}
                         placeholder="RUC"
                         className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-xs text-white/80 focus:border-cbvp-red/50 focus:outline-none"
                       />
                       <input
                         type="text"
-                        value={hojaActiva.proveedores[idx].telefono}
+                        value={proveedorActual.telefono}
                         onChange={(e) => actualizarProveedorCampo(idx, 'telefono', e.target.value)}
                         placeholder="Telefono"
                         className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-xs text-white/80 focus:border-cbvp-red/50 focus:outline-none"
                       />
                       <input
                         type="text"
-                        value={hojaActiva.proveedores[idx].direccion}
+                        value={proveedorActual.direccion}
                         onChange={(e) => actualizarProveedorCampo(idx, 'direccion', e.target.value)}
                         placeholder="Direccion"
                         className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-xs text-white/80 focus:border-cbvp-red/50 focus:outline-none"
                       />
                       <input
                         type="text"
-                        value={hojaActiva.proveedores[idx].contacto}
+                        value={proveedorActual.contacto}
                         onChange={(e) => actualizarProveedorCampo(idx, 'contacto', e.target.value)}
                         placeholder="Contacto"
                         className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-xs text-white/80 focus:border-cbvp-red/50 focus:outline-none"
                       />
                     </div>
 
+                    {hojaActiva.items.length === 0 ? (
+                      <div className="text-center py-4 text-white/30 text-xs">Todavia no hay items en esta pestaña.</div>
+                    ) : (
                     <div className="overflow-x-auto">
                       <table className="w-full text-xs sm:text-sm border-collapse">
                         <thead>
@@ -833,14 +888,25 @@ export default function ComparativoDetalle() {
                         </tfoot>
                       </table>
                     </div>
+                    )}
                   </div>
                 );
               })
             )}
 
-            <button onClick={agregarFila} className="mt-1 px-3 py-1.5 bg-white/5 hover:bg-white/10 text-white/60 rounded-lg text-xs flex items-center gap-2 transition-colors">
-              <Plus className="w-3.5 h-3.5" /> Agregar item
-            </button>
+            <div className="flex flex-wrap gap-2 mt-1">
+              <button onClick={agregarProveedor} className="px-3 py-1.5 bg-white/5 hover:bg-white/10 text-white/60 rounded-lg text-xs flex items-center gap-2 transition-colors">
+                <Plus className="w-3.5 h-3.5" /> Agregar Proveedor
+              </button>
+              <button
+                onClick={agregarFila}
+                disabled={hojaActiva.proveedores.length === 0}
+                title={hojaActiva.proveedores.length === 0 ? 'Agrega al menos un proveedor primero' : undefined}
+                className="px-3 py-1.5 bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed text-white/60 rounded-lg text-xs flex items-center gap-2 transition-colors"
+              >
+                <Plus className="w-3.5 h-3.5" /> Agregar item
+              </button>
+            </div>
           </>
         )}
       </div>
