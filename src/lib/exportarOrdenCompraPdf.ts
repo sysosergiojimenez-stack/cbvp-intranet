@@ -143,12 +143,9 @@ export async function exportarOrdenCompraPdf(orden: OrdenCompraExport) {
     }
   }
 
-  const totalesProveedor: { proveedor: string; total: number }[] = [];
-
   for (const proveedor of ordenProveedores) {
     const filas = porProveedor.get(proveedor)!;
     const total = filas.reduce((acc, f) => acc + f.subtotal, 0);
-    totalesProveedor.push({ proveedor, total });
 
     if (y > pageHeight - 45) {
       doc.addPage();
@@ -197,73 +194,6 @@ export async function exportarOrdenCompraPdf(orden: OrdenCompraExport) {
     doc.text('No hay items marcados para esta orden de compra.', 10, y);
     doc.setTextColor(0, 0, 0);
     y += 10;
-  }
-
-  // Pagina de resumen: total por proveedor, total general y el contraste
-  // contra el presupuesto disponible si fue indicado.
-  doc.addPage();
-  y = 15;
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(14);
-  doc.setTextColor(180, 30, 30);
-  doc.text('RESUMEN / TOTALES', pageWidth / 2, y, { align: 'center' });
-  doc.setTextColor(0, 0, 0);
-  y += 10;
-
-  const totalGeneral = totalesProveedor.reduce((acc, p) => acc + p.total, 0);
-
-  autoTable(doc, {
-    startY: y,
-    theme: 'grid',
-    head: [['Proveedor', 'Total']],
-    body: totalesProveedor.map((p) => [
-      p.proveedor,
-      { content: formatearNumero(p.total), styles: { halign: 'right' as const } },
-    ]),
-    foot: [[
-      { content: 'TOTAL GENERAL:', styles: { halign: 'right', fontStyle: 'bold', fillColor: [230, 230, 230], textColor: [0, 0, 0] } },
-      { content: formatearNumero(totalGeneral), styles: { halign: 'right' as const, fontStyle: 'bold' as const, fillColor: [230, 230, 230] as [number, number, number], textColor: [0, 0, 0] as [number, number, number] } },
-    ]],
-    styles: { fontSize: 9, cellPadding: 2.5 },
-    headStyles: { fillColor: [20, 20, 20], textColor: 255 },
-    columnStyles: { 1: { halign: 'right', cellWidth: 40 } },
-    margin: { left: 10, right: 10 },
-  });
-  // @ts-expect-error lastAutoTable se agrega dinamicamente por el plugin
-  y = doc.lastAutoTable.finalY + 12;
-
-  if (typeof orden.presupuesto === 'number') {
-    const remanente = orden.presupuesto - totalGeneral;
-    const esFaltante = remanente < 0;
-
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(11);
-    doc.text('CONTROL DE PRESUPUESTO', 10, y);
-    y += 6;
-
-    autoTable(doc, {
-      startY: y,
-      theme: 'grid',
-      head: [['Presupuesto disponible', 'Total general', esFaltante ? 'Faltante' : 'Remanente']],
-      body: [[
-        { content: formatearNumero(orden.presupuesto), styles: { halign: 'right' as const } },
-        { content: formatearNumero(totalGeneral), styles: { halign: 'right' as const } },
-        {
-          content: formatearNumero(Math.abs(remanente)),
-          styles: {
-            halign: 'right' as const,
-            fontStyle: 'bold' as const,
-            textColor: (esFaltante ? [200, 30, 30] : [20, 130, 60]) as [number, number, number],
-          },
-        },
-      ]],
-      styles: { fontSize: 9, cellPadding: 2.5 },
-      headStyles: { fillColor: [20, 20, 20], textColor: 255 },
-      columnStyles: { 0: { halign: 'right' }, 1: { halign: 'right' }, 2: { halign: 'right' } },
-      margin: { left: 10, right: 10 },
-    });
-    // @ts-expect-error lastAutoTable se agrega dinamicamente por el plugin
-    y = doc.lastAutoTable.finalY + 12;
   }
 
   if (y > pageHeight - 65) {
