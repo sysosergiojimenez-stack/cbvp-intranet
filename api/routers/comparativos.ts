@@ -73,6 +73,12 @@ const ordenCompraSchema = z.object({
   // identificar cada orden facilmente.
   numero: z.number().int().min(1),
   proveedor: z.string(),
+  // Datos de contacto del proveedor al momento de generar la orden (se
+  // copian de la hoja para que queden fijos aunque despues se editen).
+  proveedorRuc: z.string(),
+  proveedorTelefono: z.string(),
+  proveedorDireccion: z.string(),
+  proveedorContacto: z.string(),
   monto: z.number(),
   fechaGeneracion: z.string(),
   // "anulada" libera los items que tenia para que se puedan volver a

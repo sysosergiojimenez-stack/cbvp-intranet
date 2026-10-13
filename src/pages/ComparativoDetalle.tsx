@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { trpc } from '@/providers/trpc';
 import { ArrowLeft, FileSpreadsheet, Plus, Trash2, Save, X, Pencil, Check, ShoppingCart, GitCompare, ClipboardList, Download, Ban } from 'lucide-react';
-import { exportarOrdenCompraPdf, exportarOrdenIndividualPdf } from '@/lib/exportarOrdenCompraPdf';
+import { exportarOrdenIndividualPdf } from '@/lib/exportarOrdenCompraPdf';
 import { exportarComparativoPdf } from '@/lib/exportarComparativoPdf';
 
 interface OrdenCompraItem {
@@ -20,6 +20,12 @@ interface OrdenCompraRegistro {
   id: string;
   numero: number;
   proveedor: string;
+  // Datos de contacto del proveedor copiados al momento de generar la
+  // orden (quedan fijos aunque despues se editen en la hoja).
+  proveedorRuc: string;
+  proveedorTelefono: string;
+  proveedorDireccion: string;
+  proveedorContacto: string;
   monto: number;
   fechaGeneracion: string;
   estado: 'pendiente' | 'ejecutada' | 'anulada';
@@ -180,13 +186,17 @@ export default function ComparativoDetalle() {
   useEffect(() => {
     if (!data?.exito) return;
     const crudas = (data.ordenesCompra as (OrdenCompraRegistro & { numero?: number })[]) || [];
-    // Ordenes guardadas antes de agregar la numeracion/bloqueo no tienen
-    // "numero" ni "itemId" en sus items: se completan con valores por
-    // defecto para que no queden en blanco ni rompan el bloqueo.
+    // Ordenes guardadas antes de agregar la numeracion/bloqueo/datos de
+    // contacto no tienen esos campos: se completan con valores por defecto
+    // para que no queden en blanco ni rompan el bloqueo.
     setOrdenesCompra(
       crudas.map((o, i) => ({
         ...o,
         numero: typeof o.numero === 'number' ? o.numero : i + 1,
+        proveedorRuc: o.proveedorRuc || '',
+        proveedorTelefono: o.proveedorTelefono || '',
+        proveedorDireccion: o.proveedorDireccion || '',
+        proveedorContacto: o.proveedorContacto || '',
         items: (o.items || []).map((it) => ({ ...it, itemId: it.itemId || '' })),
       }))
     );
@@ -238,6 +248,10 @@ export default function ComparativoDetalle() {
         numero: orden.numero,
         nombreComparativo: data.nombre,
         proveedor: orden.proveedor,
+        proveedorRuc: orden.proveedorRuc,
+        proveedorTelefono: orden.proveedorTelefono,
+        proveedorDireccion: orden.proveedorDireccion,
+        proveedorContacto: orden.proveedorContacto,
         fechaGeneracion: orden.fechaGeneracion,
         estado: orden.estado,
         monto: orden.monto,
@@ -278,7 +292,7 @@ export default function ComparativoDetalle() {
   // la proxima Orden de Compra que se genere (ver handleExportar). No se
   // muestra en pantalla, solo se usa para armar los registros que se
   // guardan al generar.
-  interface ResumenProveedor { proveedor: string; cantidadItems: number; total: number; items: OrdenCompraItem[] }
+  interface ResumenProveedor { proveedor: string; proveedorInfo: ProveedorInfo; cantidadItems: number; total: number; items: OrdenCompraItem[] }
   const resumenProveedores: ResumenProveedor[] = [];
   const indiceProveedores = new Map<string, number>();
 
@@ -291,12 +305,13 @@ export default function ComparativoDetalle() {
       const cantidad = parsePrecio(it.cantidad);
       const precio = parsePrecio(it.precios[it.seleccionado]);
       if (cantidad === null || precio === null) continue;
-      const nombreProveedor = h.proveedores[it.seleccionado]?.nombre || `Proveedor ${it.seleccionado + 1}`;
+      const infoProveedor = h.proveedores[it.seleccionado] || proveedorVacioLocal(`Proveedor ${it.seleccionado + 1}`);
+      const nombreProveedor = infoProveedor.nombre || `Proveedor ${it.seleccionado + 1}`;
       let i = indiceProveedores.get(nombreProveedor);
       if (i === undefined) {
         i = resumenProveedores.length;
         indiceProveedores.set(nombreProveedor, i);
-        resumenProveedores.push({ proveedor: nombreProveedor, cantidadItems: 0, total: 0, items: [] });
+        resumenProveedores.push({ proveedor: nombreProveedor, proveedorInfo: infoProveedor, cantidadItems: 0, total: 0, items: [] });
       }
       const subtotal = cantidad * precio;
       resumenProveedores[i].cantidadItems += 1;
@@ -419,39 +434,29 @@ export default function ComparativoDetalle() {
 
   const handleExportar = async () => {
     if (!data?.exito || !id) return;
+    if (resumenProveedores.length === 0) {
+      alert('No hay items marcados (y sin una orden activa) para generar una orden de compra.');
+      return;
+    }
     setExportando(true);
     try {
-      await exportarOrdenCompraPdf({
-        nombre: data.nombre,
-        presupuesto: presupuestoNumero,
-        grupos: hojas.map((h) => ({
-          nombre: h.nombre,
-          items: h.items
-            .filter((it) => it.item.trim() || it.cantidad.trim() || it.precios.some((p) => p.trim()))
-            .map((it) => ({
-              item: it.item,
-              cantidad: parsePrecio(it.cantidad),
-              precioSeleccionado: it.seleccionado === null ? null : parsePrecio(it.precios[it.seleccionado]),
-              proveedorSeleccionado: it.seleccionado === null ? null : (h.proveedores[it.seleccionado]?.nombre || `Proveedor ${it.seleccionado + 1}`),
-            })),
-        })),
-      });
-
-      if (resumenProveedores.length > 0) {
-        const fechaGeneracion = new Date().toISOString();
-        const numeroBase = ordenesCompra.reduce((max, o) => Math.max(max, o.numero), 0);
-        const nuevasOrdenes: OrdenCompraRegistro[] = resumenProveedores.map((p, i) => ({
-          id: generarIdLocal(),
-          numero: numeroBase + i + 1,
-          proveedor: p.proveedor,
-          monto: p.total,
-          fechaGeneracion,
-          estado: 'pendiente',
-          items: p.items,
-        }));
-        await agregarOrdenesCompraMutation.mutateAsync({ id, ordenes: nuevasOrdenes });
-        utils.comparativos.obtener.invalidate({ id });
-      }
+      const fechaGeneracion = new Date().toISOString();
+      const numeroBase = ordenesCompra.reduce((max, o) => Math.max(max, o.numero), 0);
+      const nuevasOrdenes: OrdenCompraRegistro[] = resumenProveedores.map((p, i) => ({
+        id: generarIdLocal(),
+        numero: numeroBase + i + 1,
+        proveedor: p.proveedor,
+        proveedorRuc: p.proveedorInfo.ruc,
+        proveedorTelefono: p.proveedorInfo.telefono,
+        proveedorDireccion: p.proveedorInfo.direccion,
+        proveedorContacto: p.proveedorInfo.contacto,
+        monto: p.total,
+        fechaGeneracion,
+        estado: 'pendiente',
+        items: p.items,
+      }));
+      await agregarOrdenesCompraMutation.mutateAsync({ id, ordenes: nuevasOrdenes });
+      utils.comparativos.obtener.invalidate({ id });
     } finally {
       setExportando(false);
     }
@@ -590,7 +595,7 @@ export default function ComparativoDetalle() {
               <GitCompare className="w-4 h-4" /> {exportandoComparativo ? 'Generando PDF...' : 'Generar Comparativo'}
             </button>
             <button onClick={handleExportar} disabled={exportando} className="px-4 py-2 bg-white/5 hover:bg-white/10 disabled:opacity-40 text-white/70 text-sm font-medium rounded-lg transition-colors flex items-center gap-2">
-              <ShoppingCart className="w-4 h-4" /> {exportando ? 'Generando PDF...' : 'Generar Orden de Compra'}
+              <ShoppingCart className="w-4 h-4" /> {exportando ? 'Generando...' : 'Generar Orden de Compra'}
             </button>
             <button onClick={handleGuardar} disabled={guardando || !huboCambios} className="px-4 py-2 bg-cbvp-green hover:bg-cbvp-green/80 disabled:opacity-40 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2">
               <Save className="w-4 h-4" /> {guardando ? 'Guardando...' : 'Guardar Cambios'}
