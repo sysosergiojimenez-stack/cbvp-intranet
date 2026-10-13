@@ -21,6 +21,47 @@ function formatearNumero(valor: number): string {
   return valor.toLocaleString('es-PY', { maximumFractionDigits: 2 });
 }
 
+// Dibuja los 3 espacios de firma (Solicitado por / Aprobado por / Ejecutado
+// por), cada uno con linea y etiqueta para Firma, Aclaracion y Cargo.
+function dibujarFirmas(doc: jsPDF, yInicial: number, pageWidth: number): number {
+  const margen = 15;
+  const espacio = 10;
+  const anchoColumna = (pageWidth - margen * 2 - espacio * 2) / 3;
+  const titulos = ['1. SOLICITADO POR', '2. APROBADO POR', '3. EJECUTADO POR'];
+  const campos = ['Firma', 'Aclaracion', 'Cargo'];
+
+  let y = yInicial;
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9);
+  doc.setTextColor(0, 0, 0);
+  titulos.forEach((titulo, i) => {
+    const x = margen + i * (anchoColumna + espacio);
+    doc.text(titulo, x, y);
+  });
+
+  y += 14;
+  for (const campo of campos) {
+    doc.setDrawColor(100, 100, 100);
+    doc.setLineWidth(0.3);
+    for (let i = 0; i < 3; i++) {
+      const x = margen + i * (anchoColumna + espacio);
+      doc.line(x, y, x + anchoColumna, y);
+    }
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(100, 100, 100);
+    for (let i = 0; i < 3; i++) {
+      const x = margen + i * (anchoColumna + espacio);
+      doc.text(campo, x, y + 4);
+    }
+    doc.setTextColor(0, 0, 0);
+    y += 16;
+  }
+
+  return y;
+}
+
 export interface ItemOrdenCompraExport {
   item: string;
   cantidad: number | null;
@@ -78,16 +119,14 @@ export async function exportarOrdenCompraPdf(orden: OrdenCompraExport) {
   y += 8;
 
   // Agrupa los items marcados por proveedor (preservando el orden de
-  // aparicion) y junta aparte los que quedaron sin asignar.
+  // aparicion). Los items sin proveedor marcado simplemente no entran.
   interface FilaProveedor { grupo: string; item: string; cantidad: number; precioUnitario: number; subtotal: number }
   const ordenProveedores: string[] = [];
   const porProveedor = new Map<string, FilaProveedor[]>();
-  const sinAsignar: { grupo: string; item: string }[] = [];
 
   for (const grupo of orden.grupos) {
     for (const it of grupo.items) {
       if (!it.proveedorSeleccionado || it.cantidad === null || it.precioSeleccionado === null) {
-        if (it.item.trim()) sinAsignar.push({ grupo: grupo.nombre, item: it.item || '-' });
         continue;
       }
       if (!porProveedor.has(it.proveedorSeleccionado)) {
@@ -160,31 +199,6 @@ export async function exportarOrdenCompraPdf(orden: OrdenCompraExport) {
     y += 10;
   }
 
-  if (sinAsignar.length > 0) {
-    if (y > pageHeight - 45) {
-      doc.addPage();
-      y = 15;
-    }
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(11);
-    doc.setTextColor(200, 140, 20);
-    doc.text('ITEMS SIN PROVEEDOR ASIGNADO', 10, y);
-    doc.setTextColor(0, 0, 0);
-    y += 4;
-
-    autoTable(doc, {
-      startY: y,
-      theme: 'grid',
-      head: [['Grupo', 'Item']],
-      body: sinAsignar.map((f) => [f.grupo, f.item]),
-      styles: { fontSize: 8, cellPadding: 2 },
-      headStyles: { fillColor: [20, 20, 20], textColor: 255 },
-      margin: { left: 10, right: 10 },
-    });
-    // @ts-expect-error lastAutoTable se agrega dinamicamente por el plugin
-    y = doc.lastAutoTable.finalY + 12;
-  }
-
   // Pagina de resumen: total por proveedor, total general y el contraste
   // contra el presupuesto disponible si fue indicado.
   doc.addPage();
@@ -248,7 +262,17 @@ export async function exportarOrdenCompraPdf(orden: OrdenCompraExport) {
       columnStyles: { 0: { halign: 'right' }, 1: { halign: 'right' }, 2: { halign: 'right' } },
       margin: { left: 10, right: 10 },
     });
+    // @ts-expect-error lastAutoTable se agrega dinamicamente por el plugin
+    y = doc.lastAutoTable.finalY + 12;
   }
+
+  if (y > pageHeight - 65) {
+    doc.addPage();
+    y = 20;
+  } else {
+    y += 10;
+  }
+  dibujarFirmas(doc, y, pageWidth);
 
   const totalPaginas = doc.getNumberOfPages();
   for (let p = 1; p <= totalPaginas; p++) {
