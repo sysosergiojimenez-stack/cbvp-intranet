@@ -29,8 +29,8 @@ const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
   '/comandante-compania': { title: 'Comandante de Compania', subtitle: 'Elegi un submodulo para continuar' },
   '/primer-oficial': { title: 'Primer Oficial', subtitle: 'Elegi un submodulo para continuar' },
   '/administracion': { title: 'Segundo Oficial', subtitle: 'Elegi un submodulo para continuar' },
-  '/comparativos': { title: 'Comparativos de Compras', subtitle: 'Compara precios de items entre proveedores' },
-  '/comparativo-compras': { title: 'Comparativo de Compras (Beta)', subtitle: 'Submodulo de prueba: cotizaciones de proveedor desplegables por item' },
+  '/comparativos': { title: 'Comparativos de Compras', subtitle: 'Compara precios de items entre proveedores, con cotizaciones desplegables por item' },
+  '/comparativos-clasico': { title: 'Comparativos de Compras (Clasico)', subtitle: 'Version anterior, con proveedores en columnas fijas por pestaña' },
 };
 
 function getPageTitle(pathname: string): { title: string; subtitle: string } {
@@ -38,8 +38,8 @@ function getPageTitle(pathname: string): { title: string; subtitle: string } {
   if (pathname.startsWith('/editar-bombero/')) {
     return { title: 'Editar Bombero', subtitle: 'Modificar datos del bombero' };
   }
-  if (pathname.startsWith('/comparativo-compras/')) {
-    return { title: 'Comparativo de Compras (Beta)', subtitle: '' };
+  if (pathname.startsWith('/comparativos-clasico/')) {
+    return { title: 'Comparativo de Compras (Clasico)', subtitle: '' };
   }
   if (pathname.startsWith('/comparativos/')) {
     return { title: 'Comparativo de Compras', subtitle: '' };

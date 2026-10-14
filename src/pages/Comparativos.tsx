@@ -34,7 +34,7 @@ export default function Comparativos() {
         creadoPor: usuario?.codigo || '',
       });
       utils.comparativos.listado.invalidate();
-      navigate(`/comparativos/${res.id}`);
+      navigate(`/comparativos-clasico/${res.id}`);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Error al crear');
     } finally {
@@ -112,7 +112,7 @@ export default function Comparativos() {
                 {comparativos.map((c) => (
                   <tr
                     key={c.id}
-                    onClick={() => navigate(`/comparativos/${c.id}`)}
+                    onClick={() => navigate(`/comparativos-clasico/${c.id}`)}
                     className="border-b border-white/5 hover:bg-white/[0.02] cursor-pointer"
                   >
                     <td className="px-2 py-2 text-white/80 whitespace-nowrap">{c.nombre}</td>

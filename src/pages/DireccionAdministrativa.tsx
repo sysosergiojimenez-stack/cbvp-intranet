@@ -119,21 +119,12 @@ const SUBMODULOS = [
   },
   {
     title: 'Comparativos de Compras',
-    description: 'Compara precios de items entre proveedores, por pestañas.',
+    description: 'Compara precios de items entre proveedores, por pestañas, con cotizaciones desplegables por item.',
     icon: FileSpreadsheet,
     path: '/comparativos',
     color: 'text-cbvp-blue',
     bg: 'bg-cbvp-blue/8',
     border: 'border-cbvp-blue/15 hover:border-cbvp-blue/30',
-  },
-  {
-    title: 'Comparativo de Compras (Beta)',
-    description: 'Submodulo de prueba: proveedores desplegables por item (nombre, codigo, precio y URL).',
-    icon: FileSpreadsheet,
-    path: '/comparativo-compras',
-    color: 'text-cbvp-yellow',
-    bg: 'bg-cbvp-yellow/8',
-    border: 'border-cbvp-yellow/15 hover:border-cbvp-yellow/30',
   },
 ];
 

@@ -594,7 +594,7 @@ export default function ComparativoDetalle() {
   if (!data?.exito) {
     return (
       <div className="animate-fade-in">
-        <button onClick={() => navigate('/comparativos')} className="mb-4 flex items-center gap-2 text-white/50 hover:text-white text-sm transition-colors">
+        <button onClick={() => navigate('/comparativos-clasico')} className="mb-4 flex items-center gap-2 text-white/50 hover:text-white text-sm transition-colors">
           <ArrowLeft className="w-4 h-4" /> Volver a Comparativos
         </button>
         <div className="bg-white/[0.03] border border-white/5 rounded-xl p-8 text-center text-white/60">Comparativo no encontrado.</div>
@@ -604,7 +604,7 @@ export default function ComparativoDetalle() {
 
   return (
     <div className="animate-fade-in space-y-6">
-      <Link to="/comparativos" className="mb-2 flex items-center gap-2 text-white/50 hover:text-white text-sm transition-colors w-fit">
+      <Link to="/comparativos-clasico" className="mb-2 flex items-center gap-2 text-white/50 hover:text-white text-sm transition-colors w-fit">
         <ArrowLeft className="w-4 h-4" /> Volver a Comparativos
       </Link>
 

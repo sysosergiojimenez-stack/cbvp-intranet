@@ -47,7 +47,6 @@ const NAV_ITEMS: NavItem[] = [
       { path: '/facturas-gastos', label: 'Facturas de Gastos', icon: FileText, checkAccess: p => p.puedeVerDireccionAdministrativa },
       { path: '/campana-socios', label: 'Campaña de Socios', icon: HandCoins, checkAccess: p => p.puedeVerDireccionAdministrativa },
       { path: '/comparativos', label: 'Comparativos de Compras', icon: FileSpreadsheet, checkAccess: p => p.puedeVerDireccionAdministrativa },
-      { path: '/comparativo-compras', label: 'Comparativo de Compras (Beta)', icon: FileSpreadsheet, checkAccess: p => p.puedeVerDireccionAdministrativa },
     ],
   },
   {

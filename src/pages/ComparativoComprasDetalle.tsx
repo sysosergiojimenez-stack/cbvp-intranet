@@ -631,7 +631,7 @@ export default function ComparativoComprasDetalle() {
   if (!data?.exito) {
     return (
       <div className="animate-fade-in">
-        <button onClick={() => navigate('/comparativo-compras')} className="mb-4 flex items-center gap-2 text-white/50 hover:text-white text-sm transition-colors">
+        <button onClick={() => navigate('/comparativos')} className="mb-4 flex items-center gap-2 text-white/50 hover:text-white text-sm transition-colors">
           <ArrowLeft className="w-4 h-4" /> Volver a Comparativo de Compras
         </button>
         <div className="bg-white/[0.03] border border-white/5 rounded-xl p-8 text-center text-white/60">Comparativo no encontrado.</div>
@@ -647,7 +647,7 @@ export default function ComparativoComprasDetalle() {
       <datalist id="proveedores-sugeridos-datalist">
         {proveedoresSugeridos.map((p) => <option key={p.nombre} value={p.nombre} />)}
       </datalist>
-      <Link to="/comparativo-compras" className="mb-2 flex items-center gap-2 text-white/50 hover:text-white text-sm transition-colors w-fit">
+      <Link to="/comparativos" className="mb-2 flex items-center gap-2 text-white/50 hover:text-white text-sm transition-colors w-fit">
         <ArrowLeft className="w-4 h-4" /> Volver a Comparativo de Compras
       </Link>
 
@@ -673,7 +673,6 @@ export default function ComparativoComprasDetalle() {
                 <Pencil className="w-3.5 h-3.5 text-white/20 group-hover:text-white/50" />
               </h1>
             )}
-            <span className="px-2 py-0.5 rounded-full bg-cbvp-yellow/15 text-cbvp-yellow text-[10px] font-semibold uppercase tracking-wider">Beta</span>
           </div>
 
           <div className="flex items-center gap-2">

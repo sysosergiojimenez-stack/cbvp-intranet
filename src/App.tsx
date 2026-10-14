@@ -181,24 +181,29 @@ function AppRoutes() {
             {permisos.puedeVerDireccionAdministrativa ? <CampanaSocios /> : <Navigate to="/" replace />}
           </ProtectedRoute>
         } />
+        {/* Version con cotizaciones de proveedor por item: ahora el
+            Comparativos de Compras principal. */}
         <Route path="/comparativos" element={
-          <ProtectedRoute>
-            {permisos.puedeVerDireccionAdministrativa ? <Comparativos /> : <Navigate to="/" replace />}
-          </ProtectedRoute>
-        } />
-        <Route path="/comparativos/:id" element={
-          <ProtectedRoute>
-            {permisos.puedeVerDireccionAdministrativa ? <ComparativoDetalle /> : <Navigate to="/" replace />}
-          </ProtectedRoute>
-        } />
-        <Route path="/comparativo-compras" element={
           <ProtectedRoute>
             {permisos.puedeVerDireccionAdministrativa ? <ComparativoComprasListado /> : <Navigate to="/" replace />}
           </ProtectedRoute>
         } />
-        <Route path="/comparativo-compras/:id" element={
+        <Route path="/comparativos/:id" element={
           <ProtectedRoute>
             {permisos.puedeVerDireccionAdministrativa ? <ComparativoComprasDetalle /> : <Navigate to="/" replace />}
+          </ProtectedRoute>
+        } />
+        {/* Version original (proveedores en columnas fijas por pestaña):
+            retirada de la navegacion, pero se deja accesible por URL directa
+            para no perder el historial de comparativos ya generados ahi. */}
+        <Route path="/comparativos-clasico" element={
+          <ProtectedRoute>
+            {permisos.puedeVerDireccionAdministrativa ? <Comparativos /> : <Navigate to="/" replace />}
+          </ProtectedRoute>
+        } />
+        <Route path="/comparativos-clasico/:id" element={
+          <ProtectedRoute>
+            {permisos.puedeVerDireccionAdministrativa ? <ComparativoDetalle /> : <Navigate to="/" replace />}
           </ProtectedRoute>
         } />
         <Route path="/comandante-compania" element={

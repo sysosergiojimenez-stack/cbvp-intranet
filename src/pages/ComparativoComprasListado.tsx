@@ -34,7 +34,7 @@ export default function ComparativoComprasListado() {
         creadoPor: usuario?.codigo || '',
       });
       utils.comparativoCompras.listado.invalidate();
-      navigate(`/comparativo-compras/${res.id}`);
+      navigate(`/comparativos/${res.id}`);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Error al crear');
     } finally {
@@ -54,7 +54,6 @@ export default function ComparativoComprasListado() {
         <div className="flex items-center justify-between mb-1">
           <h2 className="text-sm font-semibold text-white/60 uppercase tracking-wider flex items-center gap-2">
             <FileSpreadsheet className="w-4 h-4 text-cbvp-red" /> Comparativo de Compras
-            <span className="px-2 py-0.5 rounded-full bg-cbvp-yellow/15 text-cbvp-yellow text-[10px] font-semibold uppercase tracking-wider">Beta</span>
           </h2>
           <button
             onClick={() => setMostrarNuevo((v) => !v)}
@@ -64,8 +63,8 @@ export default function ComparativoComprasListado() {
           </button>
         </div>
         <p className="text-xs text-white/30 mb-4">
-          Submodulo de prueba, en paralelo a "Comparativos de Compras": por cada item se puede cargar una lista libre de
-          cotizaciones de proveedor (nombre, codigo, producto, precio y URL), en vez de columnas fijas de proveedor.
+          Compara precios de items entre distintos proveedores, organizados por pestañas. Por cada item se puede cargar
+          una lista de cotizaciones de proveedor (nombre, codigo, producto, precio y URL).
         </p>
 
         {mostrarNuevo && (
@@ -114,7 +113,7 @@ export default function ComparativoComprasListado() {
                 {comparativos.map((c) => (
                   <tr
                     key={c.id}
-                    onClick={() => navigate(`/comparativo-compras/${c.id}`)}
+                    onClick={() => navigate(`/comparativos/${c.id}`)}
                     className="border-b border-white/5 hover:bg-white/[0.02] cursor-pointer"
                   >
                     <td className="px-2 py-2 text-white/80 whitespace-nowrap">{c.nombre}</td>
