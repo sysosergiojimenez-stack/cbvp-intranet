@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { trpc } from '@/providers/trpc';
 import {
   ArrowLeft, FileSpreadsheet, Plus, Trash2, Save, X, Pencil, Check, ShoppingCart, GitCompare,
-  ClipboardList, Download, Ban, ChevronDown, ChevronRight as ChevronRightIcon, Link2,
+  ClipboardList, Download, Ban, ChevronDown, ChevronRight as ChevronRightIcon, Link2, ExternalLink,
 } from 'lucide-react';
 import { exportarOrdenIndividualPdf } from '@/lib/exportarOrdenCompraPdf';
 import { exportarComparativoComprasPdf } from '@/lib/exportarComparativoComprasPdf';
@@ -90,6 +90,10 @@ interface HojaServidor {
   items: ItemServidor[];
 }
 
+// Columnas fijas de proveedor por item (Proveedor 1 / 2 / 3), cada una
+// desplegable por separado.
+const CANTIDAD_PROVEEDORES = 3;
+
 function generarIdLocal(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
@@ -98,8 +102,14 @@ function cotizacionVacia(): CotizacionLocal {
   return { id: generarIdLocal(), proveedor: '', ruc: '', telefono: '', direccion: '', contacto: '', codigoProducto: '', nombreProducto: '', precio: '', url: '' };
 }
 
+function ajustarCotizaciones(cotizaciones: CotizacionLocal[], n: number): CotizacionLocal[] {
+  const arr = cotizaciones.slice(0, n);
+  while (arr.length < n) arr.push(cotizacionVacia());
+  return arr;
+}
+
 function itemVacio(): ItemLocal {
-  return { id: generarIdLocal(), item: '', cantidad: '', cotizaciones: [], seleccionada: null };
+  return { id: generarIdLocal(), item: '', cantidad: '', cotizaciones: ajustarCotizaciones([], CANTIDAD_PROVEEDORES), seleccionada: null };
 }
 
 function hojaVaciaLocal(nombre: string): HojaLocal {
@@ -143,13 +153,14 @@ export default function ComparativoComprasDetalle() {
   const [editandoNombreHoja, setEditandoNombreHoja] = useState(false);
   const [nombreHojaForm, setNombreHojaForm] = useState('');
 
-  // Ids de items con el desplegable de proveedores abierto (solo UI, no se
-  // persiste).
-  const [itemsExpandidos, setItemsExpandidos] = useState<Set<string>>(new Set());
-  const toggleExpandido = (itemId: string) => {
-    setItemsExpandidos((prev) => {
+  // Columnas de proveedor con el desplegable de datos extra abierto (solo
+  // UI, no se persiste). Clave: "itemId:idxColumna".
+  const [columnasExpandidas, setColumnasExpandidas] = useState<Set<string>>(new Set());
+  const toggleColumna = (itemId: string, idx: number) => {
+    const clave = `${itemId}:${idx}`;
+    setColumnasExpandidas((prev) => {
       const next = new Set(prev);
-      if (next.has(itemId)) next.delete(itemId); else next.add(itemId);
+      if (next.has(clave)) next.delete(clave); else next.add(clave);
       return next;
     });
   };
@@ -164,33 +175,27 @@ export default function ComparativoComprasDetalle() {
         id: it.id,
         item: it.item,
         cantidad: it.cantidad === null || it.cantidad === undefined ? '' : String(it.cantidad),
-        cotizaciones: (it.cotizaciones || []).map((c) => ({
-          id: c.id,
-          proveedor: c.proveedor || '',
-          ruc: c.ruc || '',
-          telefono: c.telefono || '',
-          direccion: c.direccion || '',
-          contacto: c.contacto || '',
-          codigoProducto: c.codigoProducto || '',
-          nombreProducto: c.nombreProducto || '',
-          precio: c.precio === null || c.precio === undefined ? '' : String(c.precio),
-          url: c.url || '',
-        })),
+        cotizaciones: ajustarCotizaciones(
+          (it.cotizaciones || []).map((c) => ({
+            id: c.id,
+            proveedor: c.proveedor || '',
+            ruc: c.ruc || '',
+            telefono: c.telefono || '',
+            direccion: c.direccion || '',
+            contacto: c.contacto || '',
+            codigoProducto: c.codigoProducto || '',
+            nombreProducto: c.nombreProducto || '',
+            precio: c.precio === null || c.precio === undefined ? '' : String(c.precio),
+            url: c.url || '',
+          })),
+          CANTIDAD_PROVEEDORES
+        ),
         seleccionada: it.seleccionada || null,
       })),
     }));
     setHojas(hojasLocales);
     if (hojasLocales.length > 0) setHojaActivaId(hojasLocales[0].id);
-    // Los items que ya traen cotizaciones cargadas arrancan colapsados (para
-    // no saturar la pantalla); los que no tienen ninguna quedan expandidos
-    // para poder cargar la primera.
-    const expandidosIniciales = new Set<string>();
-    for (const h of hojasLocales) {
-      for (const it of h.items) {
-        if (it.cotizaciones.length === 0) expandidosIniciales.add(it.id);
-      }
-    }
-    setItemsExpandidos(expandidosIniciales);
+    setColumnasExpandidas(new Set());
     setHuboCambios(false);
   }, [data]);
 
@@ -379,30 +384,6 @@ export default function ComparativoComprasDetalle() {
     }));
   };
 
-  const agregarCotizacion = (itemId: string) => {
-    const nueva = cotizacionVacia();
-    actualizarHojaActiva((h) => ({
-      ...h,
-      items: h.items.map((it) => (it.id === itemId ? { ...it, cotizaciones: [...it.cotizaciones, nueva] } : it)),
-    }));
-    setItemsExpandidos((prev) => new Set(prev).add(itemId));
-  };
-
-  const quitarCotizacion = (itemId: string, cotizacionId: string) => {
-    if (!confirm('Quitar este proveedor del item? Se pierden el precio y los datos cargados.')) return;
-    actualizarHojaActiva((h) => ({
-      ...h,
-      items: h.items.map((it) => {
-        if (it.id !== itemId) return it;
-        return {
-          ...it,
-          cotizaciones: it.cotizaciones.filter((c) => c.id !== cotizacionId),
-          seleccionada: it.seleccionada === cotizacionId ? null : it.seleccionada,
-        };
-      }),
-    }));
-  };
-
   const marcarSeleccion = (itemId: string, cotizacionId: string) => {
     actualizarHojaActiva((h) => ({
       ...h,
@@ -413,7 +394,8 @@ export default function ComparativoComprasDetalle() {
   const agregarFila = () => {
     const nuevo = itemVacio();
     actualizarHojaActiva((h) => ({ ...h, items: [...h.items, nuevo] }));
-    setItemsExpandidos((prev) => new Set(prev).add(nuevo.id));
+    // Arranca con la primera columna de proveedor abierta para invitar a cargarla.
+    setColumnasExpandidas((prev) => new Set(prev).add(`${nuevo.id}:0`));
   };
   const quitarFila = (itemId: string) => actualizarHojaActiva((h) => ({ ...h, items: h.items.filter((it) => it.id !== itemId) }));
 
@@ -526,20 +508,20 @@ export default function ComparativoComprasDetalle() {
             id: it.id,
             item: it.item.trim(),
             cantidad: parsePrecio(it.cantidad),
-            cotizaciones: it.cotizaciones
-              .filter((c) => c.proveedor.trim() || c.precio !== '' || c.codigoProducto.trim() || c.nombreProducto.trim() || c.url.trim())
-              .map((c) => ({
-                id: c.id,
-                proveedor: c.proveedor.trim(),
-                ruc: c.ruc.trim(),
-                telefono: c.telefono.trim(),
-                direccion: c.direccion.trim(),
-                contacto: c.contacto.trim(),
-                codigoProducto: c.codigoProducto.trim(),
-                nombreProducto: c.nombreProducto.trim(),
-                precio: parsePrecio(c.precio),
-                url: c.url.trim(),
-              })),
+            // Las 3 columnas de proveedor se guardan siempre (aunque esten
+            // vacias), ya que son posiciones fijas (Proveedor 1/2/3).
+            cotizaciones: it.cotizaciones.map((c) => ({
+              id: c.id,
+              proveedor: c.proveedor.trim(),
+              ruc: c.ruc.trim(),
+              telefono: c.telefono.trim(),
+              direccion: c.direccion.trim(),
+              contacto: c.contacto.trim(),
+              codigoProducto: c.codigoProducto.trim(),
+              nombreProducto: c.nombreProducto.trim(),
+              precio: parsePrecio(c.precio),
+              url: c.url.trim(),
+            })),
             seleccionada: it.seleccionada,
           })),
       }));
@@ -704,9 +686,10 @@ export default function ComparativoComprasDetalle() {
                 Todavia no hay items en esta pestaña. Usa "Agregar item" para cargar el primero.
               </div>
             ) : (
-              <div className="space-y-2 mb-3">
+              // Lista de items con alto fijo: siempre desborda hacia abajo
+              // (scroll interno) en vez de estirar toda la pagina.
+              <div className="max-h-[65vh] overflow-y-auto pr-1 space-y-2 mb-3">
                 {hojaActiva.items.map((it, i) => {
-                  const expandido = itemsExpandidos.has(it.id);
                   const cantidadNum = parsePrecio(it.cantidad);
                   const preciosValidos = it.cotizaciones.map((c) => parsePrecio(c.precio)).filter((v): v is number => v !== null);
                   const minimo = preciosValidos.length > 0 ? Math.min(...preciosValidos) : null;
@@ -740,13 +723,6 @@ export default function ComparativoComprasDetalle() {
                           placeholder="Cant."
                           className="w-20 bg-white/5 border border-white/10 rounded px-2 py-1.5 text-sm text-white text-right focus:border-cbvp-red/50 focus:outline-none"
                         />
-                        <button
-                          onClick={() => toggleExpandido(it.id)}
-                          className="flex items-center gap-1 px-2 py-1.5 bg-white/5 hover:bg-white/10 rounded text-xs text-white/70 transition-colors shrink-0"
-                        >
-                          {expandido ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRightIcon className="w-3.5 h-3.5" />}
-                          {it.cotizaciones.length === 0 ? 'Sin proveedores' : `${it.cotizaciones.length} proveedor${it.cotizaciones.length === 1 ? '' : 'es'}`}
-                        </button>
                         <div className="text-right text-sm shrink-0 w-28">
                           <span className={costoTotal !== null ? 'text-white font-semibold' : 'text-white/20'}>{costoTotal === null ? '-' : formatearNumero(costoTotal)}</span>
                         </div>
@@ -755,103 +731,106 @@ export default function ComparativoComprasDetalle() {
                         </button>
                       </div>
 
-                      {expandido && (
-                        <div className="border-t border-white/10 bg-black/10 p-3 space-y-2">
-                          {it.cotizaciones.length === 0 ? (
-                            <p className="text-xs text-white/30 px-1">Todavia no hay proveedores cargados para este item.</p>
-                          ) : (
-                            it.cotizaciones.map((c) => {
-                              const precioNum = parsePrecio(c.precio);
-                              const esMinimo = minimo !== null && precioNum === minimo;
-                              const esSeleccionada = it.seleccionada === c.id;
-                              const puedeMarcar = precioNum !== null && !bloqueado;
-                              return (
-                                <div key={c.id} className={`rounded-lg border p-2.5 ${esSeleccionada ? 'border-cbvp-red/40 bg-cbvp-red/5' : 'border-white/10 bg-white/[0.02]'}`}>
-                                  <div className="flex flex-wrap items-center gap-2 mb-2">
-                                    <button
-                                      type="button"
-                                      onClick={() => marcarSeleccion(it.id, c.id)}
-                                      disabled={!puedeMarcar}
-                                      title={
-                                        bloqueado
-                                          ? `Este item ya esta en la Orden de Compra N° ${numeroOrdenBloqueo}. Anula esa orden para poder cambiarlo.`
-                                          : esSeleccionada
-                                          ? 'Quitar de la orden de compra'
-                                          : 'Marcar para la orden de compra'
-                                      }
-                                      className={`shrink-0 w-4 h-4 rounded-full border flex items-center justify-center transition-colors ${
-                                        esSeleccionada
-                                          ? bloqueado
-                                            ? 'bg-white/20 border-white/20'
-                                            : 'bg-cbvp-red border-cbvp-red'
-                                          : 'border-white/20 hover:border-white/40 disabled:opacity-20 disabled:cursor-not-allowed disabled:hover:border-white/20'
-                                      }`}
-                                    >
-                                      {esSeleccionada && <Check className="w-2.5 h-2.5 text-white" />}
-                                    </button>
-                                    <input
-                                      type="text"
-                                      value={c.proveedor}
-                                      onChange={(e) => actualizarCotizacionCampo(it.id, c.id, 'proveedor', e.target.value)}
-                                      placeholder="Nombre del proveedor"
-                                      className="flex-1 min-w-[140px] bg-white/5 border border-white/10 rounded px-2 py-1 text-sm text-white font-medium focus:border-cbvp-red/50 focus:outline-none"
-                                    />
+                      <div className="border-t border-white/10 bg-black/10 p-3 grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        {it.cotizaciones.map((c, idx) => {
+                          const precioNum = parsePrecio(c.precio);
+                          const esMinimo = minimo !== null && precioNum === minimo;
+                          const esSeleccionada = it.seleccionada === c.id;
+                          const puedeMarcar = precioNum !== null && !bloqueado;
+                          const columnaExpandida = columnasExpandidas.has(`${it.id}:${idx}`);
+                          return (
+                            <div key={c.id} className={`rounded-lg border overflow-hidden ${esSeleccionada ? 'border-cbvp-red/40 bg-cbvp-red/5' : 'border-white/10 bg-white/[0.02]'}`}>
+                              <div className="flex items-center justify-between px-2 py-1.5 border-b border-white/5">
+                                <div className="flex items-center gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => marcarSeleccion(it.id, c.id)}
+                                    disabled={!puedeMarcar}
+                                    title={
+                                      bloqueado
+                                        ? `Este item ya esta en la Orden de Compra N° ${numeroOrdenBloqueo}. Anula esa orden para poder cambiarlo.`
+                                        : esSeleccionada
+                                        ? 'Quitar de la orden de compra'
+                                        : 'Marcar para la orden de compra'
+                                    }
+                                    className={`shrink-0 w-4 h-4 rounded-full border flex items-center justify-center transition-colors ${
+                                      esSeleccionada
+                                        ? bloqueado
+                                          ? 'bg-white/20 border-white/20'
+                                          : 'bg-cbvp-red border-cbvp-red'
+                                        : 'border-white/20 hover:border-white/40 disabled:opacity-20 disabled:cursor-not-allowed disabled:hover:border-white/20'
+                                    }`}
+                                  >
+                                    {esSeleccionada && <Check className="w-2.5 h-2.5 text-white" />}
+                                  </button>
+                                  <span className="text-[10px] font-bold text-cbvp-red">PROVEEDOR {idx + 1}</span>
+                                </div>
+                                <button type="button" onClick={() => toggleColumna(it.id, idx)} className="p-0.5 text-white/40 hover:text-white transition-colors" title={columnaExpandida ? 'Ocultar datos' : 'Ver codigo, producto y URL'}>
+                                  {columnaExpandida ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRightIcon className="w-3.5 h-3.5" />}
+                                </button>
+                              </div>
+                              <div className="p-2 space-y-1.5">
+                                <input
+                                  type="text"
+                                  value={c.proveedor}
+                                  onChange={(e) => actualizarCotizacionCampo(it.id, c.id, 'proveedor', e.target.value)}
+                                  placeholder="Nombre del proveedor"
+                                  className="w-full bg-white/5 border border-white/10 rounded px-2 py-1 text-sm text-white font-medium focus:border-cbvp-red/50 focus:outline-none"
+                                />
+                                <input
+                                  type="text"
+                                  inputMode="decimal"
+                                  value={c.precio}
+                                  onChange={(e) => actualizarCotizacionCampo(it.id, c.id, 'precio', e.target.value)}
+                                  placeholder="Precio"
+                                  className={`w-full border rounded px-2 py-1 text-xs text-right focus:outline-none ${
+                                    esMinimo ? 'bg-cbvp-green/10 border-cbvp-green/30 text-cbvp-green font-semibold' : 'bg-white/5 border-white/10 text-white focus:border-cbvp-red/50'
+                                  }`}
+                                />
+                                {columnaExpandida && (
+                                  <>
                                     <input
                                       type="text"
                                       value={c.codigoProducto}
                                       onChange={(e) => actualizarCotizacionCampo(it.id, c.id, 'codigoProducto', e.target.value)}
                                       placeholder="Codigo"
-                                      className="w-24 bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-white/80 focus:border-cbvp-red/50 focus:outline-none"
+                                      className="w-full bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-white/80 focus:border-cbvp-red/50 focus:outline-none"
                                     />
                                     <input
                                       type="text"
                                       value={c.nombreProducto}
                                       onChange={(e) => actualizarCotizacionCampo(it.id, c.id, 'nombreProducto', e.target.value)}
                                       placeholder="Nombre del producto (segun proveedor)"
-                                      className="flex-1 min-w-[160px] bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-white/80 focus:border-cbvp-red/50 focus:outline-none"
+                                      className="w-full bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-white/80 focus:border-cbvp-red/50 focus:outline-none"
                                     />
-                                    <input
-                                      type="text"
-                                      inputMode="decimal"
-                                      value={c.precio}
-                                      onChange={(e) => actualizarCotizacionCampo(it.id, c.id, 'precio', e.target.value)}
-                                      placeholder="Precio"
-                                      className={`w-24 border rounded px-2 py-1 text-xs text-right focus:outline-none ${
-                                        esMinimo ? 'bg-cbvp-green/10 border-cbvp-green/30 text-cbvp-green font-semibold' : 'bg-white/5 border-white/10 text-white focus:border-cbvp-red/50'
-                                      }`}
-                                    />
-                                    <button onClick={() => quitarCotizacion(it.id, c.id)} className="p-1 rounded hover:bg-cbvp-red/20 text-white/40 hover:text-cbvp-red transition-colors shrink-0" title="Quitar proveedor">
-                                      <X className="w-3.5 h-3.5" />
-                                    </button>
-                                  </div>
-                                  <div className="flex items-center gap-2 pl-6">
-                                    <Link2 className="w-3 h-3 text-white/20 shrink-0" />
-                                    <input
-                                      type="text"
-                                      value={c.url}
-                                      onChange={(e) => actualizarCotizacionCampo(it.id, c.id, 'url', e.target.value)}
-                                      placeholder="URL del producto (tienda online)"
-                                      className="flex-1 bg-transparent border-b border-white/10 px-1 py-0.5 text-xs text-white/60 focus:border-cbvp-red/50 focus:outline-none"
-                                    />
-                                    {c.url.trim() && (
-                                      <a href={c.url.trim()} target="_blank" rel="noopener noreferrer" className="text-[10px] text-cbvp-red hover:underline shrink-0">Abrir</a>
-                                    )}
-                                  </div>
-                                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 mt-2 pl-6">
-                                    <input type="text" value={c.ruc} onChange={(e) => actualizarCotizacionCampo(it.id, c.id, 'ruc', e.target.value)} placeholder="RUC" className="w-full bg-white/5 border border-white/10 rounded px-2 py-1 text-[11px] text-white/60 focus:border-cbvp-red/50 focus:outline-none" />
-                                    <input type="text" value={c.telefono} onChange={(e) => actualizarCotizacionCampo(it.id, c.id, 'telefono', e.target.value)} placeholder="Telefono" className="w-full bg-white/5 border border-white/10 rounded px-2 py-1 text-[11px] text-white/60 focus:border-cbvp-red/50 focus:outline-none" />
-                                    <input type="text" value={c.direccion} onChange={(e) => actualizarCotizacionCampo(it.id, c.id, 'direccion', e.target.value)} placeholder="Direccion" className="w-full bg-white/5 border border-white/10 rounded px-2 py-1 text-[11px] text-white/60 focus:border-cbvp-red/50 focus:outline-none" />
-                                    <input type="text" value={c.contacto} onChange={(e) => actualizarCotizacionCampo(it.id, c.id, 'contacto', e.target.value)} placeholder="Contacto" className="w-full bg-white/5 border border-white/10 rounded px-2 py-1 text-[11px] text-white/60 focus:border-cbvp-red/50 focus:outline-none" />
-                                  </div>
-                                </div>
-                              );
-                            })
-                          )}
-                          <button onClick={() => agregarCotizacion(it.id)} className="px-2.5 py-1.5 bg-white/5 hover:bg-white/10 text-white/60 rounded-lg text-xs flex items-center gap-1.5 transition-colors">
-                            <Plus className="w-3 h-3" /> Agregar proveedor
-                          </button>
-                        </div>
-                      )}
+                                    <div className="flex items-center gap-1">
+                                      <Link2 className="w-3 h-3 text-white/20 shrink-0" />
+                                      <input
+                                        type="text"
+                                        value={c.url}
+                                        onChange={(e) => actualizarCotizacionCampo(it.id, c.id, 'url', e.target.value)}
+                                        placeholder="URL del producto"
+                                        className="flex-1 min-w-0 bg-transparent border-b border-white/10 px-1 py-0.5 text-xs text-white/60 focus:border-cbvp-red/50 focus:outline-none"
+                                      />
+                                      {c.url.trim() && (
+                                        <a href={c.url.trim()} target="_blank" rel="noopener noreferrer" className="shrink-0 p-1 rounded hover:bg-cbvp-red/20 text-cbvp-red transition-colors" title="Abrir URL">
+                                          <ExternalLink className="w-3 h-3" />
+                                        </a>
+                                      )}
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-1">
+                                      <input type="text" value={c.ruc} onChange={(e) => actualizarCotizacionCampo(it.id, c.id, 'ruc', e.target.value)} placeholder="RUC" className="w-full bg-white/5 border border-white/10 rounded px-2 py-1 text-[11px] text-white/60 focus:border-cbvp-red/50 focus:outline-none" />
+                                      <input type="text" value={c.telefono} onChange={(e) => actualizarCotizacionCampo(it.id, c.id, 'telefono', e.target.value)} placeholder="Telefono" className="w-full bg-white/5 border border-white/10 rounded px-2 py-1 text-[11px] text-white/60 focus:border-cbvp-red/50 focus:outline-none" />
+                                      <input type="text" value={c.direccion} onChange={(e) => actualizarCotizacionCampo(it.id, c.id, 'direccion', e.target.value)} placeholder="Direccion" className="w-full bg-white/5 border border-white/10 rounded px-2 py-1 text-[11px] text-white/60 focus:border-cbvp-red/50 focus:outline-none" />
+                                      <input type="text" value={c.contacto} onChange={(e) => actualizarCotizacionCampo(it.id, c.id, 'contacto', e.target.value)} placeholder="Contacto" className="w-full bg-white/5 border border-white/10 rounded px-2 py-1 text-[11px] text-white/60 focus:border-cbvp-red/50 focus:outline-none" />
+                                    </div>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
                   );
                 })}
