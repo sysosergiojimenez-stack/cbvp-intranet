@@ -26,6 +26,8 @@ import SegundoOficial from '@/pages/SegundoOficial';
 import DireccionAdministrativa from '@/pages/DireccionAdministrativa';
 import Comparativos from '@/pages/Comparativos';
 import ComparativoDetalle from '@/pages/ComparativoDetalle';
+import ComparativoComprasListado from '@/pages/ComparativoComprasListado';
+import ComparativoComprasDetalle from '@/pages/ComparativoComprasDetalle';
 import RendicionesCombustible from '@/pages/RendicionesCombustible';
 import CuotasBomberos from '@/pages/CuotasBomberos';
 import OrdenesPago from '@/pages/OrdenesPago';
@@ -187,6 +189,16 @@ function AppRoutes() {
         <Route path="/comparativos/:id" element={
           <ProtectedRoute>
             {permisos.puedeVerDireccionAdministrativa ? <ComparativoDetalle /> : <Navigate to="/" replace />}
+          </ProtectedRoute>
+        } />
+        <Route path="/comparativo-compras" element={
+          <ProtectedRoute>
+            {permisos.puedeVerDireccionAdministrativa ? <ComparativoComprasListado /> : <Navigate to="/" replace />}
+          </ProtectedRoute>
+        } />
+        <Route path="/comparativo-compras/:id" element={
+          <ProtectedRoute>
+            {permisos.puedeVerDireccionAdministrativa ? <ComparativoComprasDetalle /> : <Navigate to="/" replace />}
           </ProtectedRoute>
         } />
         <Route path="/comandante-compania" element={
