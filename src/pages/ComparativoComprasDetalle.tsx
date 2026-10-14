@@ -353,6 +353,41 @@ export default function ComparativoComprasDetalle() {
   const totalEjecutado = ordenesCompra.filter((o) => o.estado === 'ejecutada').reduce((acc, o) => acc + o.monto, 0);
   const remanente = presupuestoNumero !== null ? presupuestoNumero - totalEjecutado : null;
 
+  // Ordenes de Compra Generadas, agrupadas por mes y dentro de cada mes por
+  // proveedor, con subtotal por proveedor y total por mes. Las anuladas se
+  // siguen mostrando (atenuadas) pero no suman a los subtotales/totales.
+  interface GrupoProveedorMes { proveedor: string; subtotal: number; ordenes: OrdenCompraRegistro[] }
+  interface GrupoMes { claveMes: string; etiquetaMes: string; totalMes: number; proveedores: GrupoProveedorMes[] }
+  const mapaMeses = new Map<string, Map<string, OrdenCompraRegistro[]>>();
+  for (const o of ordenesCompra) {
+    const fecha = new Date(o.fechaGeneracion);
+    const claveMes = `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}`;
+    if (!mapaMeses.has(claveMes)) mapaMeses.set(claveMes, new Map());
+    const mapaProveedores = mapaMeses.get(claveMes)!;
+    if (!mapaProveedores.has(o.proveedor)) mapaProveedores.set(o.proveedor, []);
+    mapaProveedores.get(o.proveedor)!.push(o);
+  }
+  const gruposPorMes: GrupoMes[] = Array.from(mapaMeses.keys())
+    .sort((a, b) => b.localeCompare(a))
+    .map((claveMes) => {
+      const mapaProveedores = mapaMeses.get(claveMes)!;
+      const proveedores: GrupoProveedorMes[] = Array.from(mapaProveedores.entries())
+        .map(([proveedor, ordenes]) => ({
+          proveedor,
+          ordenes: [...ordenes].sort((a, b) => a.fechaGeneracion.localeCompare(b.fechaGeneracion)),
+          subtotal: ordenes.filter((o) => o.estado !== 'anulada').reduce((acc, o) => acc + o.monto, 0),
+        }))
+        .sort((a, b) => a.proveedor.localeCompare(b.proveedor));
+      const [anio, mes] = claveMes.split('-').map(Number);
+      const etiquetaMes = new Date(anio, mes - 1, 1).toLocaleDateString('es-PY', { month: 'long', year: 'numeric' });
+      return {
+        claveMes,
+        etiquetaMes,
+        totalMes: proveedores.reduce((acc, p) => acc + p.subtotal, 0),
+        proveedores,
+      };
+    });
+
   // Total de la pestaña activa: suma de los items que tienen una cotizacion
   // marcada (independientemente de si ya entraron en una orden).
   const totalHojaActiva = hojaActiva
@@ -897,73 +932,66 @@ export default function ComparativoComprasDetalle() {
             Todavia no se genero ninguna orden de compra. Usa "Generar Orden de Compra" arriba.
           </div>
         ) : (
-          <div className="overflow-x-auto mb-6">
-            <table className="w-full text-xs sm:text-sm border-collapse">
-              <thead>
-                <tr className="bg-white/5 border-b border-white/10">
-                  <th className="text-left px-2 py-2 font-medium text-white/50">N°</th>
-                  <th className="text-left px-2 py-2 font-medium text-white/50">Fecha</th>
-                  <th className="text-left px-2 py-2 font-medium text-white/50">Proveedor</th>
-                  <th className="text-right px-2 py-2 font-medium text-white/50">Monto</th>
-                  <th className="text-left px-2 py-2 font-medium text-white/50">Estado</th>
-                  <th className="w-8"></th>
-                  <th className="w-8"></th>
-                  <th className="w-8"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {ordenesCompra.map((o) => (
-                  <tr key={o.id} className={`border-b border-white/5 ${o.estado === 'anulada' ? 'opacity-50' : ''}`}>
-                    <td className="px-2 py-1.5 text-white/60">{o.numero}</td>
-                    <td className="px-2 py-1.5 text-white/60">{new Date(o.fechaGeneracion).toLocaleDateString('es-PY')}</td>
-                    <td className={`px-2 py-1.5 text-white/80 ${o.estado === 'anulada' ? 'line-through' : ''}`}>{o.proveedor}</td>
-                    <td className={`px-2 py-1.5 text-right text-white ${o.estado === 'anulada' ? 'line-through' : ''}`}>{formatearNumero(o.monto)}</td>
-                    <td className="px-2 py-1.5">
-                      {o.estado === 'anulada' ? (
-                        <span className="px-2 py-1 rounded-full text-xs font-medium bg-white/10 text-white/50">Anulada</span>
-                      ) : (
+          <div className="space-y-3 mb-6">
+            {gruposPorMes.map((grupoMes) => (
+              <div key={grupoMes.claveMes} className="border border-white/10 rounded-lg overflow-hidden">
+                <div className="flex items-center justify-between px-3 py-2 bg-white/5">
+                  <span className="text-sm font-bold text-white capitalize">{grupoMes.etiquetaMes}</span>
+                  <span className="text-sm font-semibold text-cbvp-red">Total del mes: {formatearNumero(grupoMes.totalMes)}</span>
+                </div>
+                {grupoMes.proveedores.map((grupoProveedor) => (
+                  <div key={grupoProveedor.proveedor} className="border-t border-white/5">
+                    <div className="flex items-center justify-between px-3 py-1.5 bg-white/[0.02]">
+                      <span className="text-xs font-semibold text-white/70">{grupoProveedor.proveedor}</span>
+                      <span className="text-xs text-white/50">Subtotal: {formatearNumero(grupoProveedor.subtotal)}</span>
+                    </div>
+                    {grupoProveedor.ordenes.map((o) => (
+                      <div key={o.id} className={`flex items-center gap-2 px-3 py-1.5 border-t border-white/5 text-xs sm:text-sm ${o.estado === 'anulada' ? 'opacity-50' : ''}`}>
+                        <span className="w-10 text-white/60 shrink-0">N° {o.numero}</span>
+                        <span className="w-24 text-white/60 shrink-0">{new Date(o.fechaGeneracion).toLocaleDateString('es-PY')}</span>
+                        <span className={`flex-1 text-right text-white ${o.estado === 'anulada' ? 'line-through' : ''}`}>{formatearNumero(o.monto)}</span>
+                        <span className="w-24 shrink-0 flex justify-center">
+                          {o.estado === 'anulada' ? (
+                            <span className="px-2 py-1 rounded-full text-xs font-medium bg-white/10 text-white/50">Anulada</span>
+                          ) : (
+                            <button
+                              onClick={() => alternarEstadoOrden(o)}
+                              className={`px-2 py-1 rounded-full text-xs font-medium transition-colors ${
+                                o.estado === 'ejecutada'
+                                  ? 'bg-cbvp-green/15 text-cbvp-green hover:bg-cbvp-green/25'
+                                  : 'bg-cbvp-yellow/15 text-cbvp-yellow hover:bg-cbvp-yellow/25'
+                              }`}
+                            >
+                              {o.estado === 'ejecutada' ? 'Ejecutada' : 'Pendiente'}
+                            </button>
+                          )}
+                        </span>
                         <button
-                          onClick={() => alternarEstadoOrden(o)}
-                          className={`px-2 py-1 rounded-full text-xs font-medium transition-colors ${
-                            o.estado === 'ejecutada'
-                              ? 'bg-cbvp-green/15 text-cbvp-green hover:bg-cbvp-green/25'
-                              : 'bg-cbvp-yellow/15 text-cbvp-yellow hover:bg-cbvp-yellow/25'
-                          }`}
+                          onClick={() => descargarOrden(o)}
+                          disabled={descargandoOrdenId === o.id}
+                          className="p-1.5 rounded-lg hover:bg-white/10 text-white/40 hover:text-white transition-colors disabled:opacity-40 shrink-0"
+                          title="Descargar orden"
                         >
-                          {o.estado === 'ejecutada' ? 'Ejecutada' : 'Pendiente'}
+                          <Download className="w-3.5 h-3.5" />
                         </button>
-                      )}
-                    </td>
-                    <td className="px-2 py-1.5">
-                      <button
-                        onClick={() => descargarOrden(o)}
-                        disabled={descargandoOrdenId === o.id}
-                        className="p-1.5 rounded-lg hover:bg-white/10 text-white/40 hover:text-white transition-colors disabled:opacity-40"
-                        title="Descargar orden"
-                      >
-                        <Download className="w-3.5 h-3.5" />
-                      </button>
-                    </td>
-                    <td className="px-2 py-1.5">
-                      {o.estado !== 'anulada' && (
-                        <button
-                          onClick={() => anularOrden(o)}
-                          className="p-1.5 rounded-lg hover:bg-cbvp-yellow/20 text-white/40 hover:text-cbvp-yellow transition-colors"
-                          title="Anular orden"
-                        >
-                          <Ban className="w-3.5 h-3.5" />
+                        {o.estado !== 'anulada' && (
+                          <button
+                            onClick={() => anularOrden(o)}
+                            className="p-1.5 rounded-lg hover:bg-cbvp-yellow/20 text-white/40 hover:text-cbvp-yellow transition-colors shrink-0"
+                            title="Anular orden"
+                          >
+                            <Ban className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                        <button onClick={() => eliminarOrden(o.id)} className="p-1.5 rounded-lg hover:bg-cbvp-red/20 text-white/40 hover:text-cbvp-red transition-colors shrink-0" title="Eliminar orden">
+                          <X className="w-3.5 h-3.5" />
                         </button>
-                      )}
-                    </td>
-                    <td className="px-2 py-1.5">
-                      <button onClick={() => eliminarOrden(o.id)} className="p-1.5 rounded-lg hover:bg-cbvp-red/20 text-white/40 hover:text-cbvp-red transition-colors" title="Eliminar orden">
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    </td>
-                  </tr>
+                      </div>
+                    ))}
+                  </div>
                 ))}
-              </tbody>
-            </table>
+              </div>
+            ))}
           </div>
         )}
 
