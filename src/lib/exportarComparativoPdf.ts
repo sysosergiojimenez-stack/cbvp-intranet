@@ -93,13 +93,16 @@ export async function exportarComparativoPdf(comparativo: ComparativoExport) {
   doc.line(10, y, pageWidth - 10, y);
   y += 10;
 
+  let primeraHojaRenderizada = true;
   for (const hoja of comparativo.hojas) {
     if (hoja.items.length === 0) continue;
 
-    if (y > pageHeight - 60) {
+    // Cada seccion (hoja/pestaña) va en su propia pagina, no todas juntas.
+    if (!primeraHojaRenderizada) {
       doc.addPage();
       y = 15;
     }
+    primeraHojaRenderizada = false;
 
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(13);
