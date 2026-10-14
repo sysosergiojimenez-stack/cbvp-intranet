@@ -736,94 +736,92 @@ export default function ComparativoComprasDetalle() {
                           const puedeMarcar = precioNum !== null && !bloqueado;
                           const columnaExpandida = columnasExpandidas.has(`${it.id}:${idx}`);
                           return (
-                            <div key={c.id} className={`shrink-0 w-48 rounded-lg border overflow-hidden ${esSeleccionada ? 'border-cbvp-red/40 bg-cbvp-red/5' : 'border-white/10 bg-white/[0.02]'}`}>
-                              <div className="flex items-center justify-between px-2 py-1.5 border-b border-white/5">
-                                <div className="flex items-center gap-1.5">
-                                  <button
-                                    type="button"
-                                    onClick={() => marcarSeleccion(it.id, c.id)}
-                                    disabled={!puedeMarcar}
-                                    title={
-                                      bloqueado
-                                        ? `Este item ya esta en la Orden de Compra N° ${numeroOrdenBloqueo}. Anula esa orden para poder cambiarlo.`
-                                        : esSeleccionada
-                                        ? 'Quitar de la orden de compra'
-                                        : 'Marcar para la orden de compra'
-                                    }
-                                    className={`shrink-0 w-4 h-4 rounded-full border flex items-center justify-center transition-colors ${
-                                      esSeleccionada
-                                        ? bloqueado
-                                          ? 'bg-white/20 border-white/20'
-                                          : 'bg-cbvp-red border-cbvp-red'
-                                        : 'border-white/20 hover:border-white/40 disabled:opacity-20 disabled:cursor-not-allowed disabled:hover:border-white/20'
-                                    }`}
-                                  >
-                                    {esSeleccionada && <Check className="w-2.5 h-2.5 text-white" />}
-                                  </button>
-                                  <span className="text-[10px] font-bold text-cbvp-red">PROVEEDOR {idx + 1}</span>
-                                </div>
-                                <button type="button" onClick={() => toggleColumna(it.id, idx)} className="p-0.5 text-white/40 hover:text-white transition-colors" title={columnaExpandida ? 'Ocultar datos' : 'Ver codigo, producto y URL'}>
-                                  {columnaExpandida ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRightIcon className="w-3.5 h-3.5" />}
+                            <div key={c.id} className={`shrink-0 w-48 rounded-lg border p-2 space-y-1 ${esSeleccionada ? 'border-cbvp-red/40 bg-cbvp-red/5' : 'border-white/10 bg-white/[0.02]'}`}>
+                              {/* Sin etiqueta "PROVEEDOR N": el radio de
+                                  seleccion y el desplegable van en la misma
+                                  fila que el nombre, para ahorrar espacio. */}
+                              <div className="flex items-center gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => marcarSeleccion(it.id, c.id)}
+                                  disabled={!puedeMarcar}
+                                  title={
+                                    bloqueado
+                                      ? `Este item ya esta en la Orden de Compra N° ${numeroOrdenBloqueo}. Anula esa orden para poder cambiarlo.`
+                                      : esSeleccionada
+                                      ? 'Quitar de la orden de compra'
+                                      : 'Marcar para la orden de compra'
+                                  }
+                                  className={`shrink-0 w-4 h-4 rounded-full border flex items-center justify-center transition-colors ${
+                                    esSeleccionada
+                                      ? bloqueado
+                                        ? 'bg-white/20 border-white/20'
+                                        : 'bg-cbvp-red border-cbvp-red'
+                                      : 'border-white/20 hover:border-white/40 disabled:opacity-20 disabled:cursor-not-allowed disabled:hover:border-white/20'
+                                  }`}
+                                >
+                                  {esSeleccionada && <Check className="w-2.5 h-2.5 text-white" />}
                                 </button>
-                              </div>
-                              <div className="p-2 space-y-1.5">
                                 <input
                                   type="text"
                                   value={c.proveedor}
                                   onChange={(e) => actualizarCotizacionCampo(it.id, c.id, 'proveedor', e.target.value)}
                                   placeholder="Nombre del proveedor"
-                                  className="w-full bg-white/5 border border-white/10 rounded px-2 py-1 text-sm text-white font-medium focus:border-cbvp-red/50 focus:outline-none"
+                                  className="flex-1 min-w-0 bg-white/5 border border-white/10 rounded px-2 py-1 text-sm text-white font-medium focus:border-cbvp-red/50 focus:outline-none"
                                 />
-                                <input
-                                  type="text"
-                                  inputMode="decimal"
-                                  value={c.precio}
-                                  onChange={(e) => actualizarCotizacionCampo(it.id, c.id, 'precio', e.target.value)}
-                                  placeholder="Precio"
-                                  className={`w-full border rounded px-2 py-1 text-xs text-right focus:outline-none ${
-                                    esMinimo ? 'bg-cbvp-green/10 border-cbvp-green/30 text-cbvp-green font-semibold' : 'bg-white/5 border-white/10 text-white focus:border-cbvp-red/50'
-                                  }`}
-                                />
-                                {columnaExpandida && (
-                                  <>
-                                    <input
-                                      type="text"
-                                      value={c.codigoProducto}
-                                      onChange={(e) => actualizarCotizacionCampo(it.id, c.id, 'codigoProducto', e.target.value)}
-                                      placeholder="Codigo"
-                                      className="w-full bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-white/80 focus:border-cbvp-red/50 focus:outline-none"
-                                    />
-                                    <input
-                                      type="text"
-                                      value={c.nombreProducto}
-                                      onChange={(e) => actualizarCotizacionCampo(it.id, c.id, 'nombreProducto', e.target.value)}
-                                      placeholder="Nombre del producto (segun proveedor)"
-                                      className="w-full bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-white/80 focus:border-cbvp-red/50 focus:outline-none"
-                                    />
-                                    <div className="flex items-center gap-1">
-                                      <Link2 className="w-3 h-3 text-white/20 shrink-0" />
-                                      <input
-                                        type="text"
-                                        value={c.url}
-                                        onChange={(e) => actualizarCotizacionCampo(it.id, c.id, 'url', e.target.value)}
-                                        placeholder="URL del producto"
-                                        className="flex-1 min-w-0 bg-transparent border-b border-white/10 px-1 py-0.5 text-xs text-white/60 focus:border-cbvp-red/50 focus:outline-none"
-                                      />
-                                      {c.url.trim() && (
-                                        <a href={c.url.trim()} target="_blank" rel="noopener noreferrer" className="shrink-0 p-1 rounded hover:bg-cbvp-red/20 text-cbvp-red transition-colors" title="Abrir URL">
-                                          <ExternalLink className="w-3 h-3" />
-                                        </a>
-                                      )}
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-1">
-                                      <input type="text" value={c.ruc} onChange={(e) => actualizarCotizacionCampo(it.id, c.id, 'ruc', e.target.value)} placeholder="RUC" className="w-full bg-white/5 border border-white/10 rounded px-2 py-1 text-[11px] text-white/60 focus:border-cbvp-red/50 focus:outline-none" />
-                                      <input type="text" value={c.telefono} onChange={(e) => actualizarCotizacionCampo(it.id, c.id, 'telefono', e.target.value)} placeholder="Telefono" className="w-full bg-white/5 border border-white/10 rounded px-2 py-1 text-[11px] text-white/60 focus:border-cbvp-red/50 focus:outline-none" />
-                                      <input type="text" value={c.direccion} onChange={(e) => actualizarCotizacionCampo(it.id, c.id, 'direccion', e.target.value)} placeholder="Direccion" className="w-full bg-white/5 border border-white/10 rounded px-2 py-1 text-[11px] text-white/60 focus:border-cbvp-red/50 focus:outline-none" />
-                                      <input type="text" value={c.contacto} onChange={(e) => actualizarCotizacionCampo(it.id, c.id, 'contacto', e.target.value)} placeholder="Contacto" className="w-full bg-white/5 border border-white/10 rounded px-2 py-1 text-[11px] text-white/60 focus:border-cbvp-red/50 focus:outline-none" />
-                                    </div>
-                                  </>
-                                )}
+                                <button type="button" onClick={() => toggleColumna(it.id, idx)} className="shrink-0 p-0.5 text-white/40 hover:text-white transition-colors" title={columnaExpandida ? 'Ocultar datos' : 'Ver codigo, producto y URL'}>
+                                  {columnaExpandida ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRightIcon className="w-3.5 h-3.5" />}
+                                </button>
                               </div>
+                              <input
+                                type="text"
+                                inputMode="decimal"
+                                value={c.precio}
+                                onChange={(e) => actualizarCotizacionCampo(it.id, c.id, 'precio', e.target.value)}
+                                placeholder="Precio"
+                                className={`w-full border rounded px-2 py-1 text-xs text-right focus:outline-none ${
+                                  esMinimo ? 'bg-cbvp-green/10 border-cbvp-green/30 text-cbvp-green font-semibold' : 'bg-white/5 border-white/10 text-white focus:border-cbvp-red/50'
+                                }`}
+                              />
+                              {columnaExpandida && (
+                                <>
+                                  <input
+                                    type="text"
+                                    value={c.codigoProducto}
+                                    onChange={(e) => actualizarCotizacionCampo(it.id, c.id, 'codigoProducto', e.target.value)}
+                                    placeholder="Codigo"
+                                    className="w-full bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-white/80 focus:border-cbvp-red/50 focus:outline-none"
+                                  />
+                                  <input
+                                    type="text"
+                                    value={c.nombreProducto}
+                                    onChange={(e) => actualizarCotizacionCampo(it.id, c.id, 'nombreProducto', e.target.value)}
+                                    placeholder="Nombre del producto (segun proveedor)"
+                                    className="w-full bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-white/80 focus:border-cbvp-red/50 focus:outline-none"
+                                  />
+                                  <div className="flex items-center gap-1">
+                                    <Link2 className="w-3 h-3 text-white/20 shrink-0" />
+                                    <input
+                                      type="text"
+                                      value={c.url}
+                                      onChange={(e) => actualizarCotizacionCampo(it.id, c.id, 'url', e.target.value)}
+                                      placeholder="URL del producto"
+                                      className="flex-1 min-w-0 bg-transparent border-b border-white/10 px-1 py-0.5 text-xs text-white/60 focus:border-cbvp-red/50 focus:outline-none"
+                                    />
+                                    {c.url.trim() && (
+                                      <a href={c.url.trim()} target="_blank" rel="noopener noreferrer" className="shrink-0 p-1 rounded hover:bg-cbvp-red/20 text-cbvp-red transition-colors" title="Abrir URL">
+                                        <ExternalLink className="w-3 h-3" />
+                                      </a>
+                                    )}
+                                  </div>
+                                  <div className="grid grid-cols-2 gap-1">
+                                    <input type="text" value={c.ruc} onChange={(e) => actualizarCotizacionCampo(it.id, c.id, 'ruc', e.target.value)} placeholder="RUC" className="w-full bg-white/5 border border-white/10 rounded px-2 py-1 text-[11px] text-white/60 focus:border-cbvp-red/50 focus:outline-none" />
+                                    <input type="text" value={c.telefono} onChange={(e) => actualizarCotizacionCampo(it.id, c.id, 'telefono', e.target.value)} placeholder="Telefono" className="w-full bg-white/5 border border-white/10 rounded px-2 py-1 text-[11px] text-white/60 focus:border-cbvp-red/50 focus:outline-none" />
+                                    <input type="text" value={c.direccion} onChange={(e) => actualizarCotizacionCampo(it.id, c.id, 'direccion', e.target.value)} placeholder="Direccion" className="w-full bg-white/5 border border-white/10 rounded px-2 py-1 text-[11px] text-white/60 focus:border-cbvp-red/50 focus:outline-none" />
+                                    <input type="text" value={c.contacto} onChange={(e) => actualizarCotizacionCampo(it.id, c.id, 'contacto', e.target.value)} placeholder="Contacto" className="w-full bg-white/5 border border-white/10 rounded px-2 py-1 text-[11px] text-white/60 focus:border-cbvp-red/50 focus:outline-none" />
+                                  </div>
+                                </>
+                              )}
                             </div>
                           );
                         })}
