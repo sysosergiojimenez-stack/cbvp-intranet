@@ -102,6 +102,34 @@ export const comparativoComprasRouter = createRouter({
     return { exito: true as const, comparativos };
   }),
 
+  // Proveedores ya cargados en cualquier cotizacion de cualquier comparativo
+  // (no solo el que se esta editando), para sugerirlos al cargar uno nuevo y
+  // autocompletar sus datos de contacto si todavia no se cargaron.
+  sugerenciasProveedores: publicQuery.query(async () => {
+    const snapshot = await colComparativoCompras().get();
+    const porNombre = new Map<string, { nombre: string; ruc: string; telefono: string; direccion: string; contacto: string }>();
+    for (const doc of snapshot.docs) {
+      const hojas = Array.isArray(doc.data().hojas) ? doc.data().hojas : [];
+      for (const hoja of hojas) {
+        for (const item of hoja.items || []) {
+          for (const cot of item.cotizaciones || []) {
+            const nombre = String(cot.proveedor || "").trim();
+            if (!nombre) continue;
+            porNombre.set(nombre.toLowerCase(), {
+              nombre,
+              ruc: String(cot.ruc || ""),
+              telefono: String(cot.telefono || ""),
+              direccion: String(cot.direccion || ""),
+              contacto: String(cot.contacto || ""),
+            });
+          }
+        }
+      }
+    }
+    const proveedores = Array.from(porNombre.values()).sort((a, b) => a.nombre.localeCompare(b.nombre));
+    return { exito: true as const, proveedores };
+  }),
+
   obtener: publicQuery
     .input(z.object({ id: z.string().min(1) }))
     .query(async ({ input }) => {

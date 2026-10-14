@@ -133,6 +133,8 @@ export default function ComparativoComprasDetalle() {
   const utils = trpc.useUtils();
 
   const { data, isLoading } = trpc.comparativoCompras.obtener.useQuery({ id: id || '' }, { enabled: !!id });
+  const { data: sugerenciasData } = trpc.comparativoCompras.sugerenciasProveedores.useQuery();
+  const proveedoresSugeridos = sugerenciasData?.exito ? sugerenciasData.proveedores : [];
   const guardarHojasMutation = trpc.comparativoCompras.guardarHojas.useMutation();
   const renombrarMutation = trpc.comparativoCompras.renombrar.useMutation();
   const actualizarPresupuestoMutation = trpc.comparativoCompras.actualizarPresupuesto.useMutation();
@@ -384,6 +386,35 @@ export default function ComparativoComprasDetalle() {
     }));
   };
 
+  const actualizarCotizacionCampos = (itemId: string, cotizacionId: string, cambios: Partial<CotizacionLocal>) => {
+    actualizarHojaActiva((h) => ({
+      ...h,
+      items: h.items.map((it) => {
+        if (it.id !== itemId) return it;
+        return { ...it, cotizaciones: it.cotizaciones.map((c) => (c.id === cotizacionId ? { ...c, ...cambios } : c)) };
+      }),
+    }));
+  };
+
+  // Al elegir un proveedor ya guardado (de la sugerencia), completa tambien
+  // sus datos de contacto si todavia estan vacios -- sin pisar nada que el
+  // usuario ya haya cargado a mano.
+  const manejarCambioProveedor = (itemId: string, c: CotizacionLocal, valor: string) => {
+    const sugerido = proveedoresSugeridos.find((p) => p.nombre.toLowerCase() === valor.trim().toLowerCase());
+    const sinContacto = !c.ruc.trim() && !c.telefono.trim() && !c.direccion.trim() && !c.contacto.trim();
+    if (sugerido && sinContacto) {
+      actualizarCotizacionCampos(itemId, c.id, {
+        proveedor: valor,
+        ruc: sugerido.ruc,
+        telefono: sugerido.telefono,
+        direccion: sugerido.direccion,
+        contacto: sugerido.contacto,
+      });
+    } else {
+      actualizarCotizacionCampo(itemId, c.id, 'proveedor', valor);
+    }
+  };
+
   const marcarSeleccion = (itemId: string, cotizacionId: string) => {
     actualizarHojaActiva((h) => ({
       ...h,
@@ -575,6 +606,12 @@ export default function ComparativoComprasDetalle() {
 
   return (
     <div className="animate-fade-in space-y-6">
+      {/* Compartido por todos los campos "Nombre del proveedor": sugiere
+          proveedores ya cargados en cualquier cotizacion de cualquier
+          comparativo. */}
+      <datalist id="proveedores-sugeridos-datalist">
+        {proveedoresSugeridos.map((p) => <option key={p.nombre} value={p.nombre} />)}
+      </datalist>
       <Link to="/comparativo-compras" className="mb-2 flex items-center gap-2 text-white/50 hover:text-white text-sm transition-colors w-fit">
         <ArrowLeft className="w-4 h-4" /> Volver a Comparativo de Compras
       </Link>
@@ -765,8 +802,9 @@ export default function ComparativoComprasDetalle() {
                                 <input
                                   type="text"
                                   value={c.proveedor}
-                                  onChange={(e) => actualizarCotizacionCampo(it.id, c.id, 'proveedor', e.target.value)}
+                                  onChange={(e) => manejarCambioProveedor(it.id, c, e.target.value)}
                                   placeholder="Nombre del proveedor"
+                                  list="proveedores-sugeridos-datalist"
                                   className="flex-1 min-w-0 bg-white/5 border border-white/10 rounded px-2 py-1 text-sm text-white font-medium focus:border-cbvp-red/50 focus:outline-none"
                                 />
                                 <button type="button" onClick={() => toggleColumna(it.id, idx)} className="shrink-0 p-0.5 text-white/40 hover:text-white transition-colors" title={columnaExpandida ? 'Ocultar datos' : 'Ver codigo, producto y URL'}>
