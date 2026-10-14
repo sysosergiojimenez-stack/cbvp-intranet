@@ -701,7 +701,12 @@ export default function ComparativoComprasDetalle() {
 
                   return (
                     <div key={it.id} className="bg-white/[0.02] border border-white/10 rounded-xl overflow-hidden">
-                      <div className="flex flex-wrap items-start gap-2 p-3">
+                      {/* Todo en una sola fila: datos del item, las 3 tarjetas
+                          de proveedor y el total, sin bajar de linea. Si no
+                          entran todas en el ancho disponible, la fila entera
+                          se desplaza horizontalmente (scroll) en vez de
+                          partirse en varias lineas. */}
+                      <div className="flex items-start gap-2 p-3 overflow-x-auto">
                         <span className="text-white/30 text-xs pt-2 shrink-0 w-5">{i + 1}</span>
                         <textarea
                           ref={(el) => { if (el) { el.style.height = 'auto'; el.style.height = `${el.scrollHeight}px`; } }}
@@ -713,7 +718,7 @@ export default function ComparativoComprasDetalle() {
                           }}
                           rows={1}
                           placeholder="Nombre del item"
-                          className="flex-1 min-w-[180px] bg-white/5 border border-white/10 rounded px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none resize-none overflow-hidden leading-snug"
+                          className="shrink-0 w-48 bg-white/5 border border-white/10 rounded px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none resize-none overflow-hidden leading-snug"
                         />
                         <input
                           type="text"
@@ -721,17 +726,9 @@ export default function ComparativoComprasDetalle() {
                           value={it.cantidad}
                           onChange={(e) => actualizarItemCampo(it.id, 'cantidad', e.target.value)}
                           placeholder="Cant."
-                          className="w-20 bg-white/5 border border-white/10 rounded px-2 py-1.5 text-sm text-white text-right focus:border-cbvp-red/50 focus:outline-none"
+                          className="shrink-0 w-16 bg-white/5 border border-white/10 rounded px-2 py-1.5 text-sm text-white text-right focus:border-cbvp-red/50 focus:outline-none"
                         />
-                        <div className="text-right text-sm shrink-0 w-28">
-                          <span className={costoTotal !== null ? 'text-white font-semibold' : 'text-white/20'}>{costoTotal === null ? '-' : formatearNumero(costoTotal)}</span>
-                        </div>
-                        <button onClick={() => quitarFila(it.id)} className="p-1.5 rounded-lg hover:bg-cbvp-red/20 text-white/40 hover:text-cbvp-red transition-colors shrink-0" title="Quitar item">
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
 
-                      <div className="border-t border-white/10 bg-black/10 p-3 grid grid-cols-1 sm:grid-cols-3 gap-2">
                         {it.cotizaciones.map((c, idx) => {
                           const precioNum = parsePrecio(c.precio);
                           const esMinimo = minimo !== null && precioNum === minimo;
@@ -739,7 +736,7 @@ export default function ComparativoComprasDetalle() {
                           const puedeMarcar = precioNum !== null && !bloqueado;
                           const columnaExpandida = columnasExpandidas.has(`${it.id}:${idx}`);
                           return (
-                            <div key={c.id} className={`rounded-lg border overflow-hidden ${esSeleccionada ? 'border-cbvp-red/40 bg-cbvp-red/5' : 'border-white/10 bg-white/[0.02]'}`}>
+                            <div key={c.id} className={`shrink-0 w-48 rounded-lg border overflow-hidden ${esSeleccionada ? 'border-cbvp-red/40 bg-cbvp-red/5' : 'border-white/10 bg-white/[0.02]'}`}>
                               <div className="flex items-center justify-between px-2 py-1.5 border-b border-white/5">
                                 <div className="flex items-center gap-1.5">
                                   <button
@@ -830,6 +827,13 @@ export default function ComparativoComprasDetalle() {
                             </div>
                           );
                         })}
+
+                        <div className="text-right text-sm shrink-0 w-24 pt-2">
+                          <span className={costoTotal !== null ? 'text-white font-semibold' : 'text-white/20'}>{costoTotal === null ? '-' : formatearNumero(costoTotal)}</span>
+                        </div>
+                        <button onClick={() => quitarFila(it.id)} className="p-1.5 rounded-lg hover:bg-cbvp-red/20 text-white/40 hover:text-cbvp-red transition-colors shrink-0" title="Quitar item">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       </div>
                     </div>
                   );
