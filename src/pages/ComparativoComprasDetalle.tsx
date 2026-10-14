@@ -718,7 +718,7 @@ export default function ComparativoComprasDetalle() {
                           }}
                           rows={1}
                           placeholder="Nombre del item"
-                          className="shrink-0 w-48 bg-white/5 border border-white/10 rounded px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none resize-none overflow-hidden leading-snug"
+                          className="flex-1 min-w-[192px] bg-white/5 border border-white/10 rounded px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none resize-none overflow-hidden leading-snug"
                         />
                         <input
                           type="text"
@@ -736,7 +736,7 @@ export default function ComparativoComprasDetalle() {
                           const puedeMarcar = precioNum !== null && !bloqueado;
                           const columnaExpandida = columnasExpandidas.has(`${it.id}:${idx}`);
                           return (
-                            <div key={c.id} className={`shrink-0 w-48 rounded-lg border p-2 space-y-1 ${esSeleccionada ? 'border-cbvp-red/40 bg-cbvp-red/5' : 'border-white/10 bg-white/[0.02]'}`}>
+                            <div key={c.id} className={`shrink-0 w-56 rounded-lg border p-2 space-y-1 ${esSeleccionada ? 'border-cbvp-red/40 bg-cbvp-red/5' : 'border-white/10 bg-white/[0.02]'}`}>
                               {/* Sin etiqueta "PROVEEDOR N": el radio de
                                   seleccion y el desplegable van en la misma
                                   fila que el nombre, para ahorrar espacio. */}
