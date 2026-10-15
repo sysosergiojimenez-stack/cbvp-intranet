@@ -188,7 +188,7 @@ export async function exportarOrdenPagoPdf(orden: OrdenPagoExport) {
   doc.setFontSize(7.5);
   doc.setTextColor(120, 120, 120);
   doc.text(
-    'Documento de uso interno - CBVP - Este formulario debe conservarse en los registros contables de la Compania.',
+    `Documento de uso interno - ${ORGANIZACION.compania} - Este formulario debe conservarse en los registros contables de la Compania.`,
     pageWidth / 2,
     pageHeight - 10,
     { align: 'center' }

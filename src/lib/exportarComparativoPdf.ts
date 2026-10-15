@@ -179,7 +179,7 @@ export async function exportarComparativoPdf(comparativo: ComparativoExport) {
     doc.setFont('helvetica', 'italic');
     doc.setFontSize(7.5);
     doc.setTextColor(120, 120, 120);
-    doc.text('Documento de uso interno - CBVP.', pageWidth / 2, pageHeight - 10, { align: 'center' });
+    doc.text(`Documento de uso interno - ${ORGANIZACION.compania}.`, pageWidth / 2, pageHeight - 10, { align: 'center' });
     doc.setTextColor(0, 0, 0);
   }
 
