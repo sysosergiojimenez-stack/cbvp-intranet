@@ -4,6 +4,7 @@
 export const ORGANIZACION = {
   nombreCorto: "CBVP",
   nombreCompleto: "Cuerpo de Bomberos Voluntarios del Paraguay",
+  ruc: "80000983-5",
   compania: "Vigesima Compania Capital Mercado 4",
   companiaCorta: "20ma Cia. - Mercado 4",
   direccion: "Silvio Pettirossi esq Rca Francesa - Mercado Municipal N 4",

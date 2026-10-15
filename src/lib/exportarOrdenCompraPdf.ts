@@ -121,11 +121,13 @@ export async function exportarOrdenIndividualPdf(orden: OrdenIndividualExport) {
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
   doc.text(ORGANIZACION.nombreCompleto, pageWidth / 2, y0 + 13, { align: 'center' });
+  doc.setFontSize(8);
+  doc.text(`RUC: ${ORGANIZACION.ruc}`, pageWidth / 2, y0 + 18, { align: 'center' });
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(11);
-  doc.text(orden.nombreComparativo, pageWidth / 2, y0 + 20, { align: 'center' });
+  doc.text(orden.nombreComparativo, pageWidth / 2, y0 + 25, { align: 'center' });
 
-  let y = y0 + 27;
+  let y = y0 + 32;
   doc.setDrawColor(180, 30, 30);
   doc.setLineWidth(0.6);
   doc.line(10, y, pageWidth - 10, y);
