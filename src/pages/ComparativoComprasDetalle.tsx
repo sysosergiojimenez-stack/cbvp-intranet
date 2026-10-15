@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { trpc } from '@/providers/trpc';
 import {
   ArrowLeft, FileSpreadsheet, Plus, Trash2, Save, X, Pencil, Check, ShoppingCart, GitCompare,
-  ClipboardList, Download, Ban, ChevronDown, ChevronRight as ChevronRightIcon, Link2, ExternalLink,
+  ClipboardList, Download, Ban, ChevronDown, ChevronRight as ChevronRightIcon, Link2, ExternalLink, AlertTriangle,
 } from 'lucide-react';
 import { exportarOrdenIndividualPdf } from '@/lib/exportarOrdenCompraPdf';
 import { exportarComparativoComprasPdf } from '@/lib/exportarComparativoComprasPdf';
@@ -93,6 +93,11 @@ interface HojaServidor {
 // Columnas fijas de proveedor por item (Proveedor 1 / 2 / 3), cada una
 // desplegable por separado.
 const CANTIDAD_PROVEEDORES = 3;
+
+// Limite de compra directa por proveedor y por mes: por encima de este
+// monto se advierte en el subtotal, ya que puede requerir otro
+// procedimiento de contratacion.
+const LIMITE_COMPRA_DIRECTA = 2798000;
 
 function generarIdLocal(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -942,7 +947,17 @@ export default function ComparativoComprasDetalle() {
                   <div key={grupoProveedor.proveedor} className="border-t border-white/5">
                     <div className="flex items-center justify-between px-3 py-1.5 bg-white/[0.02]">
                       <span className="text-xs font-semibold text-white/70">{grupoProveedor.proveedor}</span>
-                      <span className="text-xs text-white/50">Subtotal: {formatearNumero(grupoProveedor.subtotal)}</span>
+                      <div className="flex items-center gap-2">
+                        {grupoProveedor.subtotal > LIMITE_COMPRA_DIRECTA && (
+                          <span
+                            className="flex items-center gap-1 text-[10px] font-semibold text-cbvp-yellow"
+                            title={`Supera el limite de compra directa (${formatearNumero(LIMITE_COMPRA_DIRECTA)}) para este proveedor en el mes`}
+                          >
+                            <AlertTriangle className="w-3 h-3" /> Supera limite de compra directa
+                          </span>
+                        )}
+                        <span className="text-xs text-white/50">Subtotal: {formatearNumero(grupoProveedor.subtotal)}</span>
+                      </div>
                     </div>
                     {grupoProveedor.ordenes.map((o) => (
                       <div key={o.id} className={`flex items-center gap-2 px-3 py-1.5 border-t border-white/5 text-xs sm:text-sm ${o.estado === 'anulada' ? 'opacity-50' : ''}`}>
