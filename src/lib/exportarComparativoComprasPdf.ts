@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import QRCode from 'qrcode';
 import { ORGANIZACION } from '@/config/organizacion';
 
 async function cargarInsigniaBase64(): Promise<string | null> {
@@ -19,6 +20,14 @@ async function cargarInsigniaBase64(): Promise<string | null> {
 
 function formatearNumero(valor: number): string {
   return valor.toLocaleString('es-PY', { maximumFractionDigits: 2 });
+}
+
+async function generarQrDataUrl(url: string): Promise<string | null> {
+  try {
+    return await QRCode.toDataURL(url, { width: 120, margin: 0 });
+  } catch {
+    return null;
+  }
 }
 
 export interface CotizacionComprasExport {
@@ -125,6 +134,12 @@ export async function exportarComparativoComprasPdf(comparativo: ComparativoComp
       const precios = item.cotizaciones.map((c) => c.precio);
       const minimo = precios.some((p) => p !== null) ? Math.min(...precios.filter((p): p is number => p !== null)) : null;
 
+      // QR por cotizacion con URL cargada: se generan antes de la tabla
+      // porque la libreria es asincronica y el dibujo de celdas no lo es.
+      const qrPorFila = await Promise.all(
+        item.cotizaciones.map((c) => (c.url.trim() ? generarQrDataUrl(c.url.trim()) : Promise.resolve(null)))
+      );
+
       autoTable(doc, {
         startY: y,
         theme: 'grid',
@@ -133,13 +148,16 @@ export async function exportarComparativoComprasPdf(comparativo: ComparativoComp
           const costoTotal = item.cantidad !== null && c.precio !== null ? item.cantidad * c.precio : null;
           const esMinimo = minimo !== null && c.precio === minimo;
           const estilo = esMinimo ? { fillColor: [20, 120, 60] as [number, number, number], textColor: 255 } : {};
+          const tieneUrl = c.url.trim() !== '';
           return [
             { content: c.proveedor || '-', styles: estilo },
             { content: c.codigoProducto || '-', styles: estilo },
             { content: c.nombreProducto || '-', styles: estilo },
             { content: c.precio === null ? '-' : formatearNumero(c.precio), styles: { halign: 'right' as const, ...estilo } },
             { content: costoTotal === null ? '-' : formatearNumero(costoTotal), styles: { halign: 'right' as const, ...estilo } },
-            { content: c.url || '-', styles: estilo },
+            // El contenido de texto se deja vacio cuando hay URL: el QR se
+            // dibuja aparte en didDrawCell. minCellHeight le hace lugar.
+            { content: tieneUrl ? '' : '-', styles: { halign: 'center' as const, minCellHeight: tieneUrl ? 18 : undefined, ...estilo } },
           ];
         }),
         styles: { fontSize: 7.5, cellPadding: 1.8, overflow: 'linebreak' },
@@ -147,9 +165,27 @@ export async function exportarComparativoComprasPdf(comparativo: ComparativoComp
         columnStyles: {
           3: { cellWidth: 24 },
           4: { cellWidth: 24 },
-          5: { cellWidth: 38 },
+          5: { cellWidth: 20 },
         },
         margin: { left: 10, right: 10 },
+        // Dibuja el QR escaneable y agrega un enlace clickeable/seleccionable
+        // sobre toda la celda para poder abrir la URL directamente desde el PDF.
+        didDrawCell: (data) => {
+          if (data.section !== 'body' || data.column.index !== 5) return;
+          const cot = item.cotizaciones[data.row.index];
+          const url = cot?.url.trim();
+          const qr = qrPorFila[data.row.index];
+          if (!url || !qr) return;
+          const size = Math.min(data.cell.height - 2, 16);
+          const qx = data.cell.x + (data.cell.width - size) / 2;
+          const qy = data.cell.y + 1;
+          try {
+            doc.addImage(qr, 'PNG', qx, qy, size, size);
+          } catch {
+            /* ignore */
+          }
+          doc.link(data.cell.x, data.cell.y, data.cell.width, data.cell.height, { url });
+        },
       });
       // @ts-expect-error lastAutoTable se agrega dinamicamente por el plugin
       y = doc.lastAutoTable.finalY + 6;
