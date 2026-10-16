@@ -346,7 +346,8 @@ export default function ComparativoComprasDetalle() {
         });
       }
       const subtotal = cantidad * precio;
-      const nombreItem = (it.item.trim() || '-') + (cot.nombreProducto.trim() ? ` - ${cot.nombreProducto.trim()}` : '');
+      const codigoPrefijo = cot.codigoProducto.trim() ? `${cot.codigoProducto.trim()} - ` : '';
+      const nombreItem = codigoPrefijo + (it.item.trim() || '-') + (cot.nombreProducto.trim() ? ` - ${cot.nombreProducto.trim()}` : '');
       resumenProveedores[i].cantidadItems += 1;
       resumenProveedores[i].total += subtotal;
       resumenProveedores[i].items.push({ itemId: it.id, cotizacionId: cot.id, grupo: h.nombre, item: nombreItem, cantidad, precioUnitario: precio, subtotal });
