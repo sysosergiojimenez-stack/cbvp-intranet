@@ -4,7 +4,7 @@ import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Toolti
 import { trpc } from '@/providers/trpc';
 import {
   Landmark, Plus, Trash2, Save, ChartColumn, Wallet, TrendingUp, TrendingDown,
-  Fuel, Receipt, FileText, HandCoins, FileSpreadsheet, ChevronRight,
+  Fuel, Receipt, FileText, HandCoins, FileSpreadsheet, ChevronRight, PiggyBank,
 } from 'lucide-react';
 
 function formatearGs(valor: number): string {
@@ -116,6 +116,15 @@ const SUBMODULOS = [
     color: 'text-cbvp-purple',
     bg: 'bg-cbvp-purple/8',
     border: 'border-cbvp-purple/15 hover:border-cbvp-purple/30',
+  },
+  {
+    title: 'Colecta',
+    description: 'Formatos de Tesoreria en PDF: distribucion, conteo y actas de alcancias, POS Upay y transferencias.',
+    icon: PiggyBank,
+    path: '/colecta',
+    color: 'text-cbvp-orange',
+    bg: 'bg-cbvp-orange/8',
+    border: 'border-cbvp-orange/15 hover:border-cbvp-orange/30',
   },
   {
     title: 'Comparativos de Compras',

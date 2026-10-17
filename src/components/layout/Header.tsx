@@ -25,6 +25,7 @@ const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
   '/informe-accidentes': { title: 'Informe 10:41 / 10:42', subtitle: 'Informe de accidente o rescate generado a partir de una salida de movil' },
   '/informe-prehospitalario': { title: 'Historia Prehospitalaria', subtitle: 'Informe de asistencia a pacientes generado a partir de una salida de movil' },
   '/cuotas-bomberos': { title: 'Cuotas de Bomberos', subtitle: 'Registro de pagos de cuota mensual' },
+  '/colecta': { title: 'Colecta', subtitle: 'Formatos de Tesoreria para el conteo de alcancias, POS Upay y transferencias' },
   '/direccion-administrativa': { title: 'Direccion Administrativa', subtitle: 'Saldos, ingresos y egresos, y acceso rapido a cada submodulo' },
   '/comandante-compania': { title: 'Comandante de Compania', subtitle: 'Elegi un submodulo para continuar' },
   '/primer-oficial': { title: 'Primer Oficial', subtitle: 'Elegi un submodulo para continuar' },

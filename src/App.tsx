@@ -33,6 +33,7 @@ import CuotasBomberos from '@/pages/CuotasBomberos';
 import OrdenesPago from '@/pages/OrdenesPago';
 import FacturasGastos from '@/pages/FacturasGastos';
 import CampanaSocios from '@/pages/CampanaSocios';
+import Colecta from '@/pages/Colecta';
 import InformeIncendio from '@/pages/InformeIncendio';
 import InformeAccidente from '@/pages/InformeAccidente';
 import InformePrehospitalario from '@/pages/InformePrehospitalario';
@@ -174,6 +175,11 @@ function AppRoutes() {
         <Route path="/facturas-gastos" element={
           <ProtectedRoute>
             {permisos.puedeVerDireccionAdministrativa ? <FacturasGastos /> : <Navigate to="/" replace />}
+          </ProtectedRoute>
+        } />
+        <Route path="/colecta" element={
+          <ProtectedRoute>
+            {permisos.puedeVerDireccionAdministrativa ? <Colecta /> : <Navigate to="/" replace />}
           </ProtectedRoute>
         } />
         <Route path="/campana-socios" element={
