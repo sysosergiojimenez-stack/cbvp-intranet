@@ -161,6 +161,7 @@ export default function Colecta() {
   const totalResumen = datos.resumen.reduce((s, f) => s + aEntero(f.billetes) + aEntero(f.monedas), 0);
   const totalPos = datos.pos.reduce((s, f) => s + aEntero(f.monto), 0);
   const totalTransf = datos.transferencias.reduce((s, f) => s + aEntero(f.monto), 0);
+  const totalGeneral = totalResumen + totalPos + totalTransf;
 
   const formatoActual = FORMATOS_COLECTA.find(f => f.id === tab)!;
 
@@ -181,6 +182,28 @@ export default function Colecta() {
           <div><label className="text-xs text-white/40 mb-1 block">Ciudad (actas)</label><input type="text" value={datos.general.ciudad} onChange={e => setGeneral('ciudad', e.target.value)} className={inputCls} /></div>
           <div><label className="text-xs text-white/40 mb-1 block">Fecha (actas)</label><input type="date" value={datos.general.fecha} onChange={e => setGeneral('fecha', e.target.value)} className={`${inputCls} [color-scheme:dark]`} /></div>
           <div><label className="text-xs text-white/40 mb-1 block">Local (actas)</label><input type="text" value={datos.general.local} onChange={e => setGeneral('local', e.target.value)} placeholder="Dejar vacío para completar a mano" className={inputCls} /></div>
+        </div>
+      </div>
+
+      <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-4">
+        <h2 className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-3">Total general de la colecta</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="bg-white/[0.03] border border-white/10 rounded-lg px-4 py-3">
+            <span className="block text-xs text-white/50 mb-1">Actas de Conteo (alcancías)</span>
+            <span className="text-lg font-mono font-semibold text-white">{formatearGs(totalResumen)}</span>
+          </div>
+          <div className="bg-white/[0.03] border border-white/10 rounded-lg px-4 py-3">
+            <span className="block text-xs text-white/50 mb-1">POS Upay</span>
+            <span className="text-lg font-mono font-semibold text-white">{formatearGs(totalPos)}</span>
+          </div>
+          <div className="bg-white/[0.03] border border-white/10 rounded-lg px-4 py-3">
+            <span className="block text-xs text-white/50 mb-1">Transferencias</span>
+            <span className="text-lg font-mono font-semibold text-white">{formatearGs(totalTransf)}</span>
+          </div>
+          <div className="bg-cbvp-green/10 border border-cbvp-green/30 rounded-lg px-4 py-3">
+            <span className="block text-xs text-white/50 mb-1">Total General</span>
+            <span className="text-lg font-mono font-semibold text-cbvp-green">{formatearGs(totalGeneral)}</span>
+          </div>
         </div>
       </div>
 
