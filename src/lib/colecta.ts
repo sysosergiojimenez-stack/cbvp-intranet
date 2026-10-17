@@ -22,6 +22,28 @@ export interface FilaResumen { n: string; billetes: string; monedas: string }
 export interface FilaPos { n: string; desde: string; hasta: string; monto: string }
 export interface FilaTransferencia { n: string; comprobante: string; banco: string; monto: string }
 
+// La colecta es anual: puede haber varias actas de conteo dentro del mismo
+// año (las alcancias no siempre se abren todas juntas), cada una con su
+// propia fecha y su propia tabla de alcancias/totales.
+export interface Acta {
+  id: string;
+  titulo: string;
+  // YYYY-MM-DD o '' (usa la fecha general de la colecta si esta vacia)
+  fecha: string;
+  filas: FilaResumen[];
+}
+
+export interface Colecta {
+  id: string;
+  anio: string;
+  general: ColectaGeneral;
+  distribucion: FilaDistribucion[];
+  conteo: DatosConteo;
+  actas: Acta[];
+  pos: FilaPos[];
+  transferencias: FilaTransferencia[];
+}
+
 // Un conteo (de una alcancia o de un sobre): cantidad por denominacion.
 export interface ConteoBloque {
   numero: string;
@@ -67,4 +89,21 @@ export function dividirFecha(fecha: string): { dia: string; mes: string; anio: s
 export function fechaISOHoy(): string {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+export function generarId(): string {
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+export function nuevaActa(numero: number): Acta {
+  return {
+    id: generarId(),
+    titulo: `Acta N° ${numero}`,
+    fecha: fechaISOHoy(),
+    filas: filasNumeradas<FilaResumen>(15, n => ({ n, billetes: '', monedas: '' })),
+  };
+}
+
+export function totalFilasResumen(filas: FilaResumen[]): number {
+  return filas.reduce((s, f) => s + aEntero(f.billetes) + aEntero(f.monedas), 0);
 }

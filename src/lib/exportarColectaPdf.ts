@@ -234,15 +234,23 @@ function filasResumen(filas: FilaResumen[]): string[][] {
   });
 }
 
-function dibujarResumen(doc: jsPDF, logos: Logos, g: ColectaGeneral, filas: FilaResumen[]) {
+function dibujarResumen(doc: jsPDF, logos: Logos, g: ColectaGeneral, filas: FilaResumen[], tituloActa?: string) {
   let y = encabezado(doc, logos, 'RESUMEN DE ALCANCÍAS ABIERTAS', g.compania);
+  if (tituloActa) {
+    celda(doc, ML, y, W, 7, tituloActa, { bold: true, italic: true, align: 'center', size: 10 });
+    y += 7;
+  }
   y = tabla(doc, y, COL_RESUMEN, filasResumen(filas), 10);
   bloqueFirmas(doc, y + 8, FIRMAS_ACTA);
 }
 
 // ---------------- 4. Acta de conteo ----------------
-function dibujarActaConteo(doc: jsPDF, logos: Logos, g: ColectaGeneral, filas: FilaResumen[]) {
+function dibujarActaConteo(doc: jsPDF, logos: Logos, g: ColectaGeneral, filas: FilaResumen[], tituloActa?: string) {
   let y = encabezado(doc, logos, 'ACTA DE CONTEO', g.compania);
+  if (tituloActa) {
+    celda(doc, ML, y, W, 7, tituloActa, { bold: true, italic: true, align: 'center', size: 10 });
+    y += 7;
+  }
   y = parrafoActa(doc, y, g);
   y = tabla(doc, y, COL_RESUMEN, filasResumen(filas), 8);
   const abiertas = filas.filter(f => f.billetes.trim() !== '' || f.monedas.trim() !== '').length;
@@ -287,11 +295,16 @@ function dibujarTransferencias(doc: jsPDF, logos: Logos, g: ColectaGeneral, fila
 }
 
 // ---------------- API publica ----------------
+// Una colecta puede tener varias actas de conteo (una por cada vez que se
+// abren alcancias); cada una se imprime en su propia pagina, con su propio
+// titulo y fecha.
+export interface ActaExport { titulo: string; fecha: string; filas: FilaResumen[] }
+
 export interface DatosColecta {
   general: ColectaGeneral;
   distribucion: FilaDistribucion[];
   conteo: DatosConteo;
-  resumen: FilaResumen[];
+  actas: ActaExport[];
   pos: FilaPos[];
   transferencias: FilaTransferencia[];
 }
@@ -307,12 +320,18 @@ export const FORMATOS_COLECTA: { id: FormatoColecta; titulo: string; archivo: st
   { id: 'transferencias', titulo: 'Control de transferencias', archivo: 'CONTROL_DE_TRANSFERENCIAS' },
 ];
 
-function dibujar(doc: jsPDF, logos: Logos, formato: FormatoColecta, d: DatosColecta) {
+function dibujar(doc: jsPDF, logos: Logos, formato: FormatoColecta, d: DatosColecta, acta?: ActaExport) {
   switch (formato) {
     case 'distribucion': return dibujarDistribucion(doc, logos, d.general, d.distribucion);
     case 'conteo': return dibujarConteo(doc, logos, d.general, d.conteo);
-    case 'resumen': return dibujarResumen(doc, logos, d.general, d.resumen);
-    case 'acta': return dibujarActaConteo(doc, logos, d.general, d.resumen);
+    case 'resumen': {
+      const g = acta ? { ...d.general, fecha: acta.fecha || d.general.fecha } : d.general;
+      return dibujarResumen(doc, logos, g, acta?.filas ?? [], d.actas.length > 1 ? acta?.titulo : undefined);
+    }
+    case 'acta': {
+      const g = acta ? { ...d.general, fecha: acta.fecha || d.general.fecha } : d.general;
+      return dibujarActaConteo(doc, logos, g, acta?.filas ?? [], d.actas.length > 1 ? acta?.titulo : undefined);
+    }
     case 'pos': return dibujarPos(doc, logos, d.general, d.pos);
     case 'transferencias': return dibujarTransferencias(doc, logos, d.general, d.transferencias);
   }
@@ -322,10 +341,23 @@ export async function exportarColectaPdf(formato: FormatoColecta | 'todos', d: D
   const logos = await cargarLogos();
   const doc = new jsPDF('portrait', 'mm', 'a4');
   const formatos = formato === 'todos' ? FORMATOS_COLECTA.map(f => f.id) : [formato];
-  formatos.forEach((f, i) => {
+
+  // Las actas de conteo (resumen/acta) generan una pagina por cada acta
+  // cargada; el resto de los formatos es una sola pagina cada uno.
+  const paginas: (() => void)[] = [];
+  for (const f of formatos) {
+    if (f === 'resumen' || f === 'acta') {
+      const actas = d.actas.length > 0 ? d.actas : [undefined];
+      for (const acta of actas) paginas.push(() => dibujar(doc, logos, f, d, acta));
+    } else {
+      paginas.push(() => dibujar(doc, logos, f, d));
+    }
+  }
+  paginas.forEach((dibujarPagina, i) => {
     if (i > 0) doc.addPage();
-    dibujar(doc, logos, f, d);
+    dibujarPagina();
   });
+
   const nombre = formato === 'todos' ? 'COLECTA_TODOS_LOS_FORMATOS' : FORMATOS_COLECTA.find(f => f.id === formato)!.archivo;
   doc.save(`${nombre}.pdf`);
 }
