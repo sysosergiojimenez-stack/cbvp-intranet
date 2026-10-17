@@ -230,6 +230,12 @@ export default function Colecta() {
         const filas = idx >= 0 ? a.filas.map((f, i) => (i === idx ? fila : f)) : [...a.filas, fila];
         return { ...a, filas };
       }),
+      // Deja las celdas de billetes/monedas de alcancía y sobre listas para
+      // el siguiente conteo, en vez de mostrar los numeros ya pasados.
+      conteo: {
+        alcancia: { ...c.conteo.alcancia, cantidades: {} },
+        sobre: { ...c.conteo.sobre, cantidades: {} },
+      },
     }));
     alert(`Alcancía ${n} agregada a "${actaDestino?.titulo || 'el acta'}".`);
   };
