@@ -40,6 +40,7 @@ function filaVacia(): FilaDetalle {
 }
 
 interface EditForm {
+  numero: string;
   fecha: string;
   mesaEntrada: string;
   bancoNombre: string;
@@ -52,7 +53,7 @@ interface EditForm {
 }
 
 function editFormVacio(): EditForm {
-  return { fecha: '', mesaEntrada: '', bancoNombre: '', bancoCuenta: '', tipoMovimiento: '', detalle: [filaVacia()], observaciones: '', comandanteNombre: '', directorNombre: '' };
+  return { numero: '', fecha: '', mesaEntrada: '', bancoNombre: '', bancoCuenta: '', tipoMovimiento: '', detalle: [filaVacia()], observaciones: '', comandanteNombre: '', directorNombre: '' };
 }
 
 function hoyDDMMYYYY(): string {
@@ -104,6 +105,7 @@ export default function OrdenesPago() {
   const [editError, setEditError] = useState('');
 
   const [fecha, setFecha] = useState(hoyDDMMYYYY());
+  const [numeroManual, setNumeroManual] = useState('');
   const [mesaEntrada, setMesaEntrada] = useState('');
   const [bancoNombre, setBancoNombre] = useState('');
   const [bancoCuenta, setBancoCuenta] = useState('');
@@ -249,8 +251,10 @@ export default function OrdenesPago() {
     setGuardando(true);
     try {
       const anioOrden = parseInt(fecha.split('/')[2], 10) || new Date().getFullYear();
+      const numeroParsed = numeroManual.trim() ? parseInt(numeroManual.trim(), 10) : undefined;
       const res = await guardarMutation.mutateAsync({
         anio: anioOrden,
+        numero: numeroParsed,
         fecha,
         mesaEntrada: mesaEntrada.trim(),
         bancoNombre: bancoNombre.trim(),
@@ -270,6 +274,7 @@ export default function OrdenesPago() {
       });
       setExito(`Orden de Pago N° ${res.numero}/${anioOrden} guardada correctamente.`);
       setFecha(hoyDDMMYYYY());
+      setNumeroManual('');
       setMesaEntrada('');
       setTipoMovimiento('');
       setDetalle([filaVacia()]);
@@ -296,6 +301,7 @@ export default function OrdenesPago() {
     setEditError('');
     setEditandoId(orden.id);
     setEditForm({
+      numero: String(orden.numero),
       fecha: orden.fecha,
       mesaEntrada: orden.mesaEntrada,
       bancoNombre: orden.bancoNombre,
@@ -332,6 +338,7 @@ export default function OrdenesPago() {
     try {
       await editarMutation.mutateAsync({
         id: editandoId,
+        numero: editForm.numero.trim() ? parseInt(editForm.numero.trim(), 10) : undefined,
         fecha: editForm.fecha,
         mesaEntrada: editForm.mesaEntrada.trim(),
         bancoNombre: editForm.bancoNombre.trim(),
@@ -419,6 +426,17 @@ export default function OrdenesPago() {
         )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+          <div>
+            <label className="block text-xs text-white/40 uppercase tracking-wider mb-1">N° de Orden (opcional)</label>
+            <input
+              type="text"
+              inputMode="numeric"
+              value={numeroManual}
+              onChange={(e) => setNumeroManual(e.target.value.replace(/[^\d]/g, ''))}
+              placeholder="Se autoasigna si lo dejas vacio"
+              className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-cbvp-red/50 focus:outline-none"
+            />
+          </div>
           <div>
             <label className="block text-xs text-white/40 uppercase tracking-wider mb-1">Fecha</label>
             <input
@@ -639,6 +657,16 @@ export default function OrdenesPago() {
                         <tr className="border-b border-white/5 bg-white/[0.02]">
                           <td colSpan={8} className="px-3 pb-4 pt-3">
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
+                              <div>
+                                <label className="block text-xs text-white/40 uppercase tracking-wider mb-1">N° de Orden</label>
+                                <input
+                                  type="text"
+                                  inputMode="numeric"
+                                  value={editForm.numero}
+                                  onChange={(e) => setEditForm((prev) => ({ ...prev, numero: e.target.value.replace(/[^\d]/g, '') }))}
+                                  className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:border-cbvp-red/50 focus:outline-none"
+                                />
+                              </div>
                               <div>
                                 <label className="block text-xs text-white/40 uppercase tracking-wider mb-1">Fecha</label>
                                 <input

@@ -136,6 +136,10 @@ export const ordenesPagoRouter = createRouter({
     .input(
       z.object({
         anio: z.number(),
+        // Si se indica, se usa tal cual (ej. para cargar ordenes viejas en
+        // papel que ya tenian su propio numero). Si no, se autoasigna el
+        // siguiente correlativo del año.
+        numero: z.number().int().positive().optional(),
         fecha: z.string().min(1),
         mesaEntrada: z.string().optional(),
         bancoNombre: z.string(),
@@ -152,14 +156,25 @@ export const ordenesPagoRouter = createRouter({
     .mutation(async ({ input }) => {
       // El numero se recalcula en el momento de guardar (no se confia en el
       // que el cliente vio al abrir el formulario) para minimizar colisiones
-      // entre dos personas cargando ordenes casi al mismo tiempo.
+      // entre dos personas cargando ordenes casi al mismo tiempo -- salvo
+      // que se haya indicado uno manualmente, en cuyo caso solo se valida
+      // que no este repetido dentro del mismo año.
       const snapshot = await colOrdenesPago().where("anio", "==", input.anio).get();
-      let max = 0;
-      snapshot.forEach((doc) => {
-        const n = Number(doc.data().numero) || 0;
-        if (n > max) max = n;
-      });
-      const numero = max + 1;
+      let numero: number;
+      if (input.numero) {
+        const repetido = snapshot.docs.some((doc) => (Number(doc.data().numero) || 0) === input.numero);
+        if (repetido) {
+          throw new Error(`Ya existe una Orden de Pago N° ${input.numero}/${input.anio}.`);
+        }
+        numero = input.numero;
+      } else {
+        let max = 0;
+        snapshot.forEach((doc) => {
+          const n = Number(doc.data().numero) || 0;
+          if (n > max) max = n;
+        });
+        numero = max + 1;
+      }
       const total = input.detalle.reduce((acc, d) => acc + (d.monto || 0), 0);
 
       const id = generateId();
@@ -190,6 +205,7 @@ export const ordenesPagoRouter = createRouter({
     .input(
       z.object({
         id: z.string().min(1),
+        numero: z.number().int().positive().optional(),
         fecha: z.string().min(1),
         mesaEntrada: z.string().optional(),
         bancoNombre: z.string(),
@@ -202,11 +218,22 @@ export const ordenesPagoRouter = createRouter({
       })
     )
     .mutation(async ({ input }) => {
-      const { id, ...campos } = input;
+      const { id, numero, ...campos } = input;
       const total = campos.detalle.reduce((acc, d) => acc + (d.monto || 0), 0);
+      const actualizacion: Record<string, unknown> = { ...campos, mesaEntrada: campos.mesaEntrada || "", total };
+      if (numero) {
+        const actual = await colOrdenesPago().doc(id).get();
+        const anio = Number(actual.data()?.anio) || new Date().getFullYear();
+        const snapshot = await colOrdenesPago().where("anio", "==", anio).get();
+        const repetido = snapshot.docs.some((doc) => doc.id !== id && (Number(doc.data().numero) || 0) === numero);
+        if (repetido) {
+          throw new Error(`Ya existe otra Orden de Pago N° ${numero}/${anio}.`);
+        }
+        actualizacion.numero = numero;
+      }
       await colOrdenesPago()
         .doc(id)
-        .update({ ...campos, mesaEntrada: campos.mesaEntrada || "", total });
+        .update(actualizacion);
       return { exito: true as const };
     }),
 
