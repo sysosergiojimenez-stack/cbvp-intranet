@@ -3,9 +3,9 @@ import autoTable from 'jspdf-autotable';
 import { ORGANIZACION } from '@/config/organizacion';
 import { LABEL_TIPO_MOVIMIENTO, type TipoMovimientoOrdenPago } from '@contracts/ordenesPago';
 
-async function cargarInsigniaBase64(): Promise<string | null> {
+async function cargarImagenBase64(ruta: string): Promise<string | null> {
   try {
-    const resp = await fetch('/insignia.jpg');
+    const resp = await fetch(ruta);
     const blob = await resp.blob();
     return await new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -16,6 +16,33 @@ async function cargarInsigniaBase64(): Promise<string | null> {
   } catch {
     return null;
   }
+}
+
+async function cargarInsigniaBase64(): Promise<string | null> {
+  return cargarImagenBase64('/insignia.jpg');
+}
+
+function normalizarNombre(nombre: string): string {
+  return nombre
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '');
+}
+
+// Las firmas escaneadas solo se estampan automaticamente cuando el nombre
+// cargado en la orden coincide con la persona de la firma (por apellido),
+// para no poner la firma de alguien en una orden firmada por otra persona.
+// Si no coincide, se deja la linea en blanco para firmar a mano como antes.
+const FIRMAS_CONOCIDAS: { apellido: string; archivo: string }[] = [
+  { apellido: 'cespedes', archivo: '/firma-comandante.png' },
+  { apellido: 'riveros', archivo: '/firma-director.png' },
+];
+
+async function cargarFirmaSiCorresponde(nombre: string): Promise<string | null> {
+  const normalizado = normalizarNombre(nombre);
+  const match = FIRMAS_CONOCIDAS.find((f) => normalizado.includes(f.apellido));
+  if (!match) return null;
+  return cargarImagenBase64(match.archivo);
 }
 
 function formatearMiles(valor: number): string {
@@ -44,7 +71,11 @@ export interface OrdenPagoExport {
 }
 
 export async function exportarOrdenPagoPdf(orden: OrdenPagoExport) {
-  const insignia = await cargarInsigniaBase64();
+  const [insignia, firmaComandante, firmaDirector] = await Promise.all([
+    cargarInsigniaBase64(),
+    cargarFirmaSiCorresponde(orden.comandanteNombre || ''),
+    cargarFirmaSiCorresponde(orden.directorNombre || ''),
+  ]);
   const doc = new jsPDF('portrait', 'mm', 'a4');
   const pageWidth = doc.internal.pageSize.getWidth();
 
@@ -169,6 +200,25 @@ export async function exportarOrdenPagoPdf(orden: OrdenPagoExport) {
   const colW = (pageWidth - 20) / 2;
   const xIzq = 10;
   const xDer = 10 + colW;
+
+  // Si el nombre cargado coincide con una firma conocida, se estampa la
+  // imagen escaneada apoyada sobre la linea (como una firma real); si no,
+  // la linea queda en blanco para firmar a mano.
+  const dibujarFirma = (firma: string | null, xCentro: number) => {
+    if (!firma) return;
+    try {
+      const props = doc.getImageProperties(firma);
+      const ratio = props.width / props.height || 1;
+      const alto = 9;
+      const ancho = Math.min(alto * ratio, 42);
+      doc.addImage(firma, 'PNG', xCentro - ancho / 2, y - alto - 0.5, ancho, alto);
+    } catch {
+      /* ignore */
+    }
+  };
+  dibujarFirma(firmaComandante, xIzq + colW / 2);
+  dibujarFirma(firmaDirector, xDer + colW / 2);
+
   doc.setDrawColor(0);
   doc.setLineWidth(0.3);
   doc.line(xIzq + 10, y, xIzq + colW - 10, y);
