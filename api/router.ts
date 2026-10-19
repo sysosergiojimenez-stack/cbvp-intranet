@@ -22,6 +22,7 @@ import { facturasGastosRouter } from "./routers/facturasGastos";
 import { campanaSociosRouter } from "./routers/campanaSocios";
 import { comparativosRouter } from "./routers/comparativos";
 import { comparativoComprasRouter } from "./routers/comparativoCompras";
+import { colectaRouter } from "./routers/colecta";
 import { telegramRouter } from "./routers/telegram";
 
 export const appRouter = createRouter({
@@ -50,6 +51,7 @@ export const appRouter = createRouter({
   campanaSocios: campanaSociosRouter,
   comparativos: comparativosRouter,
   comparativoCompras: comparativoComprasRouter,
+  colecta: colectaRouter,
   telegram: telegramRouter,
 });
 
